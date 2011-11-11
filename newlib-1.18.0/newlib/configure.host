@@ -198,6 +198,9 @@ case "${host_cpu}" in
   mep)
 	machine_dir=mep
 	;;
+  riscv*)
+	machine_dir=riscv
+	;;
   mips*)
 	machine_dir=mips
 	;;
