@@ -1,0 +1,3 @@
+build-*
+*-*-riscv.patch
+Makelocal

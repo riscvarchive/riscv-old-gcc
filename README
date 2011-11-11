@@ -1,0 +1,24 @@
+==========================================================================
+RISC-V Cross-Compiler
+==========================================================================
+# Author  : Andrew Waterman
+# Date    : November 11, 2011
+# Version : (under version control)
+
+This is the RISC-V C and C++ cross-compiler. It supports two build modes:
+a generic ELF/Newlib toolchain and a more sophisticated Linux-ELF/glibc
+toolchain.  The latter is also the basis for the RISC-V Akaros cross-
+compiler, which is kept separately in the Akaros repository.
+
+To build the Newlib cross-compiler, pick an install path.  If you choose,
+say, /opt/riscv-gcc, then add /opt/riscv-gcc/bin to your PATH now.  Then,
+simply run the following command:
+
+ % make INSTALL_DIR=/opt/riscv-gcc
+
+You should now be able to use riscv-gcc and its cousins.
+
+
+To build the Linux cross-compiler, riscv-linux-gcc:
+
+ % make linux INSTALL_DIR=/opt/riscv-linux-gcc
