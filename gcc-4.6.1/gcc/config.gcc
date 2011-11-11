@@ -1861,6 +1861,18 @@ mips*-*-netbsd*)			# NetBSD/mips, either endian.
 	tm_file="elfos.h ${tm_file} mips/elf.h netbsd.h netbsd-elf.h mips/netbsd.h"
 	extra_options="${extra_options} netbsd.opt netbsd-elf.opt"
 	;;
+riscv*-*-linux*)				# Linux RISC-V
+	tm_file="dbxelf.h elfos.h gnu-user.h linux.h glibc-stdint.h ${tm_file} riscv/linux.h riscv/linux64.h"
+	tmake_file="${tmake_file} riscv/t-linux64"
+	gnu_ld=yes
+	gas=yes
+	;;
+riscv*-*-elf*)				# Linux RISC-V
+	tm_file="dbxelf.h elfos.h newlib-stdint.h ${tm_file} riscv/elf.h"
+	tmake_file="${tmake_file} riscv/t-elf"
+	gnu_ld=yes
+	gas=yes
+	;;
 mips64*-*-linux* | mipsisa64*-*-linux*)
 	tm_file="dbxelf.h elfos.h gnu-user.h linux.h glibc-stdint.h ${tm_file} mips/linux.h mips/linux64.h"
 	tmake_file="${tmake_file} mips/t-linux64 mips/t-libgcc-mips16"
@@ -3380,6 +3392,31 @@ case "${target}" in
 			esac
 		done
 		;;
+
+	riscv*-*-*)
+		supported_defaults="abi arch arch_32 arch_64 float tune tune_32 tune_64"
+
+		case ${with_float} in
+		"" | soft | hard)
+			# OK
+			;;
+		*)
+			echo "Unknown floating point type used in --with-float=$with_float" 1>&2
+			exit 1
+			;;
+		esac
+
+		case ${with_abi} in
+		"" | 32 | 64)
+			# OK
+			;;
+		*)
+			echo "Unknown ABI used in --with-abi=$with_abi" 1>&2
+			exit 1
+			;;
+		esac
+
+    ;;
 
 	mips*-*-*)
 		supported_defaults="abi arch arch_32 arch_64 float tune tune_32 tune_64 divide llsc mips-plt synci"

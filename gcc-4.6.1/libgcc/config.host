@@ -506,6 +506,8 @@ powerpcle-*-eabisim*)
 	;;
 powerpcle-*-eabi*)
 	;;
+riscv*-*-*)
+	;;
 rs6000-ibm-aix4.[3456789]* | powerpc-ibm-aix4.[3456789]*)
 	;;
 rs6000-ibm-aix5.1.* | powerpc-ibm-aix5.1.*)
