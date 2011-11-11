@@ -338,6 +338,14 @@ disassembler (abfd)
 	disassemble = print_insn_little_powerpc;
       break;
 #endif
+#ifdef ARCH_riscv
+    case bfd_arch_riscv:
+      if (bfd_big_endian (abfd))
+	disassemble = print_insn_big_riscv;
+      else
+	disassemble = print_insn_little_riscv;
+      break;
+#endif
 #ifdef ARCH_rs6000
     case bfd_arch_rs6000:
       if (bfd_get_mach (abfd) == bfd_mach_ppc_620)

@@ -323,6 +323,9 @@ case $basic_machine in
 	ms1)
 		basic_machine=mt-unknown
 		;;
+	riscv)
+		basic_machine=riscv-ucb
+		;;
 
 	# We use `pc' rather than `unknown'
 	# because (1) that's what they normally are, and

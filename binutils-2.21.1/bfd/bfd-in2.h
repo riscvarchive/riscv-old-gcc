@@ -1919,6 +1919,9 @@ enum bfd_architecture
 #define bfd_mach_ppc_e500mc    5001
 #define bfd_mach_ppc_e500mc64  5005
 #define bfd_mach_ppc_titan     83
+  bfd_arch_riscv, /* RISC-V */
+#define bfd_mach_riscv_rocket32 132
+#define bfd_mach_riscv_rocket64 164
   bfd_arch_rs6000,    /* IBM RS/6000 */
 #define bfd_mach_rs6k          6000
 #define bfd_mach_rs6k_rs1      6001
@@ -4760,6 +4763,14 @@ relative offset from _GLOBAL_OFFSET_TABLE_  */
 /* This is a 32 bit reloc that stores the 32 bit GOT relative 
 value in a word.  The relocation is relative offset from  */
   BFD_RELOC_MICROBLAZE_32_GOTOFF,
+
+  /* RISC-V relocations */
+  BFD_RELOC_RISCV_TLS_GOT_HI16,
+  BFD_RELOC_RISCV_TLS_GOT_LO16,
+  BFD_RELOC_RISCV_TLS_GD_HI16,
+  BFD_RELOC_RISCV_TLS_GD_LO16,
+  BFD_RELOC_RISCV_TLS_LDM_HI16,
+  BFD_RELOC_RISCV_TLS_LDM_LO16,
 
 /* This is used to tell the dynamic linker to copy the value out of
 the dynamic object into the runtime process image.  */

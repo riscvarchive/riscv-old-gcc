@@ -123,6 +123,7 @@
 #include "elf/mep.h"
 #include "elf/microblaze.h"
 #include "elf/mips.h"
+#include "elf/riscv.h"
 #include "elf/mmix.h"
 #include "elf/mn10200.h"
 #include "elf/mn10300.h"
@@ -1078,6 +1079,10 @@ dump_relocations (FILE * file,
 	case EM_MIPS:
 	case EM_MIPS_RS3_LE:
 	  rtype = elf_mips_reloc_type (type);
+	  break;
+
+	case EM_RISCV:
+	  rtype = elf_riscv_reloc_type (type);
 	  break;
 
 	case EM_ALPHA:
@@ -2403,6 +2408,28 @@ get_machine_flags (unsigned e_flags, unsigned e_machine)
 
 	  if (e_flags & EF_SH_FDPIC)
 	    strcat (buf, ", fdpic");
+	  break;
+
+	case EM_RISCV:
+	  if (e_flags & EF_RISCV_PIC)
+	    strcat (buf, ", pic");
+
+	  if (e_flags & EF_MIPS_OPTIONS_FIRST)
+	    strcat (buf, ", odk first");
+
+	  switch ((e_flags & EF_RISCV_ABI))
+	    {
+	    case E_RISCV_ABI_32: strcat (buf, ", abi32"); break;
+	    case E_RISCV_ABI_64: strcat (buf, ", abi64"); break;
+	    default: strcat (buf, _(", unknown ABI")); break;
+	    }
+
+	  switch ((e_flags & EF_RISCV_ARCH))
+	    {
+	    case E_RISCV_ARCH_RV32: strcat (buf, ", rv32"); break;
+	    case E_RISCV_ARCH_RV64: strcat (buf, ", rv64"); break;
+	    default: strcat (buf, _(", unknown ISA")); break;
+	    }
 	  break;
 
 	case EM_SH:
