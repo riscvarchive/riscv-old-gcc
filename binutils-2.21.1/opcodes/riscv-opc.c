@@ -435,6 +435,14 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"vvcfgivl",  "d,s,#g,#f",      MATCH_VVCFGIVL, MASK_VVCFGIVL,  0 },
 {"vtcfgivl",  "d,s,#g,#f",      MATCH_VTCFGIVL, MASK_VTCFGIVL,  0 },
 {"vf",        "j(b)",           MATCH_VF, MASK_VF,  0 },
+
+{"venqcmd",   "s",  MATCH_VENQCMD, MASK_VENQCMD, RD_xs1 },
+{"venqimm1",  "s",  MATCH_VENQIMM1, MASK_VENQIMM1, RD_xs1 },
+{"venqimm2",  "s",  MATCH_VENQIMM2, MASK_VENQIMM2, RD_xs1 },
+{"venqcnt",   "s",  MATCH_VENQCNT, MASK_VENQCNT, RD_xs1 },
+
+{"vwaitxcpt",   "",	MATCH_VWAITXCPT, MASK_VWAITXCPT | MASK_RD | MASK_RS | MASK_IMM,	 0 },
+{"vwaitkill",   "",	MATCH_VWAITKILL, MASK_VWAITKILL | MASK_RD | MASK_RS | MASK_IMM,	 0 },
 };
 
 #define RISCV_NUM_OPCODES \
