@@ -432,6 +432,9 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"vfmst",     "#D,S,T",         MATCH_VFMST, MASK_VFMST,  0 },
 {"vfmts",     "D,#S,T",         MATCH_VFMTS, MASK_VFMTS,  0 },
 
+{"vvcfg",     "s,t",            MATCH_VVCFG, MASK_VVCFG, RD_xs1|RD_xs2 },
+{"vtcfg",     "s,t",            MATCH_VTCFG, MASK_VTCFG, RD_xs1|RD_xs2 },
+
 {"vvcfgivl",  "d,s,#g,#f",      MATCH_VVCFGIVL, MASK_VVCFGIVL,  0 },
 {"vtcfgivl",  "d,s,#g,#f",      MATCH_VTCFGIVL, MASK_VTCFGIVL,  0 },
 {"vf",        "j(b)",           MATCH_VF, MASK_VF,  0 },
