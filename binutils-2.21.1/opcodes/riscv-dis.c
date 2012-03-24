@@ -555,7 +555,7 @@ print_insn_args (const char *d,
 	     cp2 register names, we can simply print the register
 	     numbers.  */
 	  (*info->fprintf_func) (info->stream, "cr%ld",
-				 (l >> OP_SH_RT) & OP_MASK_RT);
+				 (l >> OP_SH_RS) & OP_MASK_RS);
 	  break;
 
 	case 'G':

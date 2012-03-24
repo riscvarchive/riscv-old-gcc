@@ -1756,7 +1756,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  continue;
 
 	case 't':
-	case 'E':
 	  INSERT_OPERAND (RT, insn, va_arg (args, int));
 	  continue;
 
@@ -1799,6 +1798,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 
 	case 'b':
 	case 's':
+	case 'E':
 	  INSERT_OPERAND (RS, insn, va_arg (args, int));
 	  continue;
 
@@ -2162,7 +2162,7 @@ validate_mips_insn (const struct riscv_opcode *opc)
       case '>':	USE_BITS (OP_MASK_SHAMT,	OP_SH_SHAMT);	break;
       case 'A': break;
       case 'D':	USE_BITS (OP_MASK_FD,		OP_SH_FD);	break;
-      case 'E':	USE_BITS (OP_MASK_RT,		OP_SH_RT);	break;
+      case 'E':	USE_BITS (OP_MASK_RS,		OP_SH_RS);	break;
       case 'I': break;
       case 'R':	USE_BITS (OP_MASK_FR,		OP_SH_FR);	break;
       case 'S':	USE_BITS (OP_MASK_FS,		OP_SH_FS);	break;
@@ -2443,7 +2443,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 
 	    case 'E':		/* Control register.  */
 	      ok = reg_lookup (&s, RTYPE_NUM | RTYPE_CP0, &regno);
-	      INSERT_OPERAND (RT, *ip, regno);
+	      INSERT_OPERAND (RS, *ip, regno);
 	      if (ok) 
 		{
 		  lastregno = regno;
@@ -2491,6 +2491,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		    {
 		    case 's':
 		    case 'b':
+		    case 'E':
 		      INSERT_OPERAND (RS, *ip, regno);
 		      break;
 		    case 'd':
@@ -2504,7 +2505,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		      INSERT_OPERAND (RT, *ip, regno);
 		      break;
 		    case 't':
-		    case 'E':
 		      INSERT_OPERAND (RT, *ip, regno);
 		      break;
 		    case 'x':
