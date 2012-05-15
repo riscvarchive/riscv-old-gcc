@@ -6258,11 +6258,9 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 
   trampoline[i++] = OP (RISCV_ITYPE (RDNPC, gp, 0, 0));
   trampoline[i++] = OP (RISCV_ITYPE (LREG, PIC_FUNCTION_ADDR_REGNUM,
-    				   target_function_offset - 4,
-    				   gp));
+    				   gp, target_function_offset - 4));
   trampoline[i++] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,
-    				   static_chain_offset - 4,
-    				   gp));
+    				   gp, static_chain_offset - 4));
   trampoline[i++] = OP (RISCV_ITYPE (JALR_J, 0, PIC_FUNCTION_ADDR_REGNUM, 0));
 
   gcc_assert (i * 4 == TRAMPOLINE_CODE_SIZE);
