@@ -8,6 +8,8 @@ LINUX_VERSION := 2.6.37
 
 LINUX_DIR := $(CURDIR)/linux-$(LINUX_VERSION)
 
+MAKE_JOBS := 16
+
 # Check that INSTALL_DIR was specified on the command line or in Makelocal
 -include Makelocal
 ifndef INSTALL_DIR
@@ -51,8 +53,8 @@ build-binutils-newlib:
 		--enable-languages=c \
 		--with-newlib \
 		--disable-multilib
-	$(MAKE) -C $@ -j
-	$(MAKE) -C $@ -j install
+	$(MAKE) -C $@ -j $(MAKE_JOBS)
+	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-gcc-newlib-src: build-binutils-newlib
 	cp -r gcc-$(GCC_VERSION) $@
@@ -76,8 +78,8 @@ build-gcc-newlib: build-gcc-newlib-src
 		--disable-libgomp \
 		--disable-nls \
 		--disable-multilib
-	$(MAKE) -C $@ -j inhibit-libc=true
-	$(MAKE) -C $@ -j install
+	$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit-libc=true
+	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-binutils-linux:
 	mkdir $@
@@ -89,8 +91,8 @@ build-binutils-linux:
 		--enable-languages=c \
 		--with-newlib \
 		--disable-multilib
-	$(MAKE) -C $@ -j
-	$(MAKE) -C $@ -j install
+	$(MAKE) -C $@ -j $(MAKE_JOBS)
+	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-gcc-linux-stage1: build-binutils-linux
 	mkdir $@
@@ -109,8 +111,8 @@ build-gcc-linux-stage1: build-binutils-linux
 		--disable-nls \
 		--disable-multilib \
 		--with-headers=$(LINUX_DIR)/include
-	-$(MAKE) -C $@ -j inhibit-libc=true
-	$(MAKE) -C $@ -j install
+	-$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit-libc=true
+	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-glibc-linux: build-gcc-linux-stage1
 	mkdir $@
@@ -124,8 +126,8 @@ build-glibc-linux: build-gcc-linux-stage1
 		--enable-__thread \
 		--disable-multilib \
 		--with-headers=$(LINUX_DIR)/include
-	$(MAKE) -C $@ -j cross-compiling=yes
-	$(MAKE) -C $@ -j install cross-compiling=yes
+	$(MAKE) -C $@ -j $(MAKE_JOBS) cross-compiling=yes
+	$(MAKE) -C $@ -j $(MAKE_JOBS) install cross-compiling=yes
 
 build-gcc-linux-stage2: build-glibc-linux
 	mkdir $@
@@ -143,8 +145,8 @@ build-gcc-linux-stage2: build-glibc-linux
 		--disable-nls \
 		--disable-multilib \
 		--with-headers=$(LINUX_DIR)/include
-	$(MAKE) -C $@ -j
-	$(MAKE) -C $@ -j install
+	$(MAKE) -C $@ -j $(MAKE_JOBS)
+	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 clean:
 	rm -rf build-* *-*-riscv.patch
