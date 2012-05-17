@@ -364,7 +364,7 @@ print_insn_args (const char *d,
 		 bfd_vma pc,
 		 struct disassemble_info *info)
 {
-  int op, delta;
+  int delta;
 
   for (; *d != '\0'; d++)
     {
@@ -560,7 +560,6 @@ print_insn_args (const char *d,
 
 	case 'G':
 	  /* Control registers */
-	  op = (l >> OP_SH_OP) & OP_MASK_OP;
 	  (*info->fprintf_func) (info->stream, "%s",
 				 mips_cp0_names[(l >> OP_SH_RS) & OP_MASK_RS]);
 	  break;

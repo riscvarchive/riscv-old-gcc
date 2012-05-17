@@ -2037,20 +2037,12 @@ load_register (int reg, expressionS *ep)
 static void
 macro (struct mips_cl_insn *ip)
 {
-  unsigned int treg, sreg, dreg, breg, imm;
+  unsigned int sreg, dreg, breg;
   int mask;
-  expressionS expr1;
 
-  treg = (ip->insn_opcode >> OP_SH_RT) & OP_MASK_RT;
   dreg = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
   breg = sreg = (ip->insn_opcode >> OP_SH_RS) & OP_MASK_RS;
   mask = ip->insn_mo->mask;
-  imm = (ip->insn_opcode >> OP_SH_IMMEDIATE) & OP_MASK_IMMEDIATE;
-
-  expr1.X_op = O_constant;
-  expr1.X_op_symbol = NULL;
-  expr1.X_add_symbol = NULL;
-  expr1.X_add_number = 1;
 
   switch (mask)
     {
@@ -2212,8 +2204,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
   struct riscv_opcode *insn;
   char *argsStart;
   unsigned int regno;
-  unsigned int lastregno = 0;
-  char *s_reset;
   char save_c = 0;
   int argnum;
   unsigned int rtype;
@@ -2277,7 +2267,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
       create_insn (ip, insn);
       insn_error = NULL;
       argnum = 1;
-      lastregno = 0xffffffff;
       for (args = insn->args;; ++args)
 	{
 	  s += strspn (s, " \t");
@@ -2445,10 +2434,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      ok = reg_lookup (&s, RTYPE_NUM | RTYPE_CP0, &regno);
 	      INSERT_OPERAND (RS, *ip, regno);
 	      if (ok) 
-		{
-		  lastregno = regno;
-		  continue;
-		}
+		continue;
 	      else
 		break;
 
@@ -2474,7 +2460,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	    case 'z':		/* must be zero register */
 	    case 'U':           /* destination register (clo/clz).  */
 	    case 'g':		/* coprocessor destination register */
-	      s_reset = s;	      
 	      ok = reg_lookup (&s, RTYPE_NUM | RTYPE_GP, &regno);
 	      if (ok)
 		{
@@ -2528,7 +2513,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		      /* What about all other operands like 'i', which
 			 can be specified in the opcode table? */
 		    }
-		  lastregno = regno;
 		  continue;
 		}
 	      break;
@@ -2538,7 +2522,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	    case 'T':		/* floating point target register */
 	    case 'R':		/* floating point source register */
 	      rtype = RTYPE_FPU;
-	      s_reset = s;
 	      if (reg_lookup (&s, rtype, &regno))
 		{
 		  c = *args;
@@ -2559,7 +2542,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		      INSERT_OPERAND (FR, *ip, regno);
 		      break;
 		    }
-		  lastregno = regno;
 		  continue;
 		}
 
@@ -3533,7 +3515,6 @@ s_change_section (int ignore ATTRIBUTE_UNUSED)
   int section_type;
   int section_flag;
   int section_entry_size;
-  int section_alignment;
 
   if (!IS_ELF)
     return;
@@ -3567,10 +3548,6 @@ s_change_section (int ignore ATTRIBUTE_UNUSED)
     section_entry_size = get_absolute_expression ();
   else
     section_entry_size = 0;
-  if (*input_line_pointer++ == ',')
-    section_alignment = get_absolute_expression ();
-  else
-    section_alignment = 0;
 
   section_name = xstrdup (section_name);
 
@@ -4541,11 +4518,8 @@ s_mips_end (int x ATTRIBUTE_UNUSED)
     {
       segT saved_seg = now_seg;
       subsegT saved_subseg = now_subseg;
-      valueT dot;
       expressionS exp;
       char *fragp;
-
-      dot = frag_now_fix ();
 
 #ifdef md_flush_pending_output
       md_flush_pending_output ();

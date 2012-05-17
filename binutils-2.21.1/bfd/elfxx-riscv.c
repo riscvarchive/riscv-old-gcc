@@ -3151,7 +3151,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
      relocation value.  */
   bfd_boolean overflowed_p;
   /* TRUE if this relocation refers to a MIPS16 function.  */
-  bfd_boolean target_is_16_bit_code_p = FALSE;
   struct mips_elf_link_hash_table *htab;
   bfd *dynobj;
 
@@ -3214,8 +3213,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 						sym->st_name);
       if (*namep == '\0')
 	*namep = bfd_section_name (input_bfd, sec);
-
-      target_is_16_bit_code_p = ELF_ST_IS_MIPS16 (sym->st_other);
     }
   else
     {
@@ -3287,8 +3284,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	{
 	  return bfd_reloc_notsupported;
 	}
-
-      target_is_16_bit_code_p = ELF_ST_IS_MIPS16 (h->root.other);
     }
 
   /* If this is a direct call to a PIC function, redirect to the
@@ -3662,7 +3657,6 @@ mips_elf_create_dynamic_relocation (bfd *output_bfd,
 {
   Elf_Internal_Rela outrel[3];
   asection *sreloc;
-  bfd *dynobj;
   int r_type;
   long indx;
   bfd_boolean defined_p;
@@ -3672,7 +3666,6 @@ mips_elf_create_dynamic_relocation (bfd *output_bfd,
   BFD_ASSERT (htab != NULL);
 
   r_type = ELF_R_TYPE (output_bfd, rel->r_info);
-  dynobj = elf_hash_table (info)->dynobj;
   sreloc = mips_elf_rel_dyn_section (info, FALSE);
   BFD_ASSERT (sreloc != NULL);
   BFD_ASSERT (sreloc->contents != NULL);
@@ -4696,12 +4689,7 @@ static bfd_vma
 mips_elf_read_rel_addend (bfd *abfd, const Elf_Internal_Rela *rel,
 			  reloc_howto_type *howto, bfd_byte *contents)
 {
-  bfd_byte *location;
-  unsigned int r_type;
   bfd_vma addend;
-
-  r_type = ELF_R_TYPE (abfd, rel->r_info);
-  location = contents + rel->r_offset;
 
   /* Get the addend, which is stored in the input file.  */
   addend = mips_elf_obtain_contents (howto, rel, abfd, contents);
@@ -4721,12 +4709,11 @@ mips_elf_add_lo16_rel_addend (bfd *abfd,
 			      const Elf_Internal_Rela *relend,
 			      bfd_byte *contents, bfd_vma *addend)
 {
-  unsigned int r_type, lo16_type;
+  unsigned int lo16_type;
   const Elf_Internal_Rela *lo16_relocation;
   reloc_howto_type *lo16_howto;
   bfd_vma l;
 
-  r_type = ELF_R_TYPE (abfd, rel->r_info);
   lo16_type = R_RISCV_LO16;
 
   /* The combined value is the sum of the HI16 addend, left-shifted by
@@ -5666,7 +5653,6 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 {
   bfd *dynobj;
   asection *s, *sreldyn;
-  bfd_boolean reltext;
   struct mips_elf_link_hash_table *htab;
 
   htab = mips_elf_hash_table (info);
@@ -5716,7 +5702,6 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
   /* The check_relocs and adjust_dynamic_symbol entry points have
      determined the sizes of the various dynamic sections.  Allocate
      memory for them.  */
-  reltext = FALSE;
   for (s = dynobj->sections; s != NULL; s = s->next)
     {
       const char *name;
@@ -5732,24 +5717,6 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	{
 	  if (s->size != 0)
 	    {
-	      const char *outname;
-	      asection *target;
-
-	      /* If this relocation section applies to a read only
-                 section, then we probably need a DT_TEXTREL entry.
-                 If the relocation section is .rel(a).dyn, we always
-                 assert a DT_TEXTREL entry rather than testing whether
-                 there exists a relocation to a read only section or
-                 not.  */
-	      outname = bfd_get_section_name (output_bfd,
-					      s->output_section);
-	      target = bfd_get_section_by_name (output_bfd, outname + 4);
-	      if ((target != NULL
-		   && (target->flags & SEC_READONLY) != 0
-		   && (target->flags & SEC_ALLOC) != 0)
-		  || strcmp (outname, MIPS_ELF_REL_DYN_NAME (info)) == 0)
-		reltext = TRUE;
-
 	      /* We use the reloc_count field as a counter if we need
 		 to copy relocs into the output file.  */
 	      if (strcmp (name, MIPS_ELF_REL_DYN_NAME (info)) != 0)
@@ -7358,9 +7325,6 @@ _bfd_elf_riscv_get_relocated_section_contents
   if (reloc_count > 0)
     {
       arelent **parent;
-      /* for mips */
-      int gp_found;
-      bfd_vma gp = 0x12345678;	/* initialize just to shut gcc up */
 
       {
 	struct bfd_hash_entry *h;
@@ -7382,12 +7346,8 @@ _bfd_elf_riscv_get_relocated_section_contents
 	      case bfd_link_hash_undefined:
 	      case bfd_link_hash_undefweak:
 	      case bfd_link_hash_common:
-		gp_found = 0;
-		break;
 	      case bfd_link_hash_defined:
 	      case bfd_link_hash_defweak:
-		gp_found = 1;
-		gp = lh->u.def.value;
 		break;
 	      case bfd_link_hash_indirect:
 	      case bfd_link_hash_warning:
@@ -7399,8 +7359,6 @@ _bfd_elf_riscv_get_relocated_section_contents
 		abort ();
 	      }
 	  }
-	else
-	  gp_found = 0;
       }
       /* end mips */
       for (parent = reloc_vector; *parent != NULL; parent++)

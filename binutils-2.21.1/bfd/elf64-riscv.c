@@ -2191,7 +2191,6 @@ mips16_gprel_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
 {
   bfd_boolean relocatable;
   bfd_reloc_status_type ret;
-  bfd_byte *location;
   bfd_vma gp;
 
   /* If we're relocating, and this is an external symbol, we don't want
@@ -2217,7 +2216,6 @@ mips16_gprel_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
   if (ret != bfd_reloc_ok)
     return ret;
 
-  location = (bfd_byte *) data + reloc_entry->address;
   ret = _bfd_riscv_elf_gprel16_with_gp (abfd, symbol, reloc_entry,
 				       input_section, relocatable,
 				       data, gp);
