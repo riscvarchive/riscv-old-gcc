@@ -543,8 +543,8 @@ mips_comp_type_attributes (const_tree type1, const_tree type2)
    Return the number of operations needed.  */
 
 static unsigned int
-mips_build_integer_1 (struct mips_integer_op *codes,
-		      unsigned HOST_WIDE_INT value)
+mips_build_integer (struct mips_integer_op *codes,
+		    unsigned HOST_WIDE_INT value)
 {
   unsigned HOST_WIDE_INT high_part = RISCV_CONST_HIGH_PART (value);
   unsigned HOST_WIDE_INT low_part = RISCV_CONST_LOW_PART (value);
@@ -572,7 +572,7 @@ mips_build_integer_1 (struct mips_integer_op *codes,
     {
       /* Try eliminating all trailing zeros by ending with SLL. */
       unsigned lshift = __builtin_ctzl (value);
-      cost = mips_build_integer_1 (codes, (int64_t)value >> lshift);
+      cost = mips_build_integer (codes, (int64_t)value >> lshift);
       codes[cost].code = ASHIFT;
       codes[cost].value = lshift;
       cost++;
@@ -581,7 +581,7 @@ mips_build_integer_1 (struct mips_integer_op *codes,
   if (low_part != 0)
     {
       struct mips_integer_op add_codes[MIPS_MAX_INTEGER_OPS];
-      unsigned add_cost = mips_build_integer_1 (add_codes, high_part);
+      unsigned add_cost = mips_build_integer (add_codes, high_part);
       add_codes[add_cost].code = PLUS;
       add_codes[add_cost].value = low_part;
       add_cost++;
@@ -594,51 +594,6 @@ mips_build_integer_1 (struct mips_integer_op *codes,
     }
 
   gcc_assert (cost != UINT_MAX);
-
-  return cost;
-}
-
-static unsigned int
-mips_build_integer (struct mips_integer_op *codes,
-		    unsigned HOST_WIDE_INT value)
-{
-  unsigned cost = mips_build_integer_1 (codes, value);
-
-  if (cost > 2 && (int64_t)value >= 0)
-    {
-      /* Try eliminating all leading zeros by ending with SRL. */
-      struct mips_integer_op rshift_codes[MIPS_MAX_INTEGER_OPS];
-      unsigned rshift_cost, rshift;
-      unsigned HOST_WIDE_INT rshift_value;
-
-      rshift = __builtin_clzl (value);
-      rshift_value = value << rshift;
-      rshift_cost = mips_build_integer_1 (rshift_codes, rshift_value);
-
-      rshift_codes[rshift_cost].code = LSHIFTRT;
-      rshift_codes[rshift_cost].value = rshift;
-      rshift_cost++;
-
-      if (rshift_cost < cost)
-	{
-	  memcpy (codes, rshift_codes, rshift_cost * sizeof (codes[0]));
-          cost = rshift_cost;
-	}
-
-      /* Try again with the discarded bits as 1s. */
-      rshift_value = (value << rshift) | (((HOST_WIDE_INT)1 << rshift)-1);
-      rshift_cost = mips_build_integer_1 (rshift_codes, rshift_value);
-
-      rshift_codes[rshift_cost].code = LSHIFTRT;
-      rshift_codes[rshift_cost].value = rshift;
-      rshift_cost++;
-
-      if (rshift_cost < cost)
-	{
-	  memcpy (codes, rshift_codes, rshift_cost * sizeof (codes[0]));
-          cost = rshift_cost;
-	}
-    }
 
   return cost;
 }
