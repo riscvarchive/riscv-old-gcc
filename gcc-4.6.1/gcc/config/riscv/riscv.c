@@ -2183,9 +2183,9 @@ mips_output_move (rtx dest, rtx src)
 		return "mxtf.s\t%0,%z1";
 	      if (TARGET_64BIT)
 		return "mxtf.d\t%0,%z1";
-	      /* in RV32, we can emulate mxtf.d %0, $x0 using fcvt.d.w */
+	      /* in RV32, we can emulate mxtf.d %0, x0 using fcvt.d.w */
 	      gcc_assert (src == CONST0_RTX (mode));
-	      return "fcvt.d.w\t%0,$x0";
+	      return "fcvt.d.w\t%0,x0";
 	    }
 	}
       if (dest_code == MEM)
@@ -5257,28 +5257,6 @@ mips_issue_rate (void)
     }
 }
 
-/* Implement TARGET_SCHED_VARIABLE_ISSUE.  */
-
-static int
-mips_variable_issue (FILE *file ATTRIBUTE_UNUSED, int verbose ATTRIBUTE_UNUSED,
-		     rtx insn, int more)
-{
-  /* Ignore USEs and CLOBBERs; don't count them against the issue rate.  */
-  if (USEFUL_INSN_P (insn))
-    {
-      if (get_attr_type (insn) != TYPE_GHOST)
-	more--;
-    }
-
-  /* Instructions of type 'multi' should all be split before
-     the second scheduling pass.  */
-  gcc_assert (!reload_completed
-	      || recog_memoized (insn) < 0
-	      || get_attr_type (insn) != TYPE_MULTI);
-
-  return more;
-}
-
 /* This structure describes a single built-in function.  */
 struct mips_builtin_description {
   /* The code of the main .md file instruction.  See mips_builtin_type
@@ -6273,8 +6251,6 @@ mips_shift_truncation_mask (enum machine_mode mode)
 #undef TARGET_ASM_FUNCTION_EPILOGUE
 #define TARGET_ASM_FUNCTION_EPILOGUE mips_output_function_epilogue
 
-#undef TARGET_SCHED_VARIABLE_ISSUE
-#define TARGET_SCHED_VARIABLE_ISSUE mips_variable_issue
 #undef TARGET_SCHED_ADJUST_COST
 #define TARGET_SCHED_ADJUST_COST mips_adjust_cost
 #undef TARGET_SCHED_ISSUE_RATE

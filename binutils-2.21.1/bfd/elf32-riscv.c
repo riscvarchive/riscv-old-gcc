@@ -86,10 +86,6 @@ static bfd_boolean elf32_mips_grok_psinfo
 extern const bfd_target bfd_elf32_nbigmips_vec;
 extern const bfd_target bfd_elf32_nlittlemips_vec;
 
-/* Nonzero if ABFD is using the N32 ABI.  */
-#define ABI_N32_P(abfd) \
-  ((elf_elfheader (abfd)->e_flags & EF_MIPS_ABI2) != 0)
-
 /* The number of local .got entries we reserve.  */
 #define MIPS_RESERVED_GOTNO (2)
 
@@ -173,15 +169,15 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
   HOWTO (R_RISCV_HI16,		/* type */
 	 RISCV_IMM_BITS,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32-RISCV_IMM_BITS,			/* bitsize */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 OP_SH_BIGIMMEDIATE,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_hi16_reloc, /* special_function */
 	 "R_RISCV_HI16",		/* name */
 	 TRUE,			/* partial_inplace */
-	 ((1<<(32-RISCV_IMM_BITS))-1) << OP_SH_BIGIMMEDIATE,		/* src_mask */
-	 ((1<<(32-RISCV_IMM_BITS))-1) << OP_SH_BIGIMMEDIATE,		/* dst_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of symbol value.  */
@@ -205,13 +201,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 mips_elf_gprel16_reloc, /* special_function */
 	 "R_RISCV_GPREL16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Reference to literal section.  */
@@ -220,28 +216,28 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 mips_elf_literal_reloc, /* special_function */
 	 "R_RISCV_LITERAL",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Reference to global offset table.  */
   HOWTO (R_RISCV_GOT16,		/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
+	 RISCV_IMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_got16_reloc, /* special_function */
 	 "R_RISCV_GOT16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* 16 bit PC relative reference.  Note that the ABI document has a typo
@@ -252,13 +248,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 TRUE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_PC16",		/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 TRUE),			/* pcrel_offset */
 
   /* 16 bit call through global offset table.  */
@@ -267,13 +263,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_CALL16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* 32 bit GP relative reference.  */
@@ -318,13 +314,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_GOT_DISP",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   EMPTY_HOWTO (20),
@@ -334,15 +330,15 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
   HOWTO (R_RISCV_GOT_HI16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32-RISCV_IMM_BITS,			/* bitsize */
+	 RISCV_BIGIMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_GOT_HI16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 (1<<(RISCV_IMM_BITS))-1,		/* src_mask */
-	 (1<<(RISCV_IMM_BITS))-1,		/* dst_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of displacement in global offset table.  */
@@ -351,13 +347,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_GOT_LO16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* 64 bit subtraction.  */
@@ -431,15 +427,15 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
   HOWTO (R_RISCV_CALL_HI16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32-RISCV_IMM_BITS,			/* bitsize */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_CALL_HI16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 (1<<(32-RISCV_IMM_BITS))-1,		/* src_mask */
-	 (1<<(32-RISCV_IMM_BITS))-1,		/* dst_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of displacement in global offset table.  */
@@ -448,13 +444,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_CALL_LO16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Section displacement, used by an associated event location section.  */
@@ -477,13 +473,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 1,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_REL16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* These two are obsolete.  */
@@ -523,36 +519,36 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 FALSE),		/* pcrel_offset */
 
   /* TLS relocations.  */
-  EMPTY_HOWTO (R_RISCV_TLS_DTPMOD32),
-  EMPTY_HOWTO (R_RISCV_TLS_DTPREL32),
-
-  HOWTO (R_RISCV_TLS_DTPMOD64,	/* type */
+  HOWTO (R_RISCV_TLS_DTPMOD32,	/* type */
 	 0,			/* rightshift */
 	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
+	 32,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_TLS_DTPMOD64",	/* name */
+	 "R_RISCV_TLS_DTPMOD32",	/* name */
 	 TRUE,			/* partial_inplace */
 	 MINUS_ONE,		/* src_mask */
 	 MINUS_ONE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  HOWTO (R_RISCV_TLS_DTPREL64,	/* type */
+  HOWTO (R_RISCV_TLS_DTPREL32,	/* type */
 	 0,			/* rightshift */
 	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
+	 32,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_TLS_DTPREL64",	/* name */
+	 "R_RISCV_TLS_DTPREL32",	/* name */
 	 TRUE,			/* partial_inplace */
 	 MINUS_ONE,		/* src_mask */
 	 MINUS_ONE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
+
+  EMPTY_HOWTO (R_RISCV_TLS_DTPMOD64),
+  EMPTY_HOWTO (R_RISCV_TLS_DTPREL64),
 
   /* TLS general dynamic variable reference.  */
   HOWTO (R_RISCV_TLS_GD,		/* type */
@@ -560,13 +556,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_GD",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS local dynamic variable reference.  */
@@ -575,28 +571,28 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_LDM",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS local dynamic offset.  */
   HOWTO (R_RISCV_TLS_DTPREL_HI16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32-RISCV_IMM_BITS,			/* bitsize */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_DTPREL_HI16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 (1<<(32-RISCV_IMM_BITS))-1,		/* src_mask */
-	 (1<<(32-RISCV_IMM_BITS))-1,		/* dst_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS local dynamic offset.  */
@@ -605,13 +601,13 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_DTPREL_LO16",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS thread pointer offset.  */
@@ -620,45 +616,45 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_GOTTPREL",	/* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS IE dynamic relocations.  */
-  EMPTY_HOWTO (R_RISCV_TLS_TPREL32),
-
-  HOWTO (R_RISCV_TLS_TPREL64,	/* type */
+  HOWTO (R_RISCV_TLS_TPREL32,	/* type */
 	 0,			/* rightshift */
 	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
+	 32,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_TLS_TPREL64",	/* name */
+	 "R_RISCV_TLS_TPREL32",	/* name */
 	 TRUE,			/* partial_inplace */
 	 MINUS_ONE,		/* src_mask */
 	 MINUS_ONE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
+  EMPTY_HOWTO (R_RISCV_TLS_TPREL64),
+
   /* TLS thread pointer offset.  */
   HOWTO (R_RISCV_TLS_TPREL_HI16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32-RISCV_IMM_BITS,			/* bitsize */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_TPREL_HI16", /* name */
 	 TRUE,			/* partial_inplace */
-	 (1<<(32-RISCV_IMM_BITS))-1,		/* src_mask */
-	 (1<<(32-RISCV_IMM_BITS))-1,		/* dst_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS thread pointer offset.  */
@@ -667,13 +663,103 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_TPREL_LO16", /* name */
 	 TRUE,			/* partial_inplace */
-	 RISCV_IMM_REACH-1,		/* src_mask */
-	 RISCV_IMM_REACH-1,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* High 16 bits of displacement in global offset table.  */
+  HOWTO (R_RISCV_TLS_GOT_HI16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_BIGIMM_BITS,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_TLS_GOT_HI16",	/* name */
+	 TRUE,			/* partial_inplace */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* TLS thread pointer offset.  */
+  HOWTO (R_RISCV_TLS_GOT_LO16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_IMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 "R_RISCV_TLS_GOT_LO16",	/* name */
+	 TRUE,			/* partial_inplace */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* High 16 bits of displacement in global offset table.  */
+  HOWTO (R_RISCV_TLS_GD_HI16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_BIGIMM_BITS,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_TLS_GD_HI16",	/* name */
+	 TRUE,			/* partial_inplace */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* TLS thread pointer offset.  */
+  HOWTO (R_RISCV_TLS_GD_LO16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_IMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 "R_RISCV_TLS_GD_LO16",	/* name */
+	 TRUE,			/* partial_inplace */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* High 16 bits of displacement in global offset table.  */
+  HOWTO (R_RISCV_TLS_LDM_HI16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_BIGIMM_BITS,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_TLS_LDM_HI16",	/* name */
+	 TRUE,			/* partial_inplace */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* TLS thread pointer offset.  */
+  HOWTO (R_RISCV_TLS_LDM_LO16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_IMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 "R_RISCV_TLS_LDM_LO16",	/* name */
+	 TRUE,			/* partial_inplace */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* 32 bit relocation with no addend.  */
@@ -704,7 +790,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_NONE",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -721,7 +807,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_32",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -736,7 +822,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_REL32",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -745,95 +831,95 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 
   /* 26 bit jump address.  */
   HOWTO (R_RISCV_26,		/* type */
-	 2,			/* rightshift */
+	 RISCV_JUMP_ALIGN_BITS,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 26,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 RISCV_JUMP_BITS,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 OP_SH_TARGET,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 				/* This needs complex overflow
 				   detection, because the upper 36
 				   bits must match the PC + 4.  */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_26",		/* name */
-	 FALSE,			/* partial_inplace */
+	 TRUE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x03ffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+	 ((1<<RISCV_JUMP_BITS)-1) << OP_SH_TARGET,		/* dst_mask */
+	 TRUE),		/* pcrel_offset */
 
   /* High 16 bits of symbol value.  */
   HOWTO (R_RISCV_HI16,		/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_HI16",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of symbol value.  */
   HOWTO (R_RISCV_LO16,		/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_LO16",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* GP relative reference.  */
   HOWTO (R_RISCV_GPREL16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 mips_elf_gprel16_reloc, /* special_function */
 	 "R_RISCV_GPREL16",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Reference to literal section.  */
   HOWTO (R_RISCV_LITERAL,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 mips_elf_literal_reloc, /* special_function */
 	 "R_RISCV_LITERAL",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Reference to global offset table.  */
   HOWTO (R_RISCV_GOT16,		/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_GOT16",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* 16 bit PC relative reference.  Note that the ABI document has a typo
@@ -842,30 +928,30 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
   HOWTO (R_RISCV_PC16,		/* type */
 	 2,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 TRUE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_PC16",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 TRUE),			/* pcrel_offset */
 
   /* 16 bit call through global offset table.  */
   HOWTO (R_RISCV_CALL16,		/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_CALL16",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* 32 bit GP relative reference.  */
@@ -897,7 +983,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_64",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -908,15 +994,15 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
   HOWTO (R_RISCV_GOT_DISP,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_GOT_DISP",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   EMPTY_HOWTO (20),
@@ -926,30 +1012,30 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
   HOWTO (R_RISCV_GOT_HI16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_GOT_HI16",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of displacement in global offset table.  */
   HOWTO (R_RISCV_GOT_LO16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_GOT_LO16",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* 64 bit subtraction.  */
@@ -960,7 +1046,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_SUB",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -976,7 +1062,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_INSERT_A",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -993,7 +1079,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_INSERT_B",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -1009,7 +1095,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_DELETE",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -1023,30 +1109,30 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
   HOWTO (R_RISCV_CALL_HI16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_CALL_HI16",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of displacement in global offset table.  */
   HOWTO (R_RISCV_CALL_LO16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_CALL_LO16",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Section displacement, used by an associated event location section.  */
@@ -1057,26 +1143,25 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_SCN_DISP",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
 	 0xffffffff,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* 16 bit relocation.  */
   HOWTO (R_RISCV_REL16,		/* type */
 	 0,			/* rightshift */
 	 1,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,			/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_REL16",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0xffff,		/* dst_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* These two are obsolete.  */
@@ -1092,7 +1177,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_RELGOT",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
@@ -1101,131 +1186,130 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 
   /* Protected jump conversion.  This is an optimization hint.  No
      relocation is required for correctness.  */
-  HOWTO (R_RISCV_JALR,	        /* type */
+  HOWTO (R_RISCV_JALR,		/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 32,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_JALR",	        /* name */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_JALR",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 0,			/* dst_mask */
+	 0x00000000,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* TLS GD/LD dynamic relocations.  */
+  /* TLS relocations.  */
   HOWTO (R_RISCV_TLS_DTPMOD32,	/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 4,			/* size (0 = byte, 1 = short, 2 = long) */
 	 32,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_TLS_DTPMOD32",	/* name */
+	 "R_RISCV_TLS_DTPMOD32", /* name */
 	 FALSE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
+	 MINUS_ONE,		/* src_mask */
+	 MINUS_ONE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   HOWTO (R_RISCV_TLS_DTPREL32,	/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 4,			/* size (0 = byte, 1 = short, 2 = long) */
 	 32,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_DTPREL32",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
+	 TRUE,			/* partial_inplace */
+	 MINUS_ONE,		/* src_mask */
+	 MINUS_ONE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   EMPTY_HOWTO (R_RISCV_TLS_DTPMOD64),
   EMPTY_HOWTO (R_RISCV_TLS_DTPREL64),
 
   /* TLS general dynamic variable reference.  */
-  HOWTO (R_RISCV_TLS_GD,		/* type */
+  HOWTO (R_RISCV_TLS_GD,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_GD",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0x0000ffff,		/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 TRUE,			/* partial_inplace */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS local dynamic variable reference.  */
   HOWTO (R_RISCV_TLS_LDM,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_LDM",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0x0000ffff,		/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS local dynamic offset.  */
   HOWTO (R_RISCV_TLS_DTPREL_HI16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_BIGIMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_DTPREL_HI16",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0x0000ffff,		/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS local dynamic offset.  */
   HOWTO (R_RISCV_TLS_DTPREL_LO16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_DTPREL_LO16",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0x0000ffff,		/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS thread pointer offset.  */
   HOWTO (R_RISCV_TLS_GOTTPREL,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_GOTTPREL",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0x0000ffff,		/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* TLS IE dynamic relocations.  */
   HOWTO (R_RISCV_TLS_TPREL32,	/* type */
 	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 4,			/* size (0 = byte, 1 = short, 2 = long) */
 	 32,			/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
@@ -1233,8 +1317,8 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_TPREL32",	/* name */
 	 FALSE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
+	 MINUS_ONE,		/* src_mask */
+	 MINUS_ONE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   EMPTY_HOWTO (R_RISCV_TLS_TPREL64),
@@ -1243,30 +1327,120 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
   HOWTO (R_RISCV_TLS_TPREL_HI16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_BIGIMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_TPREL_HI16", /* name */
-	 FALSE,			/* partial_inplace */
-	 0x0000ffff,		/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS thread pointer offset.  */
   HOWTO (R_RISCV_TLS_TPREL_LO16,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 16,			/* bitsize */
+	 RISCV_IMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
+	 OP_SH_IMMEDIATE,	/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc, /* special_function */
 	 "R_RISCV_TLS_TPREL_LO16", /* name */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* High 16 bits of displacement in global offset table.  */
+  HOWTO (R_RISCV_TLS_GOT_HI16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_TLS_GOT_HI16",	/* name */
 	 FALSE,			/* partial_inplace */
-	 0x0000ffff,		/* src_mask */
-	 0x0000ffff,		/* dst_mask */
+	 0,			/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* Low 16 bits of displacement in global offset table.  */
+  HOWTO (R_RISCV_TLS_GOT_LO16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_IMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_TLS_GOT_LO16",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* High 16 bits of displacement in global offset table.  */
+  HOWTO (R_RISCV_TLS_GD_HI16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_TLS_GD_HI16",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* Low 16 bits of displacement in global offset table.  */
+  HOWTO (R_RISCV_TLS_GD_LO16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_IMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_TLS_GD_LO16",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* High 16 bits of displacement in global offset table.  */
+  HOWTO (R_RISCV_TLS_LDM_HI16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_BIGIMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_BIGIMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_TLS_LDM_HI16",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* Low 16 bits of displacement in global offset table.  */
+  HOWTO (R_RISCV_TLS_LDM_LO16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_IMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_TLS_LDM_LO16",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* 32 bit relocation with no addend.  */
@@ -2091,10 +2265,6 @@ mips_elf_n32_object_p (bfd *abfd)
 
   mach = _bfd_elf_riscv_mach (elf_elfheader (abfd)->e_flags);
   bfd_default_set_arch_mach (abfd, bfd_arch_riscv, mach);
-
-  if (! ABI_N32_P(abfd))
-    return FALSE;
-
   return TRUE;
 }
 

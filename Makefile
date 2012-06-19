@@ -51,8 +51,7 @@ build-binutils-newlib:
 		--enable-shared \
 		--enable-tls \
 		--enable-languages=c \
-		--with-newlib \
-		--disable-multilib
+		--with-newlib
 	$(MAKE) -C $@ -j $(MAKE_JOBS)
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
@@ -76,8 +75,7 @@ build-gcc-newlib: build-gcc-newlib-src
 		--disable-libssp \
 		--disable-libquadmath \
 		--disable-libgomp \
-		--disable-nls \
-		--disable-multilib
+		--disable-nls
 	$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit-libc=true
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 

@@ -193,16 +193,6 @@ struct mips_cpu_info {
 #define MIPS_CPU_STRING_DEFAULT "from-abi"
 #endif
 
-#ifdef IN_LIBGCC2
-#undef TARGET_64BIT
-/* Make this compile time constant for libgcc2 */
-#ifdef __riscv64
-#define TARGET_64BIT		1
-#else
-#define TARGET_64BIT		0
-#endif
-#endif /* IN_LIBGCC2 */
-
 #define TARGET_LIBGCC_SDATA_SECTION ".sdata"
 
 #ifndef MULTILIB_ENDIAN_DEFAULT
@@ -317,6 +307,16 @@ struct mips_cpu_info {
 
 #define TARGET_64BIT	(mips_abi == ABI_64)
 
+#ifdef IN_LIBGCC2
+#undef TARGET_64BIT
+/* Make this compile time constant for libgcc2 */
+#ifdef __riscv64
+#define TARGET_64BIT		1
+#else
+#define TARGET_64BIT		0
+#endif
+#endif /* IN_LIBGCC2 */
+
 /* Tell collect what flags to pass to nm.  */
 #ifndef NM_FLAGS
 #define NM_FLAGS "-Bn"
@@ -360,6 +360,8 @@ struct mips_cpu_info {
 #define LINK_SPEC "\
 %{!T:-dT riscv.ld} \
 %(endian_spec) \
+%{mabi=64:-melf64%{EB:b}%{!EB:l}riscv} \
+%{mabi=32:-melf32%{EB:b}%{!EB:l}riscv} \
 %{G*} %{mips1} %{mips2} %{mips3} %{mips4} %{mips32*} %{mips64*} \
 %{shared}"
 #endif  /* LINK_SPEC defined */
@@ -665,6 +667,12 @@ struct mips_cpu_info {
 /* Pmode is always the same as ptr_mode, but not always the same as word_mode.
    Extensions of pointers to word_mode must be signed.  */
 #define POINTERS_EXTEND_UNSIGNED false
+
+/* RV32 double-precision FP <-> integer moves go through memory */
+#define SECONDARY_MEMORY_NEEDED(CLASS1,CLASS2,MODE) \
+ (!TARGET_64BIT && GET_MODE_SIZE (MODE) == 8 && \
+   (((CLASS1) == FP_REGS && (CLASS2) != FP_REGS) \
+   || ((CLASS2) == FP_REGS && (CLASS1) != FP_REGS)))
 
 /* Define if loading short immediate values into registers sign extends.  */
 #define SHORT_IMMEDIATES_SIGN_EXTEND
