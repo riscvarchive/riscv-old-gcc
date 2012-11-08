@@ -453,17 +453,17 @@ static const struct mips_cpu_info mips_cpu_info_table[] = {
 
 /* Default costs.  If these are used for a processor we should look
    up the actual costs.  */
-#define DEFAULT_COSTS COSTS_N_INSNS (6),  /* fp_add */       \
-                      COSTS_N_INSNS (7),  /* fp_mult_sf */   \
+#define DEFAULT_COSTS COSTS_N_INSNS (8),  /* fp_add */       \
+                      COSTS_N_INSNS (8),  /* fp_mult_sf */   \
                       COSTS_N_INSNS (8),  /* fp_mult_df */   \
-                      COSTS_N_INSNS (23), /* fp_div_sf */    \
-                      COSTS_N_INSNS (36), /* fp_div_df */    \
+                      COSTS_N_INSNS (20), /* fp_div_sf */    \
+                      COSTS_N_INSNS (20), /* fp_div_df */    \
                       COSTS_N_INSNS (10), /* int_mult_si */  \
                       COSTS_N_INSNS (10), /* int_mult_di */  \
                       COSTS_N_INSNS (69), /* int_div_si */   \
                       COSTS_N_INSNS (69), /* int_div_di */   \
                                        2, /* branch_cost */  \
-                                       4  /* memory_latency */
+                                       7  /* memory_latency */
 
 /* Floating-point costs for processors without an FPU.  Just assume that
    all floating-point libcalls are very expensive.  */
@@ -491,19 +491,8 @@ static const struct mips_rtx_cost_data mips_rtx_cost_optimize_size = {
 /* Costs to use when optimizing for speed, indexed by processor.  */
 static const struct mips_rtx_cost_data
   mips_rtx_cost_data[NUM_PROCESSOR_VALUES] = {
-  { /* Rocket */
-    COSTS_N_INSNS (8),            /* fp_add */
-    COSTS_N_INSNS (8),            /* fp_mult_sf */
-    COSTS_N_INSNS (8),            /* fp_mult_df */
-    COSTS_N_INSNS (20),           /* fp_div_sf */
-    COSTS_N_INSNS (30),           /* fp_div_df */
-    COSTS_N_INSNS (8),           /* int_mult_si */
-    COSTS_N_INSNS (8),           /* int_mult_di */
-    COSTS_N_INSNS (32),           /* int_div_si */
-    COSTS_N_INSNS (64),           /* int_div_di */
-		     2,           /* branch_cost */
-		     7            /* memory_latency */
-  }
+  { /* Rocket32 */ DEFAULT_COSTS},
+  { /* Rocket64 */ DEFAULT_COSTS}
 };
 
 static int mips_register_move_cost (enum machine_mode, reg_class_t,
@@ -1841,7 +1830,7 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
       cost = mips_address_insns (addr, mode, true);
       if (cost > 0)
 	{
-	  *total = COSTS_N_INSNS (cost + 1);
+	  *total = COSTS_N_INSNS (cost + (speed ? mips_cost->memory_latency : 1));
 	  return true;
 	}
       /* Otherwise use the default handling.  */

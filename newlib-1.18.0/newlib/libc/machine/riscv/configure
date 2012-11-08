@@ -550,7 +550,7 @@ PACKAGE_STRING='newlib 1.17.0'
 PACKAGE_BUGREPORT=''
 PACKAGE_URL=''
 
-ac_unique_file="memset.c"
+ac_unique_file="memset.S"
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 sys_dir

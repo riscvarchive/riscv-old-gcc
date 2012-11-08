@@ -57,6 +57,7 @@ ARFLAGS = cru
 lib_a_AR = $(AR) $(ARFLAGS)
 lib_a_LIBADD =
 am_lib_a_OBJECTS = lib_a-memset.$(OBJEXT) lib_a-memcpy.$(OBJEXT) \
+	lib_a-strlen.$(OBJEXT) lib_a-strcpy.$(OBJEXT) lib_a-strcmp.$(OBJEXT) \
 	lib_a-setjmp.$(OBJEXT) lib_a-ieeefp.$(OBJEXT)
 lib_a_OBJECTS = $(am_lib_a_OBJECTS)
 DEFAULT_INCLUDES = -I. -I$(srcdir)
@@ -185,7 +186,7 @@ AUTOMAKE_OPTIONS = cygnus
 INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
 AM_CCASFLAGS = $(INCLUDES)
 noinst_LIBRARIES = lib.a
-lib_a_SOURCES = memset.c memcpy.c setjmp.S ieeefp.c
+lib_a_SOURCES = memset.S memcpy.c strlen.c strcmp.c strcpy.c setjmp.S ieeefp.c
 lib_a_CCASFLAGS = $(AM_CCASFLAGS)
 lib_a_CFLAGS = $(AM_CFLAGS)
 ACLOCAL_AMFLAGS = -I ../../.. -I ../../../..
@@ -259,17 +260,35 @@ lib_a-setjmp.obj: setjmp.S
 .c.obj:
 	$(COMPILE) -c `$(CYGPATH_W) '$<'`
 
-lib_a-memset.o: memset.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-memset.o `test -f 'memset.c' || echo '$(srcdir)/'`memset.c
+lib_a-memset.o: memset.S
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-memset.o `test -f 'memset.S' || echo '$(srcdir)/'`memset.S
 
-lib_a-memset.obj: memset.c
-	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-memset.obj `if test -f 'memset.c'; then $(CYGPATH_W) 'memset.c'; else $(CYGPATH_W) '$(srcdir)/memset.c'; fi`
+lib_a-memset.obj: memset.S
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-memset.obj `if test -f 'memset.S'; then $(CYGPATH_W) 'memset.S'; else $(CYGPATH_W) '$(srcdir)/memset.S'; fi`
 
 lib_a-memcpy.o: memcpy.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-memcpy.o `test -f 'memcpy.c' || echo '$(srcdir)/'`memcpy.c
 
 lib_a-memcpy.obj: memcpy.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-memcpy.obj `if test -f 'memcpy.c'; then $(CYGPATH_W) 'memcpy.c'; else $(CYGPATH_W) '$(srcdir)/memcpy.c'; fi`
+
+lib_a-strlen.o: strlen.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-strlen.o `test -f 'strlen.c' || echo '$(srcdir)/'`strlen.c
+
+lib_a-strlen.obj: strlen.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-strlen.obj `if test -f 'strlen.c'; then $(CYGPATH_W) 'strlen.c'; else $(CYGPATH_W) '$(srcdir)/strlen.c'; fi`
+
+lib_a-strcpy.o: strcpy.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-strcpy.o `test -f 'strcpy.c' || echo '$(srcdir)/'`strcpy.c
+
+lib_a-strcpy.obj: strcpy.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-strcpy.obj `if test -f 'strcpy.c'; then $(CYGPATH_W) 'strcpy.c'; else $(CYGPATH_W) '$(srcdir)/strcpy.c'; fi`
+
+lib_a-strcmp.o: strcmp.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-strcmp.o `test -f 'strcmp.c' || echo '$(srcdir)/'`strcmp.c
+
+lib_a-strcmp.obj: strcmp.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-strcmp.obj `if test -f 'strcmp.c'; then $(CYGPATH_W) 'strcmp.c'; else $(CYGPATH_W) '$(srcdir)/strcmp.c'; fi`
 
 lib_a-ieeefp.o: ieeefp.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-ieeefp.o `test -f 'ieeefp.c' || echo '$(srcdir)/'`ieeefp.c

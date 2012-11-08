@@ -1,144 +1,59 @@
-/*
-FUNCTION
-        <<memcpy>>---copy memory regions, optimized for the mips processors
+#include <string.h>
+#include <stdint.h>
 
-ANSI_SYNOPSIS
-        #include <string.h>
-        void* memcpy(void *<[out]>, const void *<[in]>, size_t <[n]>);
-
-TRAD_SYNOPSIS
-        void *memcpy(<[out]>, <[in]>, <[n]>
-        void *<[out]>;
-        void *<[in]>;
-        size_t <[n]>;
-
-DESCRIPTION
-        This function copies <[n]> bytes from the memory region
-        pointed to by <[in]> to the memory region pointed to by
-        <[out]>.
-
-        If the regions overlap, the behavior is undefined.
-
-RETURNS
-        <<memcpy>> returns a pointer to the first byte of the <[out]>
-        region.
-
-PORTABILITY
-<<memcpy>> is ANSI C.
-
-<<memcpy>> requires no supporting OS subroutines.
-
-QUICKREF
-        memcpy ansi pure
-	*/
-
-#include <_ansi.h>
-#include <stddef.h>
-#include <limits.h>
-
-#ifdef __riscv64
-#define wordtype long long
-#else
-#define wordtype long
-#endif
-
-/* Nonzero if either X or Y is not aligned on a "long" boundary.  */
-#define UNALIGNED(X, Y) \
-  (((long)X & (sizeof (wordtype) - 1)) | ((long)Y & (sizeof (wordtype) - 1)))
-
-/* How many bytes are copied each iteration of the 4X unrolled loop.  */
-#define BIGBLOCKSIZE    (sizeof (wordtype) << 2)
-
-/* How many bytes are copied each iteration of the word copy loop.  */
-#define LITTLEBLOCKSIZE (sizeof (wordtype))
-
-/* Threshhold for punting to the byte copier.  */
-#define TOO_SMALL(LEN)  ((LEN) < BIGBLOCKSIZE)
-
-_PTR
-_DEFUN (memcpy, (dst0, src0, len0),
-	_PTR dst0 _AND
-	_CONST _PTR src0 _AND
-	size_t len0)
+void* memcpy(void* aa, const void* bb, size_t n)
 {
-#if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
-  char *dst = (char *) dst0;
-  char *src = (char *) src0;
+  #define BODY(a, b, t) { \
+    t tt = *b; \
+    a++, b++; \
+    *(a-1) = tt; \
+  }
 
-  _PTR save = dst0;
+  char* a = (char*)aa;
+  const char* b = (const char*)bb;
+  char* end = a+n;
+  uintptr_t msk = sizeof(long)-1;
+  if (__builtin_expect(((uintptr_t)a & msk) != ((uintptr_t)b & msk) || n < sizeof(long), 0))
+  {
+foo:
+    if (__builtin_expect(a < end, 1))
+      while (a < end)
+        BODY(a, b, char);
+    return aa;
+  }
 
-  while (len0--)
+  if (__builtin_expect(((uintptr_t)a & msk) != 0, 0))
+    while ((uintptr_t)a & msk)
+      BODY(a, b, char);
+
+  long* __restrict__ la = (long*)a;
+  const long* __restrict__ lb = (const long*)b;
+  long* lend = (long*)((uintptr_t)end & ~msk);
+
+  if (__builtin_expect(la < lend-8, 0))
+  {
+    while (la < lend-8)
     {
-      *dst++ = *src++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
     }
+    if (la == lend)
+      goto bar;
+  }
 
-  return save;
-#else
-  char *dst = dst0;
-  _CONST char *src = src0;
-  wordtype *aligned_dst;
-  _CONST wordtype *aligned_src;
-  int   len =  len0;
-  size_t iter;
+  do BODY(la, lb, long) while (la < lend);
 
-  /* Handle aligned moves here.  */
-  if (!UNALIGNED (src, dst))
-    {
-      iter = len / BIGBLOCKSIZE;
-      len = len % BIGBLOCKSIZE;
-      aligned_dst = (wordtype *)dst;
-      aligned_src = (wordtype *)src;
-
-	  /* Copy 4X long or long long words at a time if possible.  */
-      while (iter > 0)
-	{
-	  wordtype tmp0 = aligned_src[0];
-	  wordtype tmp1 = aligned_src[1];
-	  wordtype tmp2 = aligned_src[2];
-	  wordtype tmp3 = aligned_src[3];
-
-	  aligned_dst[0] = tmp0;
-	  aligned_dst[1] = tmp1;
-	  aligned_dst[2] = tmp2;
-	  aligned_dst[3] = tmp3;
-	  aligned_src += 4;
-	  aligned_dst += 4;
-	  iter--;
-	}
-
-      /* Copy one long or long long word at a time if possible.  */
-      iter = len / LITTLEBLOCKSIZE;
-      len = len % LITTLEBLOCKSIZE;
-
-      while (iter > 0)
-	{
-	  *aligned_dst++ = *aligned_src++;
-	  iter--;
-	}
-
-      /* Pick up any residual with a byte copier.  */
-      dst = (char*)aligned_dst;
-      src = (char*)aligned_src;
-
-      while (len > 0)
-	{
-	  *dst++ = *src++;
-	  len--;
-	}
-
-      return dst0;
-    }
-
-  /* Handle unaligned moves here, using lwr/lwl and swr/swl where possible */
-  else
-    {
-      while (len > 0)
-	{
-	  *dst++ = *src++;
-	  len--;
-	}
-
-      return dst0;
-    }
-#endif /* not PREFER_SIZE_OVER_SPEED */
+bar:
+  a = (char*)la;
+  b = (const char*)lb;
+  if (__builtin_expect(a < end, 0))
+    goto foo;
+  return aa;
 }
