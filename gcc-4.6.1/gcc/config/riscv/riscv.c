@@ -4870,6 +4870,8 @@ mips_restore_reg (rtx reg, rtx mem)
 /* Expand an "epilogue" or "sibcall_epilogue" pattern; SIBCALL_P
    says which.  */
 
+static bool riscv_in_utfunc = false;
+
 void
 mips_expand_epilogue (bool sibcall_p)
 {
@@ -4879,6 +4881,9 @@ mips_expand_epilogue (bool sibcall_p)
 
   if (!sibcall_p && mips_can_use_return_insn ())
     {
+      if (riscv_in_utfunc)
+        emit_insn(gen_riscv_stop());
+
       emit_jump_insn (gen_return ());
       return;
     }
@@ -6072,6 +6077,26 @@ mips_output_mi_thunk (FILE *file, tree thunk_fndecl ATTRIBUTE_UNUSED,
   reload_completed = 0;
 }
 
+/* Implement TARGET_SET_CURRENT_FUNCTION.  Decide whether the current
+   function should use the MIPS16 ISA and switch modes accordingly.  */
+
+static void
+mips_set_current_function (tree fndecl)
+{
+  bool utfunc = fndecl && (lookup_attribute("utfunc", DECL_ATTRIBUTES(fndecl)) != NULL);
+
+  if (!riscv_in_utfunc && utfunc)
+  {
+    riscv_in_utfunc = true;
+    reinit_regs();
+  }
+  else if (riscv_in_utfunc && !utfunc)
+  {
+    riscv_in_utfunc = false;
+    reinit_regs();
+  }
+}
+
 /* Allocate a chunk of memory for per-function machine-dependent data.  */
 
 static struct machine_function *
@@ -6340,6 +6365,47 @@ mips_conditional_register_usage (void)
       for (regno = FP_REG_FIRST; regno <= FP_REG_LAST; regno++)
 	fixed_regs[regno] = call_used_regs[regno] = 1;
     }
+
+  if (riscv_in_utfunc)
+  {
+    for (regno = CALLEE_SAVED_GP_REG_FIRST;
+         regno <= CALLEE_SAVED_GP_REG_LAST; regno++)
+    {
+      call_used_regs[regno] = 1;
+      call_really_used_regs[regno] = 1;
+    }
+
+    call_used_regs[GP_REG_FIRST + LINK_REG] = 1;
+    call_really_used_regs[GP_REG_FIRST + LINK_REG] = 1;
+
+    for (regno = CALLEE_SAVED_FP_REG_FIRST;
+         regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
+    {
+      call_used_regs[regno] = 1;
+      call_really_used_regs[regno] = 1;
+    }
+  }
+  else
+  {
+    for (regno = CALLEE_SAVED_GP_REG_FIRST;
+         regno <= CALLEE_SAVED_GP_REG_LAST; regno++)
+    {
+      call_used_regs[regno] = 0;
+      call_really_used_regs[regno] = 0;
+    }
+
+    call_used_regs[GP_REG_FIRST + 28] = 1;
+
+    call_used_regs[GP_REG_FIRST + LINK_REG] = 0;
+    call_really_used_regs[GP_REG_FIRST + LINK_REG] = 0;
+
+    for (regno = CALLEE_SAVED_FP_REG_FIRST;
+         regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
+    {
+      call_used_regs[regno] = 0;
+      call_really_used_regs[regno] = 0;
+    }
+  }
 }
 
 /* Initialize vector TARGET to VALS.  */
@@ -6563,6 +6629,9 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 
 #undef TARGET_FUNCTION_OK_FOR_SIBCALL
 #define TARGET_FUNCTION_OK_FOR_SIBCALL hook_bool_tree_tree_true
+
+#undef TARGET_SET_CURRENT_FUNCTION
+#define TARGET_SET_CURRENT_FUNCTION mips_set_current_function
 
 #undef TARGET_VALID_POINTER_MODE
 #define TARGET_VALID_POINTER_MODE mips_valid_pointer_mode
