@@ -176,7 +176,7 @@ extern const unsigned char mode_class[NUM_MACHINE_MODES];
 
 /* Get the size in bytes and bits of an object of mode MODE.  */
 
-extern CONST_MODE_SIZE unsigned char mode_size[NUM_MACHINE_MODES];
+extern CONST_MODE_SIZE unsigned short mode_size[NUM_MACHINE_MODES];
 #define GET_MODE_SIZE(MODE)    ((unsigned short) mode_size[MODE])
 #define GET_MODE_BITSIZE(MODE) ((unsigned short) (GET_MODE_SIZE (MODE) * BITS_PER_UNIT))
 
@@ -253,7 +253,7 @@ extern enum machine_mode get_best_mode (int, int, unsigned int,
 
 /* Determine alignment, 1<=result<=BIGGEST_ALIGNMENT.  */
 
-extern CONST_MODE_BASE_ALIGN unsigned char mode_base_align[NUM_MACHINE_MODES];
+extern CONST_MODE_BASE_ALIGN unsigned short mode_base_align[NUM_MACHINE_MODES];
 
 extern unsigned get_mode_alignment (enum machine_mode);
 

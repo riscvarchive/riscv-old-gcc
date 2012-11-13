@@ -59,6 +59,42 @@ along with GCC; see the file COPYING3.  If not see
 #include "diagnostic.h"
 #include "target-globals.h"
 
+/*----------------------------------------------------------------------*/
+/* RISCV_SYSCFG_VLEN_MAX                                                */
+/*----------------------------------------------------------------------*/
+/* Eventually we want to include syscfg.h here so that we can use the
+   common definition of RISCV_SYSCFG_VLEN_MAX, but for now it is not
+   clear how to do this. syscfg.h in in libgloss which is not used when
+   building the actual cross-compiler. We kind of want to use the
+   "version" in sims - the one for native programs instead of RISC-V
+   programs. Even if we could include syscfg.h though, we would still
+   need to figure out a way to include it in the mips-riscv.md since the
+   machine description file also refers to these modes. */
+
+#define RISCV_SYSCFG_VLEN_MAX 32
+
+/*----------------------------------------------------------------------*/
+/* MIPS_RISCV_VECTOR_MODE_NAME                                          */
+/*----------------------------------------------------------------------*/
+/* This is a helper macro which creates a RISC-V vector mode name from
+   the given inner_mode. It does this by concatenating a 'V' prefix, the
+   maximum RISC-V vector length, and the inner mode together. For
+   example, MIPS_RISCV_VECTOR_MODE_NAME(SI) should expand to V32SI if
+   the RISC-V maximum vector length is 32. We need to use the nested
+   macros to make sure RISCV_SYSCFG_VLEN_MAX is expanded _before_
+   concatenation. */
+
+#define MIPS_RISCV_VECTOR_MODE_NAME_H2( res_ ) res_
+
+#define MIPS_RISCV_VECTOR_MODE_NAME_H1( arg0_, arg1_ ) \
+  MIPS_RISCV_VECTOR_MODE_NAME_H2( V ## arg0_ ## arg1_ ## mode )
+
+#define MIPS_RISCV_VECTOR_MODE_NAME_H0( arg0_, arg1_ ) \
+  MIPS_RISCV_VECTOR_MODE_NAME_H1( arg0_, arg1_ )
+
+#define MIPS_RISCV_VECTOR_MODE_NAME( inner_mode_ ) \
+  MIPS_RISCV_VECTOR_MODE_NAME_H0( RISCV_SYSCFG_VLEN_MAX, inner_mode_ )
+
 /* True if X is an UNSPEC wrapper around a SYMBOL_REF or LABEL_REF.  */
 #define UNSPEC_ADDRESS_P(X)					\
   (GET_CODE (X) == UNSPEC					\
@@ -526,6 +562,24 @@ mips_comp_type_attributes (const_tree type1, const_tree type2)
   if (mips_near_type_p (type1) && mips_far_type_p (type2))
     return 0;
   return 1;
+}
+
+/* If X is a PLUS of a CONST_INT, return the two terms in *BASE_PTR
+   and *OFFSET_PTR.  Return X in *BASE_PTR and 0 in *OFFSET_PTR otherwise.  */
+
+static void
+mips_split_plus (rtx x, rtx *base_ptr, HOST_WIDE_INT *offset_ptr)
+{
+  if (GET_CODE (x) == PLUS && GET_CODE (XEXP (x, 1)) == CONST_INT)
+    {
+      *base_ptr = XEXP (x, 0);
+      *offset_ptr = INTVAL (XEXP (x, 1));
+    }
+  else
+    {
+      *base_ptr = x;
+      *offset_ptr = 0;
+    }
 }
 
 /* Fill CODES with a sequence of rtl operations to load VALUE.
@@ -1605,6 +1659,101 @@ mips_legitimize_move (enum machine_mode mode, rtx dest, rtx src)
       set_unique_reg_note (get_last_insn (), REG_EQUAL, copy_rtx (src));
       return true;
     }
+  return false;
+}
+
+bool
+mips_legitimize_vector_move (enum machine_mode mode, rtx dest, rtx src)
+{
+  bool dest_mem, dest_mem_reg;
+  bool src_mem, src_mem_reg;
+
+  dest_mem = (GET_CODE(dest) == MEM);
+  dest_mem_reg = dest_mem && GET_CODE(XEXP(dest, 0)) == REG;
+
+  src_mem = (GET_CODE(src) == MEM);
+  src_mem_reg = src_mem && GET_CODE(XEXP(src, 0)) == REG;
+
+  if (dest_mem && !dest_mem_reg)
+  {
+    rtx add, scratch, base, move;
+    HOST_WIDE_INT offset;
+
+    mips_split_plus(XEXP(dest,0), &base, &offset);
+
+    scratch = gen_reg_rtx(Pmode);
+    add = gen_add3_insn(scratch, base, GEN_INT(offset));
+    emit_insn(add);
+
+    switch (mode)
+    {
+      case MIPS_RISCV_VECTOR_MODE_NAME(DI):
+        move = gen_movv32di(gen_rtx_MEM(mode, scratch), src);
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(SI):
+        move = gen_movv32si(gen_rtx_MEM(mode, scratch), src);
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(HI):
+        move = gen_movv32hi(gen_rtx_MEM(mode, scratch), src);
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(QI):
+        move = gen_movv32qi(gen_rtx_MEM(mode, scratch), src);
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(DF):
+        move = gen_movv32df(gen_rtx_MEM(mode, scratch), src);
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(SF):
+        move = gen_movv32sf(gen_rtx_MEM(mode, scratch), src);
+        break;
+      default:
+        gcc_unreachable();
+    }
+
+    emit_insn(move);
+
+    return true;
+  }
+
+  if (src_mem && !src_mem_reg)
+  {
+    rtx add, scratch, base, move;
+    HOST_WIDE_INT offset;
+
+    mips_split_plus(XEXP(src,0), &base, &offset);
+
+    scratch = gen_reg_rtx(Pmode);
+    add = gen_add3_insn(scratch, base, GEN_INT(offset));
+    emit_insn(add);
+
+    switch (mode)
+    {
+      case MIPS_RISCV_VECTOR_MODE_NAME(DI):
+        move = gen_movv32di(dest, gen_rtx_MEM(mode, scratch));
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(SI):
+        move = gen_movv32si(dest, gen_rtx_MEM(mode, scratch));
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(HI):
+        move = gen_movv32hi(dest, gen_rtx_MEM(mode, scratch));
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(QI):
+        move = gen_movv32qi(dest, gen_rtx_MEM(mode, scratch));
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(DF):
+        move = gen_movv32df(dest, gen_rtx_MEM(mode, scratch));
+        break;
+      case MIPS_RISCV_VECTOR_MODE_NAME(SF):
+        move = gen_movv32sf(dest, gen_rtx_MEM(mode, scratch));
+        break;
+      default:
+        gcc_unreachable();
+    }
+
+    emit_insn(move);
+
+    return true;
+  }
+
   return false;
 }
 
@@ -3138,7 +3287,7 @@ mips_load_call_address (enum mips_call_type type, rtx dest, rtx addr)
 
 rtx
 mips_expand_call (enum mips_call_type type, rtx result, rtx addr,
-		  rtx args_size, rtx aux, bool lazy_p)
+		  rtx args_size, rtx aux ATTRIBUTE_UNUSED, bool lazy_p)
 {
   rtx orig_addr, pattern;
 
@@ -3577,7 +3726,9 @@ mips_print_operand (FILE *file, rtx op, int letter)
 	  break;
 
 	case MEM:
-	  if (letter == 'D')
+	  if (letter == 'y')
+	    fprintf (file, "%s", reg_names[REGNO(XEXP(op, 0))]);
+	  else if (letter && letter == 'D')
 	    output_address (plus_constant (XEXP (op, 0), 4));
 	  else if (letter && letter != 'z')
 	    output_operand_lossage ("invalid use of '%%%c'", letter);
@@ -4816,6 +4967,25 @@ mips_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
   unsigned int size;
   enum mode_class mclass;
 
+  if (VECTOR_MODE_P(mode))
+  {
+    switch (mode)
+    {
+      case MIPS_RISCV_VECTOR_MODE_NAME(DI):
+      case MIPS_RISCV_VECTOR_MODE_NAME(SI):
+      case MIPS_RISCV_VECTOR_MODE_NAME(HI):
+      case MIPS_RISCV_VECTOR_MODE_NAME(QI):
+        return VEC_GP_REG_P(regno);
+
+      case MIPS_RISCV_VECTOR_MODE_NAME(DF):
+      case MIPS_RISCV_VECTOR_MODE_NAME(SF):
+        return VEC_FP_REG_P(regno);
+
+      default:
+        return false;
+    }
+  }
+
   if (mode == CCmode)
     return GP_REG_P (regno);
 
@@ -5150,7 +5320,19 @@ mips_valid_pointer_mode (enum machine_mode mode)
 static bool
 mips_vector_mode_supported_p (enum machine_mode mode ATTRIBUTE_UNUSED)
 {
-  return false;
+  switch (mode)
+    {
+    case MIPS_RISCV_VECTOR_MODE_NAME(DI):
+    case MIPS_RISCV_VECTOR_MODE_NAME(SI):
+    case MIPS_RISCV_VECTOR_MODE_NAME(HI):
+    case MIPS_RISCV_VECTOR_MODE_NAME(QI):
+    case MIPS_RISCV_VECTOR_MODE_NAME(DF):
+    case MIPS_RISCV_VECTOR_MODE_NAME(SF):
+      return true;
+
+    default:
+      return false;
+    }
 }
 
 /* Implement TARGET_SCALAR_MODE_SUPPORTED_P.  */
@@ -5274,6 +5456,12 @@ mips_builtin_avail_cache (void)
   return 0;
 }
 
+static unsigned int
+mips_builtin_avail_riscv (void)
+{
+  return 1;
+}
+
 /* Construct a mips_builtin_description from the given arguments.
 
    INSN is the name of the associated instruction pattern, without the
@@ -5310,6 +5498,34 @@ mips_builtin_avail_cache (void)
 
 static const struct mips_builtin_description mips_builtins[] = {
   DIRECT_NO_TARGET_BUILTIN (cache, MIPS_VOID_FTYPE_SI_CVPOINTER, cache),
+
+  DIRECT_BUILTIN( riscv_vload_vdi, MIPS_VDI_FTYPE_CPOINTER, riscv ),
+  DIRECT_BUILTIN( riscv_vload_vsi, MIPS_VSI_FTYPE_CPOINTER, riscv ),
+  DIRECT_BUILTIN( riscv_vload_vhi, MIPS_VHI_FTYPE_CPOINTER, riscv ),
+  DIRECT_BUILTIN( riscv_vload_vqi, MIPS_VQI_FTYPE_CPOINTER, riscv ),
+  DIRECT_BUILTIN( riscv_vload_vdf, MIPS_VDF_FTYPE_CPOINTER, riscv ),
+  DIRECT_BUILTIN( riscv_vload_vsf, MIPS_VSF_FTYPE_CPOINTER, riscv ),
+
+  DIRECT_BUILTIN( riscv_vload_strided_vdi, MIPS_VDI_FTYPE_CPOINTER_DI, riscv ),
+  DIRECT_BUILTIN( riscv_vload_strided_vsi, MIPS_VSI_FTYPE_CPOINTER_DI, riscv ),
+  DIRECT_BUILTIN( riscv_vload_strided_vhi, MIPS_VHI_FTYPE_CPOINTER_DI, riscv ),
+  DIRECT_BUILTIN( riscv_vload_strided_vqi, MIPS_VQI_FTYPE_CPOINTER_DI, riscv ),
+  DIRECT_BUILTIN( riscv_vload_strided_vdf, MIPS_VDF_FTYPE_CPOINTER_DI, riscv ),
+  DIRECT_BUILTIN( riscv_vload_strided_vsf, MIPS_VSF_FTYPE_CPOINTER_DI, riscv ),
+
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vdi, MIPS_VOID_FTYPE_VDI_POINTER, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vsi, MIPS_VOID_FTYPE_VSI_POINTER, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vhi, MIPS_VOID_FTYPE_VHI_POINTER, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vqi, MIPS_VOID_FTYPE_VQI_POINTER, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vdf, MIPS_VOID_FTYPE_VDF_POINTER, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vsf, MIPS_VOID_FTYPE_VSF_POINTER, riscv ),
+
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vdi, MIPS_VOID_FTYPE_VDI_POINTER_DI, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vsi, MIPS_VOID_FTYPE_VSI_POINTER_DI, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vhi, MIPS_VOID_FTYPE_VHI_POINTER_DI, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vqi, MIPS_VOID_FTYPE_VQI_POINTER_DI, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vdf, MIPS_VOID_FTYPE_VDF_POINTER_DI, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vsf, MIPS_VOID_FTYPE_VSF_POINTER_DI, riscv ),
 };
 
 /* Index I is the function declaration for mips_builtins[I], or null if the
@@ -5353,6 +5569,7 @@ mips_build_cvpointer_type (void)
 #define MIPS_ATYPE_VOID void_type_node
 #define MIPS_ATYPE_INT integer_type_node
 #define MIPS_ATYPE_POINTER ptr_type_node
+#define MIPS_ATYPE_CPOINTER const_ptr_type_node
 #define MIPS_ATYPE_CVPOINTER mips_build_cvpointer_type ()
 
 /* Standard mode-based argument types.  */
@@ -5377,6 +5594,30 @@ mips_build_cvpointer_type (void)
   mips_builtin_vector_type (unsigned_intHI_type_node, V4HImode)
 #define MIPS_ATYPE_UV8QI					\
   mips_builtin_vector_type (unsigned_intQI_type_node, V8QImode)
+
+#define MIPS_ATYPE_VDI \
+  mips_builtin_vector_type( intDI_type_node, \
+    MIPS_RISCV_VECTOR_MODE_NAME(DI) )
+
+#define MIPS_ATYPE_VSI \
+  mips_builtin_vector_type( intSI_type_node, \
+    MIPS_RISCV_VECTOR_MODE_NAME(SI) )
+
+#define MIPS_ATYPE_VHI \
+  mips_builtin_vector_type( intHI_type_node, \
+    MIPS_RISCV_VECTOR_MODE_NAME(HI) )
+
+#define MIPS_ATYPE_VQI \
+  mips_builtin_vector_type( intQI_type_node, \
+    MIPS_RISCV_VECTOR_MODE_NAME(QI) )
+
+#define MIPS_ATYPE_VDF \
+  mips_builtin_vector_type( double_type_node, \
+    MIPS_RISCV_VECTOR_MODE_NAME(DF) )
+
+#define MIPS_ATYPE_VSF \
+  mips_builtin_vector_type( float_type_node, \
+    MIPS_RISCV_VECTOR_MODE_NAME(SF) )
 
 /* MIPS_FTYPE_ATYPESN takes N MIPS_FTYPES-like type codes and lists
    their associated MIPS_ATYPEs.  */
@@ -6216,6 +6457,73 @@ static unsigned HOST_WIDE_INT
 mips_shift_truncation_mask (enum machine_mode mode)
 {
   return GET_MODE_BITSIZE (mode) - 1;
+}
+
+const char*
+mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
+{
+  bool dest_mem, dest_vgp_reg, dest_vfp_reg;
+  bool src_mem, src_vgp_reg, src_vfp_reg;
+
+  dest_mem = (GET_CODE(dest) == MEM);
+  dest_vgp_reg = (GET_CODE(dest) == REG) && VEC_GP_REG_P(REGNO(dest));
+  dest_vfp_reg = (GET_CODE(dest) == REG) && VEC_FP_REG_P(REGNO(dest));
+
+  src_mem = (GET_CODE(src) == MEM);
+  src_vgp_reg = (GET_CODE(src) == REG) && VEC_GP_REG_P(REGNO(src));
+  src_vfp_reg = (GET_CODE(src) == REG) && VEC_FP_REG_P(REGNO(src));
+
+  if (dest_vgp_reg && src_vgp_reg)
+    return "vmvv\t%0,%1";
+
+  if (dest_vfp_reg && src_vfp_reg)
+    return "vfmvv\t%0,%1";
+
+  if (dest_vgp_reg && src_mem)
+  {
+    switch (mode)
+    {
+      case MIPS_RISCV_VECTOR_MODE_NAME(DI): return "vld\t%0,%y1";
+      case MIPS_RISCV_VECTOR_MODE_NAME(SI): return "vlw\t%0,%y1";
+      case MIPS_RISCV_VECTOR_MODE_NAME(HI): return "vlh\t%0,%y1";
+      case MIPS_RISCV_VECTOR_MODE_NAME(QI): return "vlb\t%0,%y1";
+      default: gcc_unreachable();
+    }
+  }
+
+  if (dest_vfp_reg && src_mem)
+  {
+    switch (mode)
+    {
+      case MIPS_RISCV_VECTOR_MODE_NAME(DF): return "vfld\t%0,%y1";
+      case MIPS_RISCV_VECTOR_MODE_NAME(SF): return "vflw\t%0,%y1";
+      default: gcc_unreachable();
+    }
+  }
+
+  if (dest_mem && src_vgp_reg)
+  {
+    switch (mode)
+    {
+      case MIPS_RISCV_VECTOR_MODE_NAME(DI): return "vsd\t%1,%y0";
+      case MIPS_RISCV_VECTOR_MODE_NAME(SI): return "vsw\t%1,%y0";
+      case MIPS_RISCV_VECTOR_MODE_NAME(HI): return "vsh\t%1,%y0";
+      case MIPS_RISCV_VECTOR_MODE_NAME(QI): return "vsb\t%1,%y0";
+      default: gcc_unreachable();
+    }
+  }
+
+  if (dest_mem && src_vfp_reg)
+  {
+    switch (mode)
+    {
+      case MIPS_RISCV_VECTOR_MODE_NAME(DF): return "vfsd\t%1,%y0";
+      case MIPS_RISCV_VECTOR_MODE_NAME(SF): return "vfsw\t%1,%y0";
+      default: gcc_unreachable();
+    }
+  }
+
+  gcc_unreachable();
 }
 
 

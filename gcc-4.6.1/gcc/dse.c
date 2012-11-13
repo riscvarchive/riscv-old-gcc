@@ -1326,7 +1326,46 @@ record_store (rtx body, bb_info_t bb_info)
   else
     {
       width = GET_MODE_SIZE (GET_MODE (mem));
+      /* cbatten - Previously there was the following assertion here:
+
       gcc_assert ((unsigned) width <= HOST_BITS_PER_WIDE_INT);
+
+         I don't think we need this assertion, and it prevents us from
+         using very large vector types which we would like to do on
+         maven. In the above if condition you can see that we already
+         need to be able to handle widths which are greater than the
+         number of bits in a wide int. And I looked through the
+         remaining codeand it seems like it is used in these two
+         functions:
+
+           set_usage_bits
+           all_positions_needed_p
+
+         neither use is guarded by a check to see if the mode is BLKmode
+         and it looks like both use the general gcc bitmap code which
+         supports arbitrarilty sized bitmaps.
+
+         The width value is also used as "offset + width" in a couple
+         places but all of these places look like it takes an int (as
+         opposed to a bitmap) so we should be okay. 
+
+         And then at the bottom of this function there is this:
+
+          if ( width > HOST_BITS_PER_WIDE_INT ) {
+            store_info->is_large = true;
+            store_info->positions_needed.large.count = 0;
+            store_info->positions_needed.large.bitmap = BITMAP_ALLOC(NULL);
+          }
+          else {
+            store_info->is_large = false;
+            store_info->positions_needed.small_bitmask
+             = lowpart_bitmask(width);
+          }
+
+         Which as you can see explicitly handles the case where the
+         width is too large. The store_info struct has specific hooks to
+         enable this - so other code should work fine as long as it
+         checks the is_large flag. */
     }
 
   if (spill_alias_set)
