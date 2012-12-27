@@ -204,3 +204,6 @@
 
 (define_predicate "fp_order_operator"
   (match_code "eq,lt,le,gt,ge"))
+
+(define_predicate "fp_unorder_operator"
+  (match_code "ordered,unordered"))

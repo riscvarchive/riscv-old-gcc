@@ -2459,6 +2459,22 @@
   [(set_attr "type" "fcmp")
    (set_attr "mode" "<UNITMODE>")])
 
+; super ghetto
+(define_insn "cstore<mode>4_ord"
+   [(set (match_operand:SI 0 "register_operand" "=d")
+        (match_operator:SI 1 "fp_unorder_operator"
+	      [(match_operand:SCALARF 2 "register_operand" "f")
+	       (match_dup 2)]))]
+  "TARGET_HARD_FLOAT"
+{
+  if (GET_CODE (operands[1]) == ORDERED)
+    return "feq.<fmt>\t%0,%2,%2";
+  else /* UNORDERED */
+    return "feq.<fmt>\t%0,%2,%2; sltu\t%0,%0,1";
+}
+  [(set_attr "type" "fcmp")
+   (set_attr "mode" "<UNITMODE>")])
+
 (define_insn "*seq_zero_<GPR:mode><GPR2:mode>"
   [(set (match_operand:GPR2 0 "register_operand" "=d")
 	(eq:GPR2 (match_operand:GPR 1 "register_operand" "d")
