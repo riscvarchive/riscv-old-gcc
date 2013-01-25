@@ -1,3 +1,4 @@
 build-*
+build.log
 *-*-riscv.patch
 Makelocal
