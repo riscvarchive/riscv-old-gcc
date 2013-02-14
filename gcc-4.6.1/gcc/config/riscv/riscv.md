@@ -1135,74 +1135,74 @@
 
 ;; Floating point multiply accumulate instructions.
 
-(define_insn "*madd4<mode>"
+(define_insn "fma<mode>4"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
-	(plus:ANYF (mult:ANYF (match_operand:ANYF 1 "register_operand" "f")
-			      (match_operand:ANYF 2 "register_operand" "f"))
-		   (match_operand:ANYF 3 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT
-   && !HONOR_NANS (<MODE>mode)"
+    (fma:ANYF
+      (match_operand:ANYF 1 "register_operand" "f")
+      (match_operand:ANYF 2 "register_operand" "f")
+      (match_operand:ANYF 3 "register_operand" "f")))]
+  "TARGET_HARD_FLOAT"
   "fmadd.<fmt>\t%0,%1,%2,%3"
   [(set_attr "type" "fmadd")
    (set_attr "mode" "<UNITMODE>")])
 
-(define_insn "*msub4<mode>"
+(define_insn "fms<mode>4"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
-	(minus:ANYF (mult:ANYF (match_operand:ANYF 1 "register_operand" "f")
-			       (match_operand:ANYF 2 "register_operand" "f"))
-		    (match_operand:ANYF 3 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT
-   && !HONOR_NANS (<MODE>mode)"
+    (fma:ANYF
+      (match_operand:ANYF 1 "register_operand" "f")
+      (match_operand:ANYF 2 "register_operand" "f")
+      (neg:ANYF (match_operand:ANYF 3 "register_operand" "f"))))]
+  "TARGET_HARD_FLOAT"
   "fmsub.<fmt>\t%0,%1,%2,%3"
   [(set_attr "type" "fmadd")
    (set_attr "mode" "<UNITMODE>")])
 
-(define_insn "*nmadd4<mode>"
+(define_insn "nfma<mode>4"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
-	(neg:ANYF (plus:ANYF
-		   (mult:ANYF (match_operand:ANYF 1 "register_operand" "f")
-			      (match_operand:ANYF 2 "register_operand" "f"))
-		   (match_operand:ANYF 3 "register_operand" "f"))))]
-  "TARGET_HARD_FLOAT
-   && !HONOR_NANS (<MODE>mode)"
+    (neg:ANYF
+      (fma:ANYF
+        (match_operand:ANYF 1 "register_operand" "f")
+        (match_operand:ANYF 2 "register_operand" "f")
+        (match_operand:ANYF 3 "register_operand" "f"))))]
+  "TARGET_HARD_FLOAT"
   "fnmadd.<fmt>\t%0,%1,%2,%3"
   [(set_attr "type" "fmadd")
    (set_attr "mode" "<UNITMODE>")])
 
-(define_insn "*nmadd4<mode>_fastmath"
+(define_insn "nfms<mode>4"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
-	(minus:ANYF
-	 (mult:ANYF (neg:ANYF (match_operand:ANYF 1 "register_operand" "f"))
-		    (match_operand:ANYF 2 "register_operand" "f"))
-	 (match_operand:ANYF 3 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT
-   && !HONOR_SIGNED_ZEROS (<MODE>mode)
-   && !HONOR_NANS (<MODE>mode)"
-  "fnmadd.<fmt>\t%0,%1,%2,%3"
-  [(set_attr "type" "fmadd")
-   (set_attr "mode" "<UNITMODE>")])
-
-(define_insn "*nmsub4<mode>"
-  [(set (match_operand:ANYF 0 "register_operand" "=f")
-	(neg:ANYF (minus:ANYF
-		   (mult:ANYF (match_operand:ANYF 2 "register_operand" "f")
-			      (match_operand:ANYF 3 "register_operand" "f"))
-		   (match_operand:ANYF 1 "register_operand" "f"))))]
-  "TARGET_HARD_FLOAT
-   && !HONOR_NANS (<MODE>mode)"
+    (neg:ANYF
+      (fma:ANYF
+        (match_operand:ANYF 1 "register_operand" "f")
+        (match_operand:ANYF 2 "register_operand" "f")
+        (neg:ANYF (match_operand:ANYF 3 "register_operand" "f")))))]
+  "TARGET_HARD_FLOAT"
   "fnmsub.<fmt>\t%0,%1,%2,%3"
   [(set_attr "type" "fmadd")
    (set_attr "mode" "<UNITMODE>")])
 
-(define_insn "*nmsub4<mode>_fastmath"
+;; modulo signed zeros, -(a*b+c) == -c-a*b
+(define_insn "*nfma<mode>4_fastmath"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
-	(minus:ANYF
-	 (match_operand:ANYF 1 "register_operand" "f")
-	 (mult:ANYF (match_operand:ANYF 2 "register_operand" "f")
-		    (match_operand:ANYF 3 "register_operand" "f"))))]
-  "TARGET_HARD_FLOAT
-   && !HONOR_SIGNED_ZEROS (<MODE>mode)
-   && !HONOR_NANS (<MODE>mode)"
+    (minus:ANYF
+      (match_operand:ANYF 3 "register_operand" "f")
+      (mult:ANYF
+        (neg:ANYF (match_operand:ANYF 1 "register_operand" "f"))
+        (match_operand:ANYF 2 "register_operand" "f"))))]
+  "TARGET_HARD_FLOAT && !HONOR_SIGNED_ZEROS (<MODE>mode)"
+  "fnmadd.<fmt>\t%0,%1,%2,%3"
+  [(set_attr "type" "fmadd")
+   (set_attr "mode" "<UNITMODE>")])
+
+;; modulo signed zeros, -(a*b-c) == c-a*b
+(define_insn "*nfms<mode>4_fastmath"
+  [(set (match_operand:ANYF 0 "register_operand" "=f")
+    (minus:ANYF
+      (match_operand:ANYF 3 "register_operand" "f")
+      (mult:ANYF
+        (match_operand:ANYF 1 "register_operand" "f")
+        (match_operand:ANYF 2 "register_operand" "f"))))]
+  "TARGET_HARD_FLOAT && !HONOR_SIGNED_ZEROS (<MODE>mode)"
   "fnmsub.<fmt>\t%0,%1,%2,%3"
   [(set_attr "type" "fmadd")
    (set_attr "mode" "<UNITMODE>")])
