@@ -43,6 +43,7 @@ newlib: build-gcc-newlib
 linux: build-gcc-linux-stage2
 
 build-binutils-newlib:
+	rm -rf $@
 	mkdir $@
 	cd $@ && ../binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-elf \
@@ -61,6 +62,7 @@ build-gcc-newlib-src: build-binutils-newlib
 	cp -r newlib-$(NEWLIB_VERSION)/libgloss $@
 
 build-gcc-newlib: build-gcc-newlib-src
+	rm -rf $@
 	mkdir $@
 	cd $@ && ../$</configure \
 		--target=riscv-elf \
@@ -80,6 +82,7 @@ build-gcc-newlib: build-gcc-newlib-src
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-binutils-linux:
+	rm -rf $@
 	mkdir $@
 	cd $@ && ../binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-linux \
@@ -93,6 +96,7 @@ build-binutils-linux:
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-gcc-linux-stage1: build-binutils-linux
+	rm -rf $@
 	mkdir $@
 	cd $@ && ../gcc-$(GCC_VERSION)/configure \
 		--target=riscv-linux \
@@ -113,6 +117,7 @@ build-gcc-linux-stage1: build-binutils-linux
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-glibc-linux: build-gcc-linux-stage1
+	rm -rf $@
 	mkdir $@
 	cd $@ && $(CURDIR)/glibc-$(GLIBC_VERSION)/configure \
 		riscv-linux \
@@ -128,6 +133,7 @@ build-glibc-linux: build-gcc-linux-stage1
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install cross-compiling=yes
 
 build-gcc-linux-stage2: build-glibc-linux
+	rm -rf $@
 	mkdir $@
 	cd $@ && ../gcc-$(GCC_VERSION)/configure \
 		--target=riscv-linux \
