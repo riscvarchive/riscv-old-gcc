@@ -190,7 +190,7 @@
 ;; imadd	integer multiply-add
 ;; idiv		integer divide 2 operands
 ;; idiv3	integer divide 3 operands
-;; move		integer register move ({,D}ADD{,U} with rt = 0)
+;; move		integer register move (addi rd, rs1, 0)
 ;; fmove	floating point register move
 ;; fadd		floating point add/subtract
 ;; fmul		floating point multiply
@@ -402,6 +402,7 @@
 
 ;; Likewise the 64-bit truncate-and-shift patterns.
 (define_mode_iterator SUBDI [QI HI SI])
+(define_mode_iterator HISI [HI SI])
 
 ;; This mode iterator allows :ANYF to be used wherever a scalar or vector
 ;; floating-point mode is allowed.
@@ -763,18 +764,17 @@
   [(set_attr "type" "arith")
    (set_attr "mode" "SI")])
 
-;; this is used for generating HImode constants.
-;; see comments in mips_move_integer().
-(define_insn "bullshit_addsihi"
-  [(set (match_operand:HI 0 "register_operand" "=d")
-	(plus:HI (match_operand:SI 1 "register_operand" "d")
-		       (match_operand:SI 2 "const_arith_operand" "I")))]
-  "0"
-{
-  return TARGET_64BIT ? "addw\t%0,%1,%2" : "add\t%0,%1,%2";
-}
+;; HImode constant generation; see mips_move_integer for details.
+;; si+si->hi without truncation is legal because of TRULY_NOOP_TRUNCATION.
+
+(define_insn "add<mode>hi3"
+  [(set (match_operand:HI 0 "register_operand" "=d,d")
+	(plus:HI (match_operand:HISI 1 "register_operand" "d,d")
+		  (match_operand:HISI 2 "arith_operand" "d,Q")))]
+  ""
+  { return TARGET_64BIT ? "addw\t%0,%1,%2" : "add\t%0,%1,%2"; }
   [(set_attr "type" "arith")
-   (set_attr "mode" "SI")])
+   (set_attr "mode" "HI")])
 
 ;;
 ;;  ....................
@@ -1945,13 +1945,13 @@
    (set_attr "mode" "DI")])
 
 (define_insn "*movdi_64bit"
-  [(set (match_operand:DI 0 "nonimmediate_operand" "=d,d,e,d,m,*f,*f,*d,*m")
-	(match_operand:DI 1 "move_operand" "d,U,T,m,dJ,*d*J,*m,*f,*f"))]
+  [(set (match_operand:DI 0 "nonimmediate_operand" "=d,d,d,m,*f,*f,*d,*m")
+	(match_operand:DI 1 "move_operand" "d,T,m,dJ,*d*J,*m,*f,*f"))]
   "TARGET_64BIT
    && (register_operand (operands[0], DImode)
        || reg_or_0_operand (operands[1], DImode))"
   { return mips_output_move (operands[0], operands[1]); }
-  [(set_attr "move_type" "move,const,const,load,store,mtc,fpload,mfc,fpstore")
+  [(set_attr "move_type" "move,const,load,store,mtc,fpload,mfc,fpstore")
    (set_attr "mode" "DI")])
 
 ;; 32-bit Integer moves
@@ -1973,12 +1973,12 @@
 ;; in FP registers (off by default, use -mdebugh to enable).
 
 (define_insn "*mov<mode>_internal"
-  [(set (match_operand:IMOVE32 0 "nonimmediate_operand" "=d,d,e,d,m,*f,*f,*d,*m,*d,*z")
-	(match_operand:IMOVE32 1 "move_operand" "d,U,T,m,dJ,*d*J,*m,*f,*f,*z,*d"))]
+  [(set (match_operand:IMOVE32 0 "nonimmediate_operand" "=d,d,d,m,*f,*f,*d,*m,*d,*z")
+	(match_operand:IMOVE32 1 "move_operand" "d,T,m,dJ,*d*J,*m,*f,*f,*z,*d"))]
   "(register_operand (operands[0], <MODE>mode)
     || reg_or_0_operand (operands[1], <MODE>mode))"
   { return mips_output_move (operands[0], operands[1]); }
-  [(set_attr "move_type" "move,const,const,load,store,mtc,fpload,mfc,fpstore,mfc,mtc")
+  [(set_attr "move_type" "move,const,load,store,mtc,fpload,mfc,fpstore,mfc,mtc")
    (set_attr "mode" "SI")])
 
 ;; 16-bit Integer moves
@@ -1999,7 +1999,7 @@
 
 (define_insn "*movhi_internal"
   [(set (match_operand:HI 0 "nonimmediate_operand" "=d,d,d,m")
-	(match_operand:HI 1 "move_operand"         "d,Z,m,dJ"))]
+	(match_operand:HI 1 "move_operand"         "d,T,m,dJ"))]
   "(register_operand (operands[0], HImode)
     || reg_or_0_operand (operands[1], HImode))"
   { return mips_output_move (operands[0], operands[1]); }
@@ -2007,11 +2007,6 @@
    (set_attr "mode" "HI")])
 
 ;; 8-bit Integer moves
-
-;; Unlike most other insns, the move insns can't be split with '
-;; different predicates, because register spilling and other parts of
-;; the compiler, have memoized the insn number already.
-;; Unsigned loads are used because LOAD_EXTEND_OP returns ZERO_EXTEND.
 
 (define_expand "movqi"
   [(set (match_operand:QI 0 "")

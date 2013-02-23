@@ -27,7 +27,7 @@
 
 ;; Register constraints
 
-(define_register_constraint "d" "BASE_REG_CLASS"
+(define_register_constraint "d" "GR_REGS"
   "An address register.  This is equivalent to @code{r} unless
    generating MIPS16 code.")
 
@@ -46,9 +46,6 @@
   "A register suitable for use in an indirect jump.  This will always be
    @code{$25} for @option{-mabicalls}.")
 
-(define_register_constraint "e" "LEA_REGS"
-  "@internal")
-
 (define_register_constraint "j" "PIC_FN_ADDR_REG"
   "@internal")
 
@@ -57,9 +54,6 @@
 (define_register_constraint "v" "V1_REG"
   "Register @code{$3}.  Do not use this constraint in new code;
    it is retained only for compatibility with glibc.")
-
-(define_register_constraint "y" "GR_REGS"
-  "Equivalent to @code{r}; retained for backwards compatibility.")
 
 (define_register_constraint "z" "GR_REGS"
   "A floating-point condition code register.")
@@ -78,12 +72,12 @@
 ;; Integer constraints
 
 (define_constraint "Z"
-  "A signed 16-bit constant (for arithmetic instructions)."
+  "@internal"
   (and (match_code "const_int")
        (match_test "1")))
 
 (define_constraint "I"
-  "A signed 16-bit constant (for arithmetic instructions)."
+  "An I-type 12-bit signed immediate."
   (and (match_code "const_int")
        (match_test "SMALL_OPERAND (ival)")))
 
@@ -91,19 +85,6 @@
   "Integer zero."
   (and (match_code "const_int")
        (match_test "ival == 0")))
- 
-(define_constraint "L"
-  "A signed 32-bit constant in which the lower 16 bits are zero.
-   Such constants can be loaded using @code{lui}."
-  (and (match_code "const_int")
-       (match_test "LUI_OPERAND (ival)")))
-
-(define_constraint "M"
-  "A constant that cannot be loaded using @code{lui}, @code{addiu}
-   or @code{ori}."
-  (and (match_code "const_int")
-       (match_test "!SMALL_OPERAND (ival)")
-       (match_test "!LUI_OPERAND (ival)")))
 
 ;; Floating-point constraints
 
@@ -136,15 +117,7 @@
 
 (define_constraint "T"
   "@internal
-   A constant @code{move_operand} that cannot be safely loaded into @code{$25}
-   using @code{la}."
-  (and (match_operand 0 "move_operand")
-       (match_test "CONSTANT_P (op)")))
-
-(define_constraint "U"
-  "@internal
-   A constant @code{move_operand} that can be safely loaded into @code{$25}
-   using @code{la}."
+   A constant @code{move_operand}."
   (and (match_operand 0 "move_operand")
        (match_test "CONSTANT_P (op)")))
 

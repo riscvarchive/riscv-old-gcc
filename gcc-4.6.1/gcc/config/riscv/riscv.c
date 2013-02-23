@@ -1547,44 +1547,20 @@ mips_move_integer (rtx temp, rtx dest, unsigned HOST_WIDE_INT value)
      source operand for a SET pattern.  */
   x = GEN_INT (codes[0].value);
 
-  if(mode == HImode && num_ops == 2)
+  for (i = 1; i < num_ops; i++)
     {
-      /* Some HImode constants are loaded with a LUI/ADDI[W] pair, whose
-         result would ordinarily be SImode.  For the ADDI[W], we invoke a
-         special addsihi instruction to mark the output as HImode instead.
-         The instruction doesn't actually canonicalize the result to 16 bits,
-	 as it's really just ADDI[W], but that's OK here because any HImode
-	 constant is already canonical. */
-      gcc_assert(codes[1].code == PLUS);
-      gcc_assert((codes[0].value + codes[1].value) == value);
-
       if (!can_create_pseudo_p ())
-	{
-      	  emit_insn (gen_rtx_SET (SImode, temp, x));
-      	  x = temp;
-      	}
-      else
-        x = force_reg (SImode, x);
-
-      emit_insn (gen_bullshit_addsihi(dest, x, GEN_INT (codes[1].value)));
-    }
-  else
-    {
-      for (i = 1; i < num_ops; i++)
         {
-          if (!can_create_pseudo_p ())
-            {
-              emit_insn (gen_rtx_SET (VOIDmode, temp, x));
-              x = temp;
-            }
-          else
-            x = force_reg (mode, x);
-
-          x = gen_rtx_fmt_ee (codes[i].code, mode, x, GEN_INT (codes[i].value));
+          emit_insn (gen_rtx_SET (VOIDmode, temp, x));
+          x = temp;
         }
+      else
+        x = force_reg (mode == HImode ? SImode : mode, x);
 
-      emit_insn (gen_rtx_SET (VOIDmode, dest, x));
+      x = gen_rtx_fmt_ee (codes[i].code, mode, x, GEN_INT (codes[i].value));
     }
+
+  emit_insn (gen_rtx_SET (VOIDmode, dest, x));
 }
 
 /* Subroutine of mips_legitimize_move.  Move constant SRC into register
