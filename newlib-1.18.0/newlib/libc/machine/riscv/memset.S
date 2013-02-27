@@ -43,7 +43,6 @@ aligned8:
   sw a1, 0(a0)
   sw a1, 4(a0)
 #endif
-  sd a1, 0(a0)
   add a0, a0, 8
   bltu a0, t0, 1b
 
