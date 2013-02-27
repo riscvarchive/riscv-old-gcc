@@ -4565,27 +4565,31 @@ mips_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset,
   HOST_WIDE_INT offset;
   int regno;
 
-  /* Save registers starting from high to low.  The debuggers prefer at least
-     the return register be stored at func+4, and also it allows us not to
-     need a nop in the epilogue if at least one register is reloaded in
-     addition to return address.  */
+  /* Save the return address at the top of the frame. */
   offset = cfun->machine->frame.gp_sp_offset - sp_offset;
-  for (regno = GP_REG_LAST; regno >= GP_REG_FIRST; regno--)
-    if (BITSET_P (cfun->machine->frame.mask, regno - GP_REG_FIRST))
-      {
-	mips_save_restore_reg (word_mode, regno, offset, fn);
-	offset -= UNITS_PER_WORD;
-      }
+  if (BITSET_P (cfun->machine->frame.mask, LINK_REG))
+    {
+      mips_save_restore_reg (word_mode, LINK_REG + GP_REG_FIRST, offset, fn);
+      offset -= UNITS_PER_WORD;
+    }
+
+  /* Save the s-registers in reverse order. */
+  for (regno = GP_REG_NUM-1; regno >= 0; regno--, regno -= (regno == LINK_REG))
+    {
+      if (BITSET_P (cfun->machine->frame.mask, regno))
+        {
+          mips_save_restore_reg (word_mode, regno + GP_REG_FIRST, offset, fn);
+          offset -= UNITS_PER_WORD;
+        }
+    }
 
   /* This loop must iterate over the same space as its companion in
      mips_compute_frame_info.  */
   offset = cfun->machine->frame.fp_sp_offset - sp_offset;
-  for (regno = FP_REG_LAST - 1;
-       regno >= FP_REG_FIRST;
-       regno --)
-    if (BITSET_P (cfun->machine->frame.fmask, regno - FP_REG_FIRST))
+  for (regno = FP_REG_NUM-1; regno >= 0; regno--)
+    if (BITSET_P (cfun->machine->frame.fmask, regno))
       {
-	mips_save_restore_reg (DFmode, regno, offset, fn);
+	mips_save_restore_reg (DFmode, regno + FP_REG_FIRST, offset, fn);
 	offset -= GET_MODE_SIZE (DFmode);
       }
 }
