@@ -78,7 +78,7 @@ build-gcc-newlib: build-gcc-newlib-src
 		--disable-libquadmath \
 		--disable-libgomp \
 		--disable-nls
-	$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit-libc=true
+	$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit_libc=true
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-binutils-linux:
@@ -113,7 +113,7 @@ build-gcc-linux-stage1: build-binutils-linux
 		--disable-nls \
 		--disable-multilib \
 		--with-headers=$(LINUX_DIR)/include
-	-$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit-libc=true
+	-$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit_libc=true
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-glibc-linux: build-gcc-linux-stage1
