@@ -1824,7 +1824,7 @@
 (define_insn_and_split "*xgot_hi<mode>"
   [(set (match_operand:P 0 "register_operand" "=d")
 	(high:P (match_operand:P 1 "got_disp_operand" "")))]
-  "TARGET_XGOT"
+  ""
   "#"
   "&& reload_completed"
   [(set (match_dup 0) (high:P (match_dup 2)))
@@ -1840,7 +1840,7 @@
   [(set (match_operand:P 0 "register_operand" "=d")
 	(lo_sum:P (match_operand:P 1 "register_operand" "d")
 		  (match_operand:P 2 "got_disp_operand" "")))]
-  "TARGET_XGOT"
+  ""
   "#"
   "&& reload_completed"
   [(set (match_dup 0)

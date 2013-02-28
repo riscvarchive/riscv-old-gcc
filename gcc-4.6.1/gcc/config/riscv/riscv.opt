@@ -71,7 +71,3 @@ Prevent the use of all hardware floating-point instructions
 mtune=
 Target RejectNegative Joined Var(mips_tune_string)
 -mtune=PROCESSOR	Optimize the output for PROCESSOR
-
-mxgot
-Target Report Var(TARGET_XGOT) Init(1)
-Lift restrictions on GOT size

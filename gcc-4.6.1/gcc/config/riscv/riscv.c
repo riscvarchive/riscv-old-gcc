@@ -3455,39 +3455,28 @@ mips_init_relocs (void)
 
   mips_lo_relocs[SYMBOL_32_HIGH] = "%hi(";
 
-  if (TARGET_XGOT)
-    {
-      /* The HIGH and LO_SUM are matched by special .md patterns.  */
-      mips_split_p[SYMBOL_GOT_DISP] = true;
+  /* The HIGH and LO_SUM are matched by special .md patterns.  */
+  mips_split_p[SYMBOL_GOT_DISP] = true;
 
-      mips_split_p[SYMBOL_GOTOFF_DISP] = true;
-      mips_hi_relocs[SYMBOL_GOTOFF_DISP] = "%got_hi(";
-      mips_lo_relocs[SYMBOL_GOTOFF_DISP] = "%got_lo(";
+  mips_split_p[SYMBOL_GOTOFF_DISP] = true;
+  mips_hi_relocs[SYMBOL_GOTOFF_DISP] = "%got_hi(";
+  mips_lo_relocs[SYMBOL_GOTOFF_DISP] = "%got_lo(";
 
-      mips_split_p[SYMBOL_GOTOFF_CALL] = true;
-      mips_hi_relocs[SYMBOL_GOTOFF_CALL] = "%call_hi(";
-      mips_lo_relocs[SYMBOL_GOTOFF_CALL] = "%call_lo(";
+  mips_split_p[SYMBOL_GOTOFF_CALL] = true;
+  mips_hi_relocs[SYMBOL_GOTOFF_CALL] = "%call_hi(";
+  mips_lo_relocs[SYMBOL_GOTOFF_CALL] = "%call_lo(";
 
-      mips_split_p[SYMBOL_GOTTPREL] = true;
-      mips_hi_relocs[SYMBOL_GOTTPREL] = "%gottp_hi(";
-      mips_lo_relocs[SYMBOL_GOTTPREL] = "%gottp_lo(";
+  mips_split_p[SYMBOL_GOTTPREL] = true;
+  mips_hi_relocs[SYMBOL_GOTTPREL] = "%gottp_hi(";
+  mips_lo_relocs[SYMBOL_GOTTPREL] = "%gottp_lo(";
 
-      mips_split_p[SYMBOL_TLSGD] = true;
-      mips_hi_relocs[SYMBOL_TLSGD] = "%tlsgd_hi(";
-      mips_lo_relocs[SYMBOL_TLSGD] = "%tlsgd_lo(";
+  mips_split_p[SYMBOL_TLSGD] = true;
+  mips_hi_relocs[SYMBOL_TLSGD] = "%tlsgd_hi(";
+  mips_lo_relocs[SYMBOL_TLSGD] = "%tlsgd_lo(";
 
-      mips_split_p[SYMBOL_TLSLDM] = true;
-      mips_hi_relocs[SYMBOL_TLSLDM] = "%tlsldm_hi(";
-      mips_lo_relocs[SYMBOL_TLSLDM] = "%tlsldm_lo(";
-    }
-  else
-    {
-      mips_lo_relocs[SYMBOL_GOTOFF_DISP] = "%got_disp(";
-      mips_lo_relocs[SYMBOL_GOTOFF_CALL] = "%call16(";
-      mips_lo_relocs[SYMBOL_GOTTPREL] = "%gottprel(";
-      mips_lo_relocs[SYMBOL_TLSGD] = "%tlsgd(";
-      mips_lo_relocs[SYMBOL_TLSLDM] = "%tlsldm(";
-    }
+  mips_split_p[SYMBOL_TLSLDM] = true;
+  mips_hi_relocs[SYMBOL_TLSLDM] = "%tlsldm_hi(";
+  mips_lo_relocs[SYMBOL_TLSLDM] = "%tlsldm_lo(";
 
   mips_split_p[SYMBOL_GOTOFF_LOADGP] = true;
   mips_hi_relocs[SYMBOL_GOTOFF_LOADGP] = "%hi(%neg(%gp_rel(";
@@ -6217,7 +6206,7 @@ mips_option_override (void)
 /* Implement TARGET_OPTION_OPTIMIZATION_TABLE.  */
 static const struct default_options mips_option_optimization_table[] =
   {
-    { OPT_LEVELS_1_PLUS, OPT_fomit_frame_pointer, NULL, 1 },
+//    { OPT_LEVELS_1_PLUS, OPT_fomit_frame_pointer, NULL, 1 },
     { OPT_LEVELS_NONE, 0, NULL, 0 }
   };
 

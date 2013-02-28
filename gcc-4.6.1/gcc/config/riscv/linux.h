@@ -68,10 +68,6 @@ along with GCC; see the file COPYING3.  If not see
       -dynamic-linker " LINUX_DYNAMIC_LINKER "} \
       %{static:-static}}"
 
-#undef SUBTARGET_ASM_SPEC
-#define SUBTARGET_ASM_SPEC \
-  "%{fPIC:-KPIC}"
-
 /* The MIPS assembler has different syntax for .set. We set it to
    .dummy to trap any errors.  */
 #undef SET_ASM_OP

@@ -119,13 +119,12 @@ struct mips_cl_insn
 /* The ABI to use.  */
 enum mips_abi_level
 {
-  NO_ABI = 0,
   ABI_32,
   ABI_64,
 };
 
 /* MIPS ABI we are using for this output file.  */
-static enum mips_abi_level mips_abi = NO_ABI;
+static enum mips_abi_level mips_abi = ABI_64;
 
 /* Whether or not we have code that can call pic code.  */
 int mips_abicalls = FALSE;
@@ -136,34 +135,13 @@ int mips_abicalls = FALSE;
 
 struct mips_set_options
 {
-  /* MIPS ISA (Instruction Set Architecture) level.  This is set to -1
-     if it has not been initialized.  Changed by `.set mipsN', and the
-     -mipsN command line option, and the default CPU.  */
-  int isa;
   /* Enable RVC instruction compression */
   int rvc;
-  /* Restrict general purpose registers and floating point registers
-     to 32 bit.  This is initially determined when -mgp32 or -mfp32
-     is passed but can changed if the assembler code uses .set mipsN.  */
-  int gp32;
-  /* True if ".set sym32" is in effect.  */
-  bfd_boolean sym32;
 };
-
-/* This is the struct we use to hold the current set of options.  Note
-   that we must set the isa field to ISA_UNKNOWN and the ASE fields to
-   -1 to indicate that they have not been initialized.  */
-
-/* True if -mrvc was passed.  */
-static int file_mips_rvc = 0;
-
-/* True if -mgp32 was passed.  */
-static int file_mips_gp32 = -1;
 
 static struct mips_set_options mips_opts =
 {
-  /* isa */ ISA_UNKNOWN, /* rvc */ 0,
-  /* gp32 */ 0, /* sym32 */ TRUE
+  /* rvc */ 0
 };
 
 /* These variables are filled in with the masks of registers used.
@@ -172,25 +150,17 @@ static struct mips_set_options mips_opts =
 unsigned long mips_gprmask;
 unsigned long mips_fprmask;
 
-/* The argument of the -march= flag.  The architecture we are assembling.  */
-static int file_mips_arch = CPU_UNKNOWN;
-static const char *mips_arch_string;
-
 /* True if the given ABI requires 32-bit registers.  */
 #define ABI_NEEDS_32BIT_REGS(ABI) ((ABI) == ABI_32)
 
 /* Likewise 64-bit registers.  */
 #define ABI_NEEDS_64BIT_REGS(ABI) ((ABI) == ABI_64)
 
-/*  Return true if ISA supports 64 bit wide gp registers.  */
-#define ISA_HAS_64BIT_REGS(ISA) ((ISA) == ISA_RV64)
-
-#define HAVE_32BIT_GPRS		                   \
-    (mips_opts.gp32 || !ISA_HAS_64BIT_REGS (mips_opts.isa))
+#define HAVE_32BIT_GPRS ABI_NEEDS_32BIT_REGS (mips_abi)
 
 #define HAVE_64BIT_GPRS (!HAVE_32BIT_GPRS)
 
-#define HAVE_64BIT_OBJECTS (mips_abi == ABI_64)
+#define HAVE_64BIT_OBJECTS ABI_NEEDS_64BIT_REGS (mips_abi)
 
 /* The ABI-derived address size.  */
 #define HAVE_64BIT_ADDRESSES HAVE_64BIT_GPRS
@@ -198,8 +168,7 @@ static const char *mips_arch_string;
 
 /* The size of symbolic constants (i.e., expressions of the form
    "SYMBOL" or "SYMBOL + OFFSET").  */
-#define HAVE_32BIT_SYMBOLS \
-  (HAVE_32BIT_ADDRESSES || !HAVE_64BIT_OBJECTS || mips_opts.sym32)
+#define HAVE_32BIT_SYMBOLS 1
 #define HAVE_64BIT_SYMBOLS (!HAVE_32BIT_SYMBOLS)
 
 /* MIPS PIC level.  */
@@ -373,22 +342,6 @@ static void s_mips_loc (int);
 static int validate_mips_insn (const struct riscv_opcode *);
 static int relaxed_branch_length (fragS *fragp, asection *sec, int update);
 
-/* Table and functions used to map between CPU/ISA names, and
-   ISA levels, and CPU numbers.  */
-
-struct mips_cpu_info
-{
-  const char *name;           /* CPU or ISA name.  */
-  int flags;                  /* ASEs available, or ISA flag.  */
-  int isa;                    /* ISA level.  */
-  int cpu;                    /* CPU number (default CPU if ISA).  */
-};
-
-#define MIPS_CPU_IS_ISA		0x0001	/* Is this an ISA?  (If 0, a CPU.) */
-
-static const struct mips_cpu_info *mips_parse_cpu (const char *, const char *);
-static const struct mips_cpu_info *mips_cpu_info_from_isa (int);
-
 /* Pseudo-op table.
 
    The following pseudo-ops from the Kane and Heinrich MIPS book
@@ -1203,7 +1156,7 @@ md_begin (void)
   int i = 0;
   int broken = 0;
 
-  if (! bfd_set_arch_mach (stdoutput, bfd_arch_riscv, file_mips_arch))
+  if (! bfd_set_arch_mach (stdoutput, bfd_arch_riscv, CPU_UNKNOWN))
     as_warn (_("Could not set architecture and machine"));
 
   op_hash = hash_new ();
@@ -2818,71 +2771,28 @@ const char *md_shortopts = "O::g::G:";
 enum options
   {
     OPTION_MARCH = OPTION_MD_BASE,
-    OPTION_MTUNE,
+    OPTION_MABI,
     OPTION_EB,
     OPTION_EL,
     OPTION_MRVC,
     OPTION_MNO_RVC,
-    OPTION_GP32,
-    OPTION_GP64,
-    OPTION_MSYM32,
-    OPTION_MNO_SYM32,
-#ifdef OBJ_ELF
-    OPTION_CALL_SHARED,
-    OPTION_CALL_NONPIC,
-    OPTION_NON_SHARED,
-    OPTION_XGOT,
-    OPTION_MABI,
-#endif /* OBJ_ELF */
     OPTION_END_OF_ENUM    
   };
   
 struct option md_longopts[] =
 {
   /* Options which specify architecture.  */
-  {"march", required_argument, NULL, OPTION_MARCH},
-  {"mtune", required_argument, NULL, OPTION_MTUNE},
+  {"mabi", required_argument, NULL, OPTION_MABI},
 
   /* Miscellaneous options.  */
   {"EB", no_argument, NULL, OPTION_EB},
   {"EL", no_argument, NULL, OPTION_EL},
   {"mrvc", no_argument, NULL, OPTION_MRVC},
   {"mno-rvc", no_argument, NULL, OPTION_MNO_RVC},
-  {"mgp32", no_argument, NULL, OPTION_GP32},
-  {"mgp64", no_argument, NULL, OPTION_GP64},
-  {"msym32", no_argument, NULL, OPTION_MSYM32},
-  {"mno-sym32", no_argument, NULL, OPTION_MNO_SYM32},
-  
-  /* ELF-specific options.  */
-#ifdef OBJ_ELF
-  {"KPIC",        no_argument, NULL, OPTION_CALL_SHARED},
-  {"call_shared", no_argument, NULL, OPTION_CALL_SHARED},
-  {"call_nonpic", no_argument, NULL, OPTION_CALL_NONPIC},
-  {"non_shared",  no_argument, NULL, OPTION_NON_SHARED},
-  {"xgot",        no_argument, NULL, OPTION_XGOT},
-  {"mabi", required_argument, NULL, OPTION_MABI},
-#endif /* OBJ_ELF */
 
   {NULL, no_argument, NULL, 0}
 };
 size_t md_longopts_size = sizeof (md_longopts);
-
-/* Set STRING_PTR (either &mips_arch_string or &mips_tune_string) to
-   NEW_VALUE.  Warn if another value was already specified.  Note:
-   we have to defer parsing the -march and -mtune arguments in order
-   to handle 'from-abi' correctly, since the ABI might be specified
-   in a later argument.  */
-
-static void
-mips_set_option_string (const char **string_ptr, const char *new_value)
-{
-  if (*string_ptr != 0 && strcasecmp (*string_ptr, new_value) != 0)
-    as_warn (_("A different %s was already specified, is now %s"),
-	     string_ptr == &mips_arch_string ? "-march" : "-mtune",
-	     new_value);
-
-  *string_ptr = new_value;
-}
 
 int
 md_parse_option (int c, char *arg)
@@ -2904,77 +2814,15 @@ md_parse_option (int c, char *arg)
 	mips_debug = atoi (arg);
       break;
 
-    case OPTION_MARCH:
-      mips_set_option_string (&mips_arch_string, arg);
-      break;
-
-    case OPTION_MSYM32:
-      mips_opts.sym32 = TRUE;
-      break;
-
-    case OPTION_MNO_SYM32:
-      mips_opts.sym32 = FALSE;
-      break;
-
-#ifdef OBJ_ELF
-      /* When generating ELF code, we permit -KPIC and -call_shared to
-	 select SVR4_PIC, and -non_shared to select no PIC.  This is
-	 intended to be compatible with Irix 5.  */
-    case OPTION_CALL_SHARED:
-      if (!IS_ELF)
-	{
-	  as_bad (_("-call_shared is supported only for ELF format"));
-	  return 0;
-	}
-      mips_pic = SVR4_PIC;
-      mips_abicalls = TRUE;
-      break;
-
-    case OPTION_CALL_NONPIC:
-      if (!IS_ELF)
-	{
-	  as_bad (_("-call_nonpic is supported only for ELF format"));
-	  return 0;
-	}
-      mips_pic = NO_PIC;
-      mips_abicalls = TRUE;
-      break;
-
-    case OPTION_NON_SHARED:
-      if (!IS_ELF)
-	{
-	  as_bad (_("-non_shared is supported only for ELF format"));
-	  return 0;
-	}
-      mips_pic = NO_PIC;
-      mips_abicalls = FALSE;
-      break;
-
-#endif /* OBJ_ELF */
-
-    case OPTION_GP32:
-      file_mips_gp32 = 1;
-      break;
-
-    case OPTION_GP64:
-      file_mips_gp32 = 0;
-      break;
-
     case OPTION_MRVC:
-      file_mips_rvc = 1;
+      mips_opts.rvc = 1;
       break;
 
     case OPTION_MNO_RVC:
-      file_mips_rvc = 0;
+      mips_opts.rvc = 0;
       break;
 
-#ifdef OBJ_ELF
     case OPTION_MABI:
-      if (!IS_ELF)
-	{
-	  as_bad (_("-mabi is supported for ELF format only"));
-	  return 0;
-	}
       if (strcmp (arg, "32") == 0)
 	mips_abi = ABI_32;
       else if (strcmp (arg, "64") == 0)
@@ -2985,7 +2833,6 @@ md_parse_option (int c, char *arg)
 	  return 0;
 	}
       break;
-#endif /* OBJ_ELF */
 
     default:
       return 0;
@@ -2993,72 +2840,12 @@ md_parse_option (int c, char *arg)
 
   return 1;
 }
-
-/* Set up globals to generate code for the ISA or processor
-   described by INFO.  */
-
-static void
-mips_set_architecture (const struct mips_cpu_info *info)
-{
-  if (info != 0)
-    {
-      file_mips_arch = info->cpu;
-      mips_opts.isa = info->isa;
-    }
-}
-
 
 void
 mips_after_parse_args (void)
 {
-  const struct mips_cpu_info *arch_info = 0;
-
-  if (mips_abi == NO_ABI)
-    mips_abi = ABI_64;
-
-  /* The following code determines the architecture and register size.
-     Similar code was added to GCC 3.3 (see override_options() in
-     config/mips/mips.c).  The GAS and GCC code should be kept in sync
-     as much as possible.  */
-
-  if (mips_arch_string != 0)
-    arch_info = mips_parse_cpu ("-march", mips_arch_string);
-
-  if (arch_info == 0)
-    arch_info = mips_parse_cpu ("default CPU", "from-abi");
-
-  if (ABI_NEEDS_64BIT_REGS (mips_abi) && !ISA_HAS_64BIT_REGS (arch_info->isa))
-    as_bad ("-march=%s is not compatible with the selected ABI",
-	    arch_info->name);
-
-  mips_set_architecture (arch_info);
-
-  if (file_mips_gp32 >= 0)
-    {
-      /* The user specified the size of the integer registers.  Make sure
-	 it agrees with the ABI and ISA.  */
-      if (file_mips_gp32 == 0 && !ISA_HAS_64BIT_REGS (mips_opts.isa))
-	as_bad (_("-mgp64 used with a 32-bit processor"));
-      else if (file_mips_gp32 == 1 && ABI_NEEDS_64BIT_REGS (mips_abi))
-	as_bad (_("-mgp32 used with a 64-bit ABI"));
-      else if (file_mips_gp32 == 0 && ABI_NEEDS_32BIT_REGS (mips_abi))
-	as_bad (_("-mgp64 used with a 32-bit ABI"));
-    }
-  else
-    {
-      /* Infer the integer register size from the ABI and processor.
-	 Restrict ourselves to 32-bit registers if that's all the
-	 processor has, or if the ABI cannot handle 64-bit registers.  */
-      file_mips_gp32 = (ABI_NEEDS_32BIT_REGS (mips_abi)
-			|| !ISA_HAS_64BIT_REGS (mips_opts.isa));
-    }
-
-  /* End of GCC-shared inference code.  */
-
-  mips_opts.rvc = file_mips_rvc;
-  mips_opts.gp32 = file_mips_gp32;
 }
-
+
 void
 mips_init_after_args (void)
 {
@@ -3678,18 +3465,7 @@ s_mipsset (int x ATTRIBUTE_UNUSED)
   ch = *input_line_pointer;
   *input_line_pointer = '\0';
 
-  if (strcmp (name, "gp=default") == 0)
-    mips_opts.gp32 = file_mips_gp32;
-  else if (strcmp (name, "gp=32") == 0)
-    mips_opts.gp32 = 1;
-  else if (strcmp (name, "gp=64") == 0)
-    {
-      if (!ISA_HAS_64BIT_REGS (mips_opts.isa))
-	as_warn ("%s isa does not support 64-bit registers",
-		 mips_cpu_info_from_isa (mips_opts.isa)->name);
-      mips_opts.gp32 = 0;
-    }
-  else if (strcmp (name, "rvc") == 0)
+  if (strcmp (name, "rvc") == 0)
     mips_opts.rvc = 1;
   else if (strcmp (name, "norvc") == 0)
     mips_opts.rvc = 0;
@@ -3716,10 +3492,6 @@ s_mipsset (int x ATTRIBUTE_UNUSED)
 	  free (s);
 	}
     }
-  else if (strcmp (name, "sym32") == 0)
-    mips_opts.sym32 = TRUE;
-  else if (strcmp (name, "nosym32") == 0)
-    mips_opts.sym32 = FALSE;
   else if (strchr (name, ','))
     {
       /* Generic ".set" directive; use the generic handler.  */
@@ -4316,176 +4088,16 @@ s_mips_loc (int x ATTRIBUTE_UNUSED)
   dwarf2_directive_loc (0);
 }
 
-/* A table describing all the processors gas knows about.  Names are
-   matched in the order listed.
-
-   To ease comparison, please keep this table in the same order as
-   gcc's mips_cpu_info_table[].  */
-static const struct mips_cpu_info mips_cpu_info_table[] =
-{
-  /* Entries for generic ISAs */
-  { "rv32",           MIPS_CPU_IS_ISA,		ISA_RV32,       CPU_ROCKET32 },
-  { "rv64",           MIPS_CPU_IS_ISA,		ISA_RV64,       CPU_ROCKET64 },
-  { "riscv",          MIPS_CPU_IS_ISA,		ISA_RV64,       CPU_ROCKET64 },
-
-  /* End marker */
-  { NULL, 0, 0, 0 }
-};
-
-
-/* Return true if GIVEN is the same as CANONICAL, or if it is CANONICAL
-   with a final "000" replaced by "k".  Ignore case.
-
-   Note: this function is shared between GCC and GAS.  */
-
-static bfd_boolean
-mips_strict_matching_cpu_name_p (const char *canonical, const char *given)
-{
-  while (*given != 0 && TOLOWER (*given) == TOLOWER (*canonical))
-    given++, canonical++;
-
-  return ((*given == 0 && *canonical == 0)
-	  || (strcmp (canonical, "000") == 0 && strcasecmp (given, "k") == 0));
-}
-
-/* Parse an option that takes the name of a processor as its argument.
-   OPTION is the name of the option and CPU_STRING is the argument.
-   Return the corresponding processor enumeration if the CPU_STRING is
-   recognized, otherwise report an error and return null.
-
-   A similar function exists in GCC.  */
-
-static const struct mips_cpu_info *
-mips_parse_cpu (const char *option, const char *cpu_string)
-{
-  const struct mips_cpu_info *p;
-
-  /* 'from-abi' selects the most compatible architecture for the given
-     ABI: MIPS I for 32-bit ABIs and MIPS III for 64-bit ABIs.  For the
-     EABIs, we have to decide whether we're using the 32-bit or 64-bit
-     version.  Look first at the -mgp options, if given, otherwise base
-     the choice on MIPS_DEFAULT_64BIT.
-
-     Treat NO_ABI like the EABIs.  One reason to do this is that the
-     plain 'mips' and 'mips64' configs have 'from-abi' as their default
-     architecture.  This code picks MIPS I for 'mips' and MIPS III for
-     'mips64', just as we did in the days before 'from-abi'.  */
-  if (strcasecmp (cpu_string, "from-abi") == 0)
-    {
-      if (ABI_NEEDS_32BIT_REGS (mips_abi))
-	return mips_cpu_info_from_isa (ISA_RV32);
-
-      if (ABI_NEEDS_64BIT_REGS (mips_abi))
-	return mips_cpu_info_from_isa (ISA_RV64);
-
-      if (file_mips_gp32 >= 0)
-	return mips_cpu_info_from_isa (file_mips_gp32 ? ISA_RV32 : ISA_RV64);
-
-      return mips_cpu_info_from_isa (ISA_RV64);
-    }
-
-  /* 'default' has traditionally been a no-op.  Probably not very useful.  */
-  if (strcasecmp (cpu_string, "default") == 0)
-    return 0;
-
-  for (p = mips_cpu_info_table; p->name != 0; p++)
-    if (mips_strict_matching_cpu_name_p (p->name, cpu_string))
-      return p;
-
-  as_bad ("Bad value (%s) for %s", cpu_string, option);
-  return 0;
-}
-
-/* Return the canonical processor information for ISA (a member of the
-   ISA_MIPS* enumeration).  */
-
-static const struct mips_cpu_info *
-mips_cpu_info_from_isa (int isa)
-{
-  int i;
-
-  for (i = 0; mips_cpu_info_table[i].name != NULL; i++)
-    if ((mips_cpu_info_table[i].flags & MIPS_CPU_IS_ISA)
-	&& isa == mips_cpu_info_table[i].isa)
-      return (&mips_cpu_info_table[i]);
-
-  return NULL;
-}
-
-static void
-show (FILE *stream, const char *string, int *col_p, int *first_p)
-{
-  if (*first_p)
-    {
-      fprintf (stream, "%24s", "");
-      *col_p = 24;
-    }
-  else
-    {
-      fprintf (stream, ", ");
-      *col_p += 2;
-    }
-
-  if (*col_p + strlen (string) > 72)
-    {
-      fprintf (stream, "\n%24s", "");
-      *col_p = 24;
-    }
-
-  fprintf (stream, "%s", string);
-  *col_p += strlen (string);
-
-  *first_p = 0;
-}
-
 void
 md_show_usage (FILE *stream)
 {
-  int column, first;
-  size_t i;
-
   fprintf (stream, _("\
 MIPS options:\n\
--EB			generate big endian output\n\
--EL			generate little endian output\n"));
-  fprintf (stream, _("\
--march=CPU/-mtune=CPU	generate code/schedule for CPU, where CPU is one of:\n"));
-
-  first = 1;
-
-  for (i = 0; mips_cpu_info_table[i].name != NULL; i++)
-    show (stream, mips_cpu_info_table[i].name, &column, &first);
-  show (stream, "from-abi", &column, &first);
-  fputc ('\n', stream);
-
-  fprintf (stream, _("\
--mgp32			use 32-bit GPRs, regardless of the chosen ISA\n\
--msym32			assume all symbols have 32-bit values\n"));
-#ifdef OBJ_ELF
-  fprintf (stream, _("\
--KPIC, -call_shared	generate SVR4 position independent code\n\
--call_nonpic		generate non-PIC code that can operate with DSOs\n\
--non_shared		do not generate code that can operate with DSOs\n\
--xgot			assume a 32 bit GOT\n\
--mshared, -mno-shared   disable/enable .cpload optimization for\n\
-                        position dependent (non shared) code\n\
--mabi=ABI		create ABI conformant object file for:\n"));
-
-  first = 1;
-
-  show (stream, "32", &column, &first);
-  show (stream, "o64", &column, &first);
-  show (stream, "n32", &column, &first);
-  show (stream, "64", &column, &first);
-  show (stream, "eabi", &column, &first);
-
-  fputc ('\n', stream);
-
-  fprintf (stream, _("\
--32			create o32 ABI object file (default)\n\
--n32			create n32 ABI object file\n\
--64			create 64 ABI object file\n"));
-#endif
+-EB            generate big endian output\n\
+-EL            generate little endian output\n\
+-mabi=ABI      create ABI conformant object file for:\n\
+                 32, 64\n\
+"));
 }
 
 enum dwarf2_format

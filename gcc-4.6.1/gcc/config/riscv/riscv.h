@@ -271,14 +271,8 @@ struct mips_cpu_info {
      |march=octeon|march=xlr: -msoft-float;		  \
      march=*: -mhard-float}"
 
-/* A spec condition that matches 32-bit options.  It only works if
-   MIPS_ISA_LEVEL_SPEC has been applied.  */
-
-#define MIPS_32BIT_OPTION_SPEC \
-  "mips1|mips2|mips32*|mgp32"
-
-#define OPT_ARCH64 "mabi=32|mgp32:;"
-#define OPT_ARCH32 "mabi=32|mgp32"
+#define OPT_ARCH64 "mabi=32:;"
+#define OPT_ARCH32 "mabi=32"
 
 /* Support for a compile-time default CPU, et cetera.  The rules are:
    --with-arch is ignored if -march is specified or a -mips is specified
@@ -346,7 +340,7 @@ struct mips_cpu_info {
 %(subtarget_asm_optimizing_spec) \
 %(subtarget_asm_debugging_spec) \
 %{mabi=*} %{!mabi=*: %(asm_abi_default_spec)} \
-%{mgp32} %{mgp64} %{march=*} \
+%{march=*} \
 %{mshared} %{mno-shared} \
 %{mtune=*} \
 %(subtarget_asm_spec)"
