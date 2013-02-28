@@ -172,7 +172,7 @@ extern void mips_declare_object (FILE *, const char *, const char *,
 extern void mips_declare_object_name (FILE *, const char *, tree);
 extern void mips_finish_declare_object (FILE *, tree, int, int);
 
-extern HOST_WIDE_INT mips_initial_elimination_offset (int);
+extern HOST_WIDE_INT mips_initial_elimination_offset (int, int);
 extern rtx mips_return_addr (int, rtx);
 extern bool mips_must_initialize_gp_p (void);
 extern enum mips_loadgp_style mips_current_loadgp_style (void);

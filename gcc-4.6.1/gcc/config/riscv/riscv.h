@@ -435,7 +435,7 @@ struct mips_cpu_info {
 /* The DWARF 2 CFA column which tracks the return address.  */
 #define DWARF_FRAME_RETURN_COLUMN RETURN_ADDR_REGNUM
 
-/* Don't emit .cfi_sections .debug_frame, as it does not work */
+/* Don't emit .cfi_sections, as it does not work */
 #undef HAVE_GAS_CFI_SECTIONS_DIRECTIVE
 #define HAVE_GAS_CFI_SECTIONS_DIRECTIVE 0
 
@@ -1046,19 +1046,9 @@ enum reg_class
 
 #define STACK_GROWS_DOWNWARD
 
-#define FRAME_GROWS_DOWNWARD flag_stack_protect
+#define FRAME_GROWS_DOWNWARD 1
 
-/* Size of the area allocated in the frame to save the GP.  */
-
-#define MIPS_GP_SAVE_AREA_SIZE 0
-
-/* The offset of the first local variable from the frame pointer.  See
-   mips_compute_frame_info for details about the frame layout.  */
-
-#define STARTING_FRAME_OFFSET				\
-  (FRAME_GROWS_DOWNWARD					\
-   ? 0							\
-   : crtl->outgoing_args_size + MIPS_GP_SAVE_AREA_SIZE)
+#define STARTING_FRAME_OFFSET 0
 
 #define RETURN_ADDR_RTX mips_return_addr
 
@@ -1077,7 +1067,7 @@ enum reg_class
  { FRAME_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM}}				\
 
 #define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET) \
-  (OFFSET) = mips_initial_elimination_offset (FROM)
+  (OFFSET) = mips_initial_elimination_offset (FROM, TO)
 
 /* Allocate stack space for arguments at the beginning of each function.  */
 #define ACCUMULATE_OUTGOING_ARGS 1
@@ -1185,10 +1175,8 @@ typedef struct mips_args {
 
 #define EPILOGUE_USES(REGNO)	mips_epilogue_uses (REGNO)
 
-/* Treat LOC as a byte offset from the stack pointer and round it up
-   to the next fully-aligned offset.  */
-#define MIPS_STACK_ALIGN(LOC) \
-  (TARGET_64BIT ? ((LOC) + 15) & -16 : ((LOC) + 7) & -8)
+/* Even on RV32, provide 8-byte alignment for 64b floats. */
+#define MIPS_STACK_ALIGN(LOC) (((LOC) + 7) & -8)
 
 /* No mips port has ever used the profiler counter word, so don't emit it
    or the label for it.  */
@@ -1440,10 +1428,6 @@ while (0)
   dbxout_begin_stabn_sline (LINE);				\
   dbxout_stab_value_internal_label ("LM", &COUNTER);		\
 } while (0)
-
-/* Use .loc directives for SDB line numbers.  */
-#define SDB_OUTPUT_SOURCE_LINE(STREAM, LINE)			\
-  fprintf (STREAM, "\t.loc\t%d %d\n", num_source_filenames, LINE)
 
 /* The MIPS implementation uses some labels for its own purpose.  The
    following lists what labels are created, and are all formed by the

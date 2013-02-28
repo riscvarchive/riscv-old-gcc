@@ -222,32 +222,21 @@ struct GTY(())  mips_frame_info {
   /* The size of the frame in bytes.  */
   HOST_WIDE_INT total_size;
 
-  /* The number of bytes allocated to variables.  */
-  HOST_WIDE_INT var_size;
-
-  /* The number of bytes allocated to outgoing function arguments.  */
-  HOST_WIDE_INT args_size;
-
   /* Bit X is set if the function saves or restores GPR X.  */
   unsigned int mask;
 
   /* Likewise FPR X.  */
   unsigned int fmask;
 
-  /* The number of GPRs, FPRs, doubleword accumulators and COP0
-     registers saved.  */
-  unsigned int num_gp;
-  unsigned int num_fp;
-
-  /* The offset of the topmost GPR, FPR, accumulator and COP0-register
-     save slots from the top of the frame, or zero if no such slots are
-     needed.  */
-  HOST_WIDE_INT gp_save_offset;
-  HOST_WIDE_INT fp_save_offset;
-
-  /* Likewise, but giving offsets from the bottom of the frame.  */
+  /* Offsets of fixed-point and floating-point save areas from frame bottom */
   HOST_WIDE_INT gp_sp_offset;
   HOST_WIDE_INT fp_sp_offset;
+
+  /* Offset of virtual frame pointer from stack pointer/frame bottom */
+  HOST_WIDE_INT frame_pointer_offset;
+
+  /* Offset of hard frame pointer from stack pointer/frame bottom */
+  HOST_WIDE_INT hard_frame_pointer_offset;
 
   /* The offset of arg_pointer_rtx from the bottom of the frame.  */
   HOST_WIDE_INT arg_pointer_offset;
@@ -372,9 +361,6 @@ int num_source_filenames;
    mips_output_filename, or "" if mips_output_filename hasn't
    written anything yet.  */
 const char *current_function_file = "";
-
-/* A label counter used by PUT_SDB_BLOCK_START and PUT_SDB_BLOCK_END.  */
-int sdb_label_count;
 
 /* Arrays that map GCC register numbers to debugger register numbers.  */
 int mips_dbx_regno[FIRST_PSEUDO_REGISTER];
@@ -615,7 +601,7 @@ mips_build_integer (struct mips_integer_op *codes,
     {
       /* Try eliminating all trailing zeros by ending with SLL. */
       unsigned lshift = __builtin_ctzl (value);
-      cost = mips_build_integer (codes, (int64_t)value >> lshift);
+      cost = mips_build_integer (codes, (HOST_WIDE_INT)value >> lshift);
       codes[cost].code = ASHIFT;
       codes[cost].value = lshift;
       cost++;
@@ -4207,32 +4193,28 @@ mips_global_pointer (void)
       C |  callee-allocated save area   |
 	|  for register varargs         |
 	|                               |
+	+-------------------------------+ <-- hard_frame_pointer_rtx;
+	|                               |     stack_pointer_rtx + gp_sp_offset
+	|  GPR save area                |       + UNITS_PER_WORD
+	|                               |
 	+-------------------------------+ <-- stack_pointer_rtx + fp_sp_offset
-	|                               |       + UNITS_PER_HWFPVALUE
+	|                               |       + UNITS_PER_HWVALUE
 	|  FPR save area                |
 	|                               |
-	+-------------------------------+ <-- stack_pointer_rtx + gp_sp_offset
-	|                               |       + UNITS_PER_WORD
-	|  GPR save area                |
+	+-------------------------------+ <-- frame_pointer_rtx (virtual)
 	|                               |
-	+-------------------------------+ <-- frame_pointer_rtx with
-	|                               | \     -fstack-protector
-	|  local variables              |  | var_size
-	|                               | /
-      P +-------------------------------+ <-- hard_frame_pointer_rtx for
-	|                               | \     MIPS16 code
-	|  outgoing stack arguments     |  |
-	|                               |  |
-	+-------------------------------+  | args_size
-	|                               |  |
-	|  caller-allocated save area   |  |
-	|  for register arguments       |  |
-	|                               | /
+	|  local variables              |
+	|                               |
+      P +-------------------------------+
+	|                               |
+	|  outgoing stack arguments     |
+	|                               |
+	+-------------------------------+
+	|                               |
+	|  caller-allocated save area   |
+	|  for register arguments       |
+	|                               |
 	+-------------------------------+ <-- stack_pointer_rtx
-					      frame_pointer_rtx without
-					        -fstack-protector
-					      hard_frame_pointer_rtx for
-						non-MIPS16 code.
 
    At least two of A, B and C will be empty.
 
@@ -4244,94 +4226,61 @@ static void
 mips_compute_frame_info (void)
 {
   struct mips_frame_info *frame;
-  HOST_WIDE_INT offset, size;
+  HOST_WIDE_INT offset;
   unsigned int regno, i;
 
   frame = &cfun->machine->frame;
   memset (frame, 0, sizeof (*frame));
-  size = get_frame_size ();
 
   cfun->machine->global_pointer = mips_global_pointer ();
-
-  /* The first two blocks contain the outgoing argument area and the $gp save
-     slot.  This area isn't needed in leaf functions, but if the
-     target-independent frame size is nonzero, we have already committed to
-     allocating these in STARTING_FRAME_OFFSET for !FRAME_GROWS_DOWNWARD.  */
-  if ((size == 0 || FRAME_GROWS_DOWNWARD) && current_function_is_leaf)
-    {
-      /* The MIPS 3.0 linker does not like functions that dynamically
-	 allocate the stack and have 0 for STACK_DYNAMIC_OFFSET, since it
-	 looks like we are trying to create a second frame pointer to the
-	 function, so allocate some stack space to make it happy.  */
-      if (cfun->calls_alloca)
-	frame->args_size = REG_PARM_STACK_SPACE (cfun->decl);
-      else
-	frame->args_size = 0;
-    }
-  else
-    {
-      frame->args_size = crtl->outgoing_args_size;
-    }
-  offset = frame->args_size;
-
-  /* Move above the local variables.  */
-  frame->var_size = MIPS_STACK_ALIGN (size);
-  offset += frame->var_size;
 
   /* Find out which GPRs we need to save.  */
   for (regno = GP_REG_FIRST; regno <= GP_REG_LAST; regno++)
     if (mips_save_reg_p (regno))
-      {
-	frame->num_gp++;
-	frame->mask |= 1 << (regno - GP_REG_FIRST);
-      }
+      frame->mask |= 1 << (regno - GP_REG_FIRST);
 
   /* If this function calls eh_return, we must also save and restore the
      EH data registers.  */
   if (crtl->calls_eh_return)
     for (i = 0; EH_RETURN_DATA_REGNO (i) != INVALID_REGNUM; i++)
-      {
-	frame->num_gp++;
-	frame->mask |= 1 << (EH_RETURN_DATA_REGNO (i) - GP_REG_FIRST);
-      }
-
-  /* Move above the GPR save area.  */
-  if (frame->num_gp > 0)
-    {
-      offset += MIPS_STACK_ALIGN (frame->num_gp * UNITS_PER_WORD);
-      frame->gp_sp_offset = offset - UNITS_PER_WORD;
-    }
+      frame->mask |= 1 << (EH_RETURN_DATA_REGNO (i) - GP_REG_FIRST);
 
   /* Find out which FPRs we need to save.  This loop must iterate over
      the same space as its companion in mips_for_each_saved_gpr_and_fpr.  */
   if (TARGET_HARD_FLOAT)
     for (regno = FP_REG_FIRST; regno <= FP_REG_LAST; regno++)
       if (mips_save_reg_p (regno))
-	{
-	  frame->num_fp++;
-	  frame->fmask |= 1 << (regno - FP_REG_FIRST);
-	}
+        frame->fmask |= 1 << (regno - FP_REG_FIRST);
 
-  /* Move above the FPR save area.  */
-  if (frame->num_fp > 0)
+  /* At the bottom of the frame are any outgoing stack arguments. */
+  offset = crtl->outgoing_args_size;
+  /* Next are local stack variables. */
+  offset += MIPS_STACK_ALIGN (get_frame_size ());
+  /* The virtual frame pointer points above the local variables. */
+  frame->frame_pointer_offset = offset;
+  /* Next are the callee-saved FPRs. */
+  if (frame->fmask)
     {
-      offset += MIPS_STACK_ALIGN (frame->num_fp * UNITS_PER_FPREG);
+      unsigned num_saved = __builtin_popcount(frame->fmask);
+      offset += MIPS_STACK_ALIGN (num_saved * UNITS_PER_FPREG);
       frame->fp_sp_offset = offset - UNITS_PER_HWFPVALUE;
     }
-
-  /* Move above the callee-allocated varargs save area.  */
+  /* Next are the callee-saved GPRs. */
+  if (frame->mask)
+    {
+      unsigned num_saved = __builtin_popcount(frame->mask);
+      offset += MIPS_STACK_ALIGN (num_saved * UNITS_PER_WORD);
+      frame->gp_sp_offset = offset - UNITS_PER_WORD;
+    }
+  /* The hard frame pointer points above the callee-saved GPRs. */
+  frame->hard_frame_pointer_offset = offset;
+  /* Above the hard frame pointer is the callee-allocated varags save area. */
   offset += MIPS_STACK_ALIGN (cfun->machine->varargs_size);
   frame->arg_pointer_offset = offset;
-
-  /* Move above the callee-allocated area for pretend stack arguments.  */
+  /* Next is the callee-allocated area for pretend stack arguments.  */
   offset += crtl->args.pretend_args_size;
   frame->total_size = offset;
-
-  /* Work out the offsets of the save areas from the top of the frame.  */
-  if (frame->gp_sp_offset > 0)
-    frame->gp_save_offset = frame->gp_sp_offset - offset;
-  if (frame->fp_sp_offset > 0)
-    frame->fp_save_offset = frame->fp_sp_offset - offset;
+  /* Next points the incoming stack pointer and any incoming arguments. */
 }
 
 /* Return the style of GP load sequence that is being used for the
@@ -4349,14 +4298,6 @@ mips_current_loadgp_style (void)
   return LOADGP_NEWABI;
 }
 
-/* Implement TARGET_FRAME_POINTER_REQUIRED.  */
-
-static bool
-mips_frame_pointer_required (void)
-{
-  return cfun->calls_alloca;
-}
-
 /* Make sure that we're not trying to eliminate to the wrong hard frame
    pointer.  */
 
@@ -4371,32 +4312,27 @@ mips_can_eliminate (const int from ATTRIBUTE_UNUSED, const int to)
    pointer.  */
 
 HOST_WIDE_INT
-mips_initial_elimination_offset (int from)
+mips_initial_elimination_offset (int from, int to)
 {
-  HOST_WIDE_INT offset;
+  HOST_WIDE_INT src, dest;
 
   mips_compute_frame_info ();
 
-  /* Set OFFSET to the offset from the end-of-prologue stack pointer.  */
-  switch (from)
-    {
-    case FRAME_POINTER_REGNUM:
-      if (FRAME_GROWS_DOWNWARD)
-	offset = (cfun->machine->frame.args_size
-		  + cfun->machine->frame.var_size);
-      else
-	offset = 0;
-      break;
+  if (to == HARD_FRAME_POINTER_REGNUM)
+    dest = cfun->machine->frame.hard_frame_pointer_offset;
+  else if (to == STACK_POINTER_REGNUM)
+    dest = 0; /* this is the base of all offsets */
+  else
+    gcc_unreachable ();
 
-    case ARG_POINTER_REGNUM:
-      offset = cfun->machine->frame.arg_pointer_offset;
-      break;
+  if (from == FRAME_POINTER_REGNUM)
+    src = cfun->machine->frame.frame_pointer_offset;
+  else if (from == ARG_POINTER_REGNUM)
+    src = cfun->machine->frame.arg_pointer_offset;
+  else
+    gcc_unreachable ();
 
-    default:
-      gcc_unreachable ();
-    }
-
-  return offset;
+  return src - dest;
 }
 
 /* Implement TARGET_EXTRA_LIVE_ON_ENTRY.  */
@@ -4560,14 +4496,10 @@ mips_emit_save_slot_move (rtx dest, rtx src, rtx temp)
 /* Implement TARGET_OUTPUT_FUNCTION_PROLOGUE.  */
 
 static void
-mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
+mips_output_function_prologue (FILE *file ATTRIBUTE_UNUSED,
+                               HOST_WIDE_INT size ATTRIBUTE_UNUSED)
 {
   const char *fnname;
-
-#ifdef SDB_DEBUGGING_INFO
-  if (debug_info_level != DINFO_LEVEL_TERSE && write_symbols == SDB_DEBUG)
-    SDB_OUTPUT_SOURCE_LINE (file, DECL_SOURCE_LINE (current_function_decl));
-#endif
 
   /* Get the function name the same way that toplev.c does before calling
      assemble_start_function.  This is needed so that the name used here
@@ -4585,17 +4517,10 @@ static void
 mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
 			       HOST_WIDE_INT size ATTRIBUTE_UNUSED)
 {
-  const char *fnname;
-
   /* Reinstate the normal $gp.  */
   SET_REGNO (pic_offset_table_rtx, GLOBAL_POINTER_REGNUM);
-
-  /* Get the function name the same way that toplev.c does before calling
-     assemble_start_function.  This is needed so that the name used here
-     exactly matches the name used in ASM_DECLARE_FUNCTION_NAME.  */
-  fnname = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
 }
-
+
 /* Save register REG to MEM.  Make the instruction frame-related.  */
 
 static void
@@ -4686,6 +4611,14 @@ mips_expand_prologue (void)
       mips_for_each_saved_gpr_and_fpr (size, mips_save_reg);
     }
 
+  /* Set up the frame pointer, if we're using one.  */
+  if (frame_pointer_needed)
+    {
+      insn = gen_add3_insn (hard_frame_pointer_rtx, stack_pointer_rtx,
+                            GEN_INT (frame->hard_frame_pointer_offset - size));
+      RTX_FRAME_RELATED_P (emit_insn (insn)) = 1;
+    }
+
   /* Allocate the rest of the frame.  */
   if (size > 0)
     {
@@ -4705,13 +4638,6 @@ mips_expand_prologue (void)
 	    (gen_rtx_SET (VOIDmode, stack_pointer_rtx,
 			  plus_constant (stack_pointer_rtx, -size)));
 	}
-    }
-
-  /* Set up the frame pointer, if we're using one.  */
-  if (frame_pointer_needed)
-    {
-      insn = mips_emit_move (hard_frame_pointer_rtx, stack_pointer_rtx);
-      RTX_FRAME_RELATED_P (insn) = 1;
     }
 
   mips_emit_loadgp ();
@@ -6206,7 +6132,7 @@ mips_option_override (void)
 /* Implement TARGET_OPTION_OPTIMIZATION_TABLE.  */
 static const struct default_options mips_option_optimization_table[] =
   {
-//    { OPT_LEVELS_1_PLUS, OPT_fomit_frame_pointer, NULL, 1 },
+    { OPT_LEVELS_1_PLUS, OPT_fomit_frame_pointer, NULL, 1 },
     { OPT_LEVELS_NONE, 0, NULL, 0 }
   };
 
@@ -6609,9 +6535,6 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 
 #undef TARGET_LEGITIMATE_ADDRESS_P
 #define TARGET_LEGITIMATE_ADDRESS_P	mips_legitimate_address_p
-
-#undef TARGET_FRAME_POINTER_REQUIRED
-#define TARGET_FRAME_POINTER_REQUIRED mips_frame_pointer_required
 
 #undef TARGET_CAN_ELIMINATE
 #define TARGET_CAN_ELIMINATE mips_can_eliminate
