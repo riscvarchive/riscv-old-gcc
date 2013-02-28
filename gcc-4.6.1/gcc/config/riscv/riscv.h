@@ -418,20 +418,8 @@ struct mips_cpu_info {
 /* By default, turn on GDB extensions.  */
 #define DEFAULT_GDB_EXTENSIONS 1
 
-/* Local compiler-generated symbols must have a prefix that the assembler
-   understands.   By default, this is $, although some targets (e.g.,
-   NetBSD-ELF) need to override this.  */
-
-#ifndef LOCAL_LABEL_PREFIX
-#define LOCAL_LABEL_PREFIX	"$"
-#endif
-
-/* By default on the mips, external symbols do not have an underscore
-   prepended, but some targets (e.g., NetBSD) require this.  */
-
-#ifndef USER_LABEL_PREFIX
+#define LOCAL_LABEL_PREFIX	"."
 #define USER_LABEL_PREFIX	""
-#endif
 
 /* On Sun 4, this limit is 2048.  We use 1500 to be safe,
    since the length can run past this up to a continuation point.  */

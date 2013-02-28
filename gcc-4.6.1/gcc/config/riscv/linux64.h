@@ -51,9 +51,6 @@ along with GCC; see the file COPYING3.  If not see
 %{mabi=64:-melf64%{EB:b}%{EL:l}riscv} \
 %{mabi=32:-melf32%{EB:b}%{EL:l}riscv}"
 
-#undef LOCAL_LABEL_PREFIX
-#define LOCAL_LABEL_PREFIX "."
-
 /* GNU/Linux doesn't use the same floating-point format that IRIX uses
    for long double.  There's no need to override this here, since
    ieee_quad_format is the default, but let's put this here to make
