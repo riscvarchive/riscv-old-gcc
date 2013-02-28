@@ -28,13 +28,12 @@
 
 #undef END
 #define	END(function)                                   \
-		.end	function;		        \
 		.size	function,.-function
 
 #define ret	ret
 
 #undef PSEUDO_END
-#define PSEUDO_END(sym) .end sym; .size sym,.-sym
+#define PSEUDO_END(sym) .size sym,.-sym
 
 #define PSEUDO_NOERRNO(name, syscall_name, args)	\
   .align 2;						\
@@ -43,7 +42,7 @@
   syscall
 
 #undef PSEUDO_END_NOERRNO
-#define PSEUDO_END_NOERRNO(sym) .end sym; .size sym,.-sym
+#define PSEUDO_END_NOERRNO(sym) .size sym,.-sym
 
 #define ret_NOERRNO ret
 

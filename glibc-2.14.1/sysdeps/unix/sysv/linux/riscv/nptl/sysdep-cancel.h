@@ -81,7 +81,7 @@
 
 
   # undef PSEUDO_END
-  # define PSEUDO_END(sym) cfi_endproc; .end sym; .size sym,.-sym
+  # define PSEUDO_END(sym) cfi_endproc; .size sym,.-sym
 
   #endif
 

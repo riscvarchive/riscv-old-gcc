@@ -104,25 +104,18 @@
 		.globl	symbol;                         \
 		.align	2;                              \
 		.type	symbol,@function;               \
-		.ent	symbol,0;                       \
 symbol:
 
 /*
  * NESTED - declare nested routine entry point
  */
-#define	NESTED(symbol, framesize, rpc)                  \
-		.globl	symbol;                         \
-		.align	2;                              \
-		.type	symbol,@function;               \
-		.ent	symbol,0;                       \
-symbol:		.frame	sp, framesize, rpc
+#define	NESTED(symbol, framesize, rpc) LEAF(symbol)
 
 /*
  * END - mark end of function
  */
 #ifndef END
 # define END(function)                                   \
-		.end	function;		        \
 		.size	function,.-function
 #endif
 

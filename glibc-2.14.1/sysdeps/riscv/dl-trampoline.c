@@ -228,9 +228,7 @@ asm ("\n\
 	.align	2\n\
 	.globl	_dl_runtime_resolve\n\
 	.type	_dl_runtime_resolve,@function\n\
-	.ent	_dl_runtime_resolve\n\
 _dl_runtime_resolve:\n\
-	.frame	sp, " STRINGXP(ELF_DL_FRAME_SIZE) ", ra\n\
 	" STRINGXV(SETUP_GP64(t4, _dl_runtime_resolve)) "\n\
 	# Save arguments and sp value in stack.\n\
 	addi  sp, sp, " STRINGXP(-ELF_DL_FRAME_SIZE) "\n\
@@ -246,7 +244,6 @@ _dl_runtime_resolve:\n\
 	move	t7, v0\n\
 	addi	sp, sp, " STRINGXP(ELF_DL_FRAME_SIZE) "\n\
 	jr	t7\n\
-	.end	_dl_runtime_resolve\n\
 	.previous\n\
 ");
 
@@ -274,9 +271,7 @@ asm ("\n\
 	.align	2\n\
 	.globl	_dl_runtime_pltresolve\n\
 	.type	_dl_runtime_pltresolve,@function\n\
-	.ent	_dl_runtime_pltresolve\n\
 _dl_runtime_pltresolve:\n\
-	.frame	sp, " STRINGXP(ELF_DL_PLT_FRAME_SIZE) ", ra\n\
 	" STRINGXV(SETUP_GP64(t4, _dl_runtime_pltresolve)) "\n\
 	# Save arguments and sp value in stack.\n\
 1:	addi	sp, sp, " STRINGXP(-ELF_DL_PLT_FRAME_SIZE) "\n\
@@ -289,7 +284,6 @@ _dl_runtime_pltresolve:\n\
 	" ELF_DL_PLT_RESTORE_ARG_REGS "\
 	addi	sp, sp, " STRINGXP(ELF_DL_PLT_FRAME_SIZE) "\n\
 	jr	t7\n\
-	.end	_dl_runtime_pltresolve\n\
 	.previous\n\
 ");
 

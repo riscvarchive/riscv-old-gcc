@@ -37,14 +37,12 @@
 #ifndef _RTLD_PROLOGUE
 # define _RTLD_PROLOGUE(entry)						\
 	".globl\t" __STRING(entry) "\n\t"				\
-	".ent\t" __STRING(entry) "\n\t"					\
 	".type\t" __STRING(entry) ", @function\n"			\
 	__STRING(entry) ":\n\t"
 #endif
 
 #ifndef _RTLD_EPILOGUE
 # define _RTLD_EPILOGUE(entry)						\
-	".end\t" __STRING(entry) "\n\t"					\
 	".size\t" __STRING(entry) ", . - " __STRING(entry) "\n\t"
 #endif
 
