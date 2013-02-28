@@ -68,8 +68,6 @@ static int mips_output_flavor (void) { return OUTPUT_FLAVOR; }
 #include "elf/riscv.h"
 #endif
 
-int mips_flag_pdr = TRUE;
-
 #include "ecoff.h"
 
 #if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
@@ -368,10 +366,6 @@ static void s_dtpreldword (int);
 static void s_gpword (int);
 static void s_gpdword (int);
 static void s_insn (int);
-static void s_mips_ent (int);
-static void s_mips_end (int);
-static void s_mips_frame (int);
-static void s_mips_mask (int reg_type);
 static void s_mips_stab (int);
 static void s_mips_weakext (int);
 static void s_mips_file (int);
@@ -466,16 +460,10 @@ static const pseudo_typeS mips_nonecoff_pseudo_table[] =
 {
   /* These pseudo-ops should be defined by the object file format.
      However, a.out doesn't support them, so we have versions here.  */
-  {"aent", s_mips_ent, 1},
   {"bgnb", s_ignore, 0},
-  {"end", s_mips_end, 0},
   {"endb", s_ignore, 0},
-  {"ent", s_mips_ent, 0},
   {"file", s_mips_file, 0},
-  {"fmask", s_mips_mask, 'F'},
-  {"frame", s_mips_frame, 0},
   {"loc", s_mips_loc, 0},
-  {"mask", s_mips_mask, 'R'},
   {"verstamp", s_ignore, 0},
   { NULL, NULL, 0 },
 };
@@ -533,13 +521,6 @@ static bfd_reloc_code_real_type imm_reloc[3]
   = {BFD_RELOC_UNUSED, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
 static bfd_reloc_code_real_type offset_reloc[3]
   = {BFD_RELOC_UNUSED, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
-
-#ifdef OBJ_ELF
-/* The pdr segment for per procedure frame/regmask info.  Not used for
-   ECOFF debugging.  */
-
-static segT pdr_seg;
-#endif
 
 /* The default target format to use.  */
 
@@ -1343,15 +1324,6 @@ md_begin (void)
 
 	      mips_regmask_frag = frag_more (sizeof (Elf64_External_RegInfo));
 	    }
-	  }
-
-	if (mips_flag_pdr)
-	  {
-	    pdr_seg = subseg_new (".pdr", (subsegT) 0);
-	    (void) bfd_set_section_flags (stdoutput, pdr_seg,
-					  SEC_READONLY | SEC_RELOC
-					  | SEC_DEBUGGING);
-	    (void) bfd_set_section_alignment (stdoutput, pdr_seg, 2);
 	  }
 
 	subseg_set (seg, subseg);
@@ -2861,8 +2833,6 @@ enum options
     OPTION_NON_SHARED,
     OPTION_XGOT,
     OPTION_MABI,
-    OPTION_PDR,
-    OPTION_NO_PDR,
 #endif /* OBJ_ELF */
     OPTION_END_OF_ENUM    
   };
@@ -2891,8 +2861,6 @@ struct option md_longopts[] =
   {"non_shared",  no_argument, NULL, OPTION_NON_SHARED},
   {"xgot",        no_argument, NULL, OPTION_XGOT},
   {"mabi", required_argument, NULL, OPTION_MABI},
-  {"mpdr", no_argument, NULL, OPTION_PDR},
-  {"mno-pdr", no_argument, NULL, OPTION_NO_PDR},
 #endif /* OBJ_ELF */
 
   {NULL, no_argument, NULL, 0}
@@ -3016,16 +2984,6 @@ md_parse_option (int c, char *arg)
 	  as_fatal (_("invalid abi -mabi=%s"), arg);
 	  return 0;
 	}
-      break;
-#endif /* OBJ_ELF */
-
-#ifdef OBJ_ELF
-    case OPTION_PDR:
-      mips_flag_pdr = TRUE;
-      break;
-
-    case OPTION_NO_PDR:
-      mips_flag_pdr = FALSE;
       break;
 #endif /* OBJ_ELF */
 
@@ -3356,20 +3314,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
   /* Remember value for tc_gen_reloc.  */
   fixP->fx_addnumber = *valP;
-}
-
-static symbolS *
-get_symbol (void)
-{
-  int c;
-  char *name;
-  symbolS *p;
-
-  name = input_line_pointer;
-  c = get_symbol_end ();
-  p = (symbolS *) symbol_find_or_make (name);
-  *input_line_pointer = c;
-  return p;
 }
 
 /* Align the current frag to a given power of two.  If a particular
@@ -4011,19 +3955,6 @@ s_mips_weakext (int ignore ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
-/* Parse a register string into a number. */
-
-static int
-tc_get_register (void)
-{
-  unsigned int reg;
-
-  SKIP_WHITESPACE ();
-  if (! reg_lookup (&input_line_pointer, RWARN | RTYPE_NUM | RTYPE_GP, &reg))
-    reg = 0;
-  return reg;
-}
-
 valueT
 md_section_align (asection *seg, valueT addr)
 {
@@ -4338,22 +4269,6 @@ mips_elf_final_processing (void)
 }
 
 #endif /* OBJ_ELF || OBJ_MAYBE_ELF */
-
-typedef struct proc {
-  symbolS *func_sym;
-  symbolS *func_end_sym;
-  unsigned long reg_mask;
-  unsigned long reg_offset;
-  unsigned long fpreg_mask;
-  unsigned long fpreg_offset;
-  unsigned long frame_offset;
-  unsigned long frame_reg;
-  unsigned long pc_reg;
-} procS;
-
-static procS cur_proc;
-static procS *cur_proc_ptr;
-static int numprocs;
 
 void
 mips_handle_align (fragS *fragp)
@@ -4366,64 +4281,6 @@ mips_handle_align (fragS *fragp)
   p = fragp->fr_literal + fragp->fr_fix;
   md_number_to_chars (p, RISCV_NOP, 4);
   fragp->fr_var = 4;
-}
-
-void
-md_mips_end (void)
-{
-  if (cur_proc_ptr)
-    as_warn (_("missing .end at end of assembly"));
-}
-
-static long
-get_number (void)
-{
-  int negative = 0;
-  long val = 0;
-
-  if (*input_line_pointer == '-')
-    {
-      ++input_line_pointer;
-      negative = 1;
-    }
-  if (!ISDIGIT (*input_line_pointer))
-    as_bad (_("expected simple number"));
-  if (input_line_pointer[0] == '0')
-    {
-      if (input_line_pointer[1] == 'x')
-	{
-	  input_line_pointer += 2;
-	  while (ISXDIGIT (*input_line_pointer))
-	    {
-	      val <<= 4;
-	      val |= hex_value (*input_line_pointer++);
-	    }
-	  return negative ? -val : val;
-	}
-      else
-	{
-	  ++input_line_pointer;
-	  while (ISDIGIT (*input_line_pointer))
-	    {
-	      val <<= 3;
-	      val |= *input_line_pointer++ - '0';
-	    }
-	  return negative ? -val : val;
-	}
-    }
-  if (!ISDIGIT (*input_line_pointer))
-    {
-      printf (_(" *input_line_pointer == '%c' 0x%02x\n"),
-	      *input_line_pointer, *input_line_pointer);
-      as_warn (_("invalid number"));
-      return -1;
-    }
-  while (ISDIGIT (*input_line_pointer))
-    {
-      val *= 10;
-      val += *input_line_pointer++ - '0';
-    }
-  return negative ? -val : val;
 }
 
 /* The .file directive; just like the usual .file directive, but there
@@ -4457,230 +4314,6 @@ static void
 s_mips_loc (int x ATTRIBUTE_UNUSED)
 {
   dwarf2_directive_loc (0);
-}
-
-/* The .end directive.  */
-
-static void
-s_mips_end (int x ATTRIBUTE_UNUSED)
-{
-  symbolS *p;
-
-  if (!is_end_of_line[(unsigned char) *input_line_pointer])
-    {
-      p = get_symbol ();
-      demand_empty_rest_of_line ();
-    }
-  else
-    p = NULL;
-
-  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) == 0)
-    as_warn (_(".end not in text section"));
-
-  if (!cur_proc_ptr)
-    {
-      as_warn (_(".end directive without a preceding .ent directive."));
-      demand_empty_rest_of_line ();
-      return;
-    }
-
-  if (p != NULL)
-    {
-      gas_assert (S_GET_NAME (p));
-      if (strcmp (S_GET_NAME (p), S_GET_NAME (cur_proc_ptr->func_sym)))
-	as_warn (_(".end symbol does not match .ent symbol."));
-
-      if (debug_type == DEBUG_STABS)
-	stabs_generate_asm_endfunc (S_GET_NAME (p),
-				    S_GET_NAME (p));
-    }
-  else
-    as_warn (_(".end directive missing or unknown symbol"));
-
-#ifdef OBJ_ELF
-  /* Create an expression to calculate the size of the function.  */
-  if (p && cur_proc_ptr)
-    {
-      OBJ_SYMFIELD_TYPE *obj = symbol_get_obj (p);
-      expressionS *exp = xmalloc (sizeof (expressionS));
-
-      obj->size = exp;
-      exp->X_op = O_subtract;
-      exp->X_add_symbol = symbol_temp_new_now ();
-      exp->X_op_symbol = p;
-      exp->X_add_number = 0;
-
-      cur_proc_ptr->func_end_sym = exp->X_add_symbol;
-    }
-
-  /* Generate a .pdr section.  */
-  if (IS_ELF && mips_flag_pdr)
-    {
-      segT saved_seg = now_seg;
-      subsegT saved_subseg = now_subseg;
-      expressionS exp;
-      char *fragp;
-
-#ifdef md_flush_pending_output
-      md_flush_pending_output ();
-#endif
-
-      gas_assert (pdr_seg);
-      subseg_set (pdr_seg, 0);
-
-      /* Write the symbol.  */
-      exp.X_op = O_symbol;
-      exp.X_add_symbol = p;
-      exp.X_add_number = 0;
-      emit_expr (&exp, 4);
-
-      fragp = frag_more (7 * 4);
-
-      md_number_to_chars (fragp, cur_proc_ptr->reg_mask, 4);
-      md_number_to_chars (fragp + 4, cur_proc_ptr->reg_offset, 4);
-      md_number_to_chars (fragp + 8, cur_proc_ptr->fpreg_mask, 4);
-      md_number_to_chars (fragp + 12, cur_proc_ptr->fpreg_offset, 4);
-      md_number_to_chars (fragp + 16, cur_proc_ptr->frame_offset, 4);
-      md_number_to_chars (fragp + 20, cur_proc_ptr->frame_reg, 4);
-      md_number_to_chars (fragp + 24, cur_proc_ptr->pc_reg, 4);
-
-      subseg_set (saved_seg, saved_subseg);
-    }
-#endif /* OBJ_ELF */
-
-  cur_proc_ptr = NULL;
-}
-
-/* The .aent and .ent directives.  */
-
-static void
-s_mips_ent (int aent)
-{
-  symbolS *symbolP;
-
-  symbolP = get_symbol ();
-  if (*input_line_pointer == ',')
-    ++input_line_pointer;
-  SKIP_WHITESPACE ();
-  if (ISDIGIT (*input_line_pointer)
-      || *input_line_pointer == '-')
-    get_number ();
-
-  if ((bfd_get_section_flags (stdoutput, now_seg) & SEC_CODE) == 0)
-    as_warn (_(".ent or .aent not in text section."));
-
-  if (!aent && cur_proc_ptr)
-    as_warn (_("missing .end"));
-
-  if (!aent)
-    {
-      cur_proc_ptr = &cur_proc;
-      memset (cur_proc_ptr, '\0', sizeof (procS));
-
-      cur_proc_ptr->func_sym = symbolP;
-
-      symbol_get_bfdsym (symbolP)->flags |= BSF_FUNCTION;
-
-      ++numprocs;
-
-      if (debug_type == DEBUG_STABS)
-        stabs_generate_asm_func (S_GET_NAME (symbolP),
-				 S_GET_NAME (symbolP));
-    }
-
-  demand_empty_rest_of_line ();
-}
-
-/* The .frame directive. If the mdebug section is present (IRIX 5 native)
-   then ecoff.c (ecoff_directive_frame) is used. For embedded targets,
-   s_mips_frame is used so that we can set the PDR information correctly.
-   We can't use the ecoff routines because they make reference to the ecoff
-   symbol table (in the mdebug section).  */
-
-static void
-s_mips_frame (int ignore ATTRIBUTE_UNUSED)
-{
-#ifdef OBJ_ELF
-  if (IS_ELF)
-    {
-      long val;
-
-      if (cur_proc_ptr == (procS *) NULL)
-	{
-	  as_warn (_(".frame outside of .ent"));
-	  demand_empty_rest_of_line ();
-	  return;
-	}
-
-      cur_proc_ptr->frame_reg = tc_get_register ();
-
-      SKIP_WHITESPACE ();
-      if (*input_line_pointer++ != ','
-	  || get_absolute_expression_and_terminator (&val) != ',')
-	{
-	  as_warn (_("Bad .frame directive"));
-	  --input_line_pointer;
-	  demand_empty_rest_of_line ();
-	  return;
-	}
-
-      cur_proc_ptr->frame_offset = val;
-      cur_proc_ptr->pc_reg = tc_get_register ();
-
-      demand_empty_rest_of_line ();
-    }
-  else
-#endif /* OBJ_ELF */
-    s_ignore (ignore);
-}
-
-/* The .fmask and .mask directives. If the mdebug section is present
-   (IRIX 5 native) then ecoff.c (ecoff_directive_mask) is used. For
-   embedded targets, s_mips_mask is used so that we can set the PDR
-   information correctly. We can't use the ecoff routines because they
-   make reference to the ecoff symbol table (in the mdebug section).  */
-
-static void
-s_mips_mask (int reg_type)
-{
-#ifdef OBJ_ELF
-  if (IS_ELF)
-    {
-      long mask, off;
-
-      if (cur_proc_ptr == (procS *) NULL)
-	{
-	  as_warn (_(".mask/.fmask outside of .ent"));
-	  demand_empty_rest_of_line ();
-	  return;
-	}
-
-      if (get_absolute_expression_and_terminator (&mask) != ',')
-	{
-	  as_warn (_("Bad .mask/.fmask directive"));
-	  --input_line_pointer;
-	  demand_empty_rest_of_line ();
-	  return;
-	}
-
-      off = get_absolute_expression ();
-
-      if (reg_type == 'F')
-	{
-	  cur_proc_ptr->fpreg_mask = mask;
-	  cur_proc_ptr->fpreg_offset = off;
-	}
-      else
-	{
-	  cur_proc_ptr->reg_mask = mask;
-	  cur_proc_ptr->reg_offset = off;
-	}
-
-      demand_empty_rest_of_line ();
-    }
-  else
-#endif /* OBJ_ELF */
-    s_ignore (reg_type);
 }
 
 /* A table describing all the processors gas knows about.  Names are
@@ -4834,7 +4467,6 @@ MIPS options:\n\
 -call_nonpic		generate non-PIC code that can operate with DSOs\n\
 -non_shared		do not generate code that can operate with DSOs\n\
 -xgot			assume a 32 bit GOT\n\
--mpdr, -mno-pdr		enable/disable creation of .pdr sections\n\
 -mshared, -mno-shared   disable/enable .cpload optimization for\n\
                         position dependent (non shared) code\n\
 -mabi=ABI		create ABI conformant object file for:\n"));

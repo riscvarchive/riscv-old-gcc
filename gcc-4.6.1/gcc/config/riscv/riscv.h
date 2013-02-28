@@ -87,9 +87,6 @@ struct mips_cpu_info {
 #define TARGET_HARD_FLOAT TARGET_HARD_FLOAT_ABI
 #define TARGET_SOFT_FLOAT TARGET_SOFT_FLOAT_ABI
 
-/* IRIX specific stuff.  */
-#define TARGET_IRIX6	   0
-
 /* Target CPU builtins.  */
 #define TARGET_CPU_CPP_BUILTINS()					\
   do									\

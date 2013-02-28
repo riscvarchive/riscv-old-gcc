@@ -10,7 +10,6 @@
 
 /* int setjmp (jmp_buf);  */
   .globl  setjmp
-  .ent  setjmp
 setjmp:
 
   fsd   fs0, 0*8(a0)
@@ -44,11 +43,8 @@ setjmp:
   li v0, 0
   ret
 
-  .end  setjmp
-
 /* volatile void longjmp (jmp_buf, int);  */
   .globl  longjmp
-  .ent  longjmp
 longjmp:
 
   fld   fs0, 0*8(a0)
@@ -82,5 +78,3 @@ longjmp:
   sltiu v0, a1, 1    # v0 = (a1 == 0)
   add   v0, v0, a1   # v0 = (a1 == 0) ? 1 : a1
   ret
-
-  .end longjmp

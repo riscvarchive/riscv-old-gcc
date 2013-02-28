@@ -95,7 +95,6 @@
 
         .text
         .global _start
-        .ent    _start
 _start:
 
 #ifdef __riscv64
@@ -123,5 +122,3 @@ _start:
         
         move    a0, v0              # Call exit function with return value
         jal     exit                #  from main as exit code
-
-        .end    _start

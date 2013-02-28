@@ -3175,38 +3175,6 @@ mips_va_start (tree valist, rtx nextarg)
   std_expand_builtin_va_start (valist, nextarg);
 }
 
-/* Start a definition of function NAME. */
-
-static void
-mips_start_function_definition (const char *name)
-{
-  if (!flag_inhibit_size_directive)
-    {
-      fputs ("\t.ent\t", asm_out_file);
-      assemble_name (asm_out_file, name);
-      fputs ("\n", asm_out_file);
-    }
-
-  ASM_OUTPUT_TYPE_DIRECTIVE (asm_out_file, name, "function");
-
-  /* Start the definition proper.  */
-  assemble_name (asm_out_file, name);
-  fputs (":\n", asm_out_file);
-}
-
-/* End a function definition started by mips_start_function_definition.  */
-
-static void
-mips_end_function_definition (const char *name)
-{
-  if (!flag_inhibit_size_directive)
-    {
-      fputs ("\t.end\t", asm_out_file);
-      assemble_name (asm_out_file, name);
-      fputs ("\n", asm_out_file);
-    }
-}
-
 /* Return true if SYMBOL_REF X binds locally.  */
 
 static bool
@@ -3790,14 +3758,13 @@ mips_debugger_offset (rtx addr, HOST_WIDE_INT offset)
   rtx offset2 = const0_rtx;
   rtx reg = eliminate_constant_term (addr, &offset2);
 
-  gcc_assert (reg == stack_pointer_rtx
-              || reg == frame_pointer_rtx
-              || reg == hard_frame_pointer_rtx);
-
   if (offset == 0)
     offset = INTVAL (offset2);
   
-  offset -= cfun->machine->frame.total_size;
+  if (reg == stack_pointer_rtx)
+    offset -= cfun->machine->frame.total_size;
+  else
+    gcc_assert (reg == frame_pointer_rtx || reg == hard_frame_pointer_rtx);
 
   return offset;
 }
@@ -4004,23 +3971,6 @@ mips_finish_declare_object (FILE *stream, tree decl, int top_level, int at_end)
     }
 }
 #endif
-
-/* Return the FOO in the name of the ".mdebug.FOO" section associated
-   with the current ABI.  */
-
-static const char *
-mips_mdebug_abi_name (void)
-{
-  switch (mips_abi)
-    {
-    case ABI_32:
-      return "abi32";
-    case ABI_64:
-      return "abi64";
-    default:
-      gcc_unreachable ();
-    }
-}
 
 /* Implement TARGET_ASM_FILE_START.  */
 
@@ -4028,38 +3978,6 @@ static void
 mips_file_start (void)
 {
   default_file_start ();
-
-  /* Generate a special section to describe the ABI switches used to
-     produce the resultant binary.  This is unnecessary on IRIX and
-     causes unwanted warnings from the native linker.  */
-  if (!TARGET_IRIX6)
-    {
-      /* Record the ABI itself.  Modern versions of binutils encode
-	 this information in the ELF header flags, but GDB needs the
-	 information in order to correctly debug binaries produced by
-	 older binutils.  See the function mips_gdbarch_init in
-	 gdb/mips-tdep.c.  */
-      fprintf (asm_out_file, "\t.section .mdebug.%s\n\t.previous\n",
-	       mips_mdebug_abi_name ());
-
-#ifdef HAVE_AS_GNU_ATTRIBUTE
-      {
-	int attr;
-
-	/* Soft-float code, -msoft-float.  */
-	if (!TARGET_HARD_FLOAT_ABI)
-	  attr = 3;
-	/* 64-bit FP registers on a 32-bit target. */
-	else if (!TARGET_64BIT)
-	  attr = 4;
-	/* Regular FP code, FP regs same size as GP regs, -mdouble-float.  */
-	else
-	  attr = 1;
-
-	fprintf (asm_out_file, "\t.gnu_attribute 4, %d\n", attr);
-      }
-#endif
-    }
 
   /* If TARGET_ABICALLS, tell GAS to generate -KPIC code.  */
   if (TARGET_ABICALLS)
@@ -4666,38 +4584,10 @@ mips_output_function_prologue (FILE *file, HOST_WIDE_INT size ATTRIBUTE_UNUSED)
      assemble_start_function.  This is needed so that the name used here
      exactly matches the name used in ASM_DECLARE_FUNCTION_NAME.  */
   fnname = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
-  mips_start_function_definition (fnname);
 
-  /* Output MIPS-specific frame information.  */
-  if (!flag_inhibit_size_directive)
-    {
-      const struct mips_frame_info *frame;
-
-      frame = &cfun->machine->frame;
-
-      /* .frame FRAMEREG, FRAMESIZE, RETREG.  */
-      fprintf (file,
-	       "\t.frame\t%s," HOST_WIDE_INT_PRINT_DEC ",%s\t\t"
-	       "# vars= " HOST_WIDE_INT_PRINT_DEC
-	       ", regs= %d/%d"
-	       ", args= " HOST_WIDE_INT_PRINT_DEC "\n",
-	       reg_names[frame_pointer_needed
-			 ? HARD_FRAME_POINTER_REGNUM
-			 : STACK_POINTER_REGNUM],
-	       frame->total_size,
-	       reg_names[RETURN_ADDR_REGNUM],
-	       frame->var_size,
-	       frame->num_gp, frame->num_fp,
-	       frame->args_size);
-
-      /* .mask MASK, OFFSET.  */
-      fprintf (file, "\t.mask\t0x%08x," HOST_WIDE_INT_PRINT_DEC "\n",
-	       frame->mask, frame->gp_save_offset);
-
-      /* .fmask MASK, OFFSET.  */
-      fprintf (file, "\t.fmask\t0x%08x," HOST_WIDE_INT_PRINT_DEC "\n",
-	       frame->fmask, frame->fp_save_offset);
-    }
+  ASM_OUTPUT_TYPE_DIRECTIVE (asm_out_file, fnname, "function");
+  assemble_name (asm_out_file, fnname);
+  fputs (":\n", asm_out_file);
 }
 
 /* Implement TARGET_OUTPUT_FUNCTION_EPILOGUE.  */
@@ -4715,7 +4605,6 @@ mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
      assemble_start_function.  This is needed so that the name used here
      exactly matches the name used in ASM_DECLARE_FUNCTION_NAME.  */
   fnname = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
-  mips_end_function_definition (fnname);
 }
 
 /* Save register REG to MEM.  Make the instruction frame-related.  */
@@ -4886,8 +4775,7 @@ mips_expand_epilogue (bool sibcall_p)
     }
 
   /* Set TARGET to BASE + STEP1.  */
-  base = frame_pointer_needed ? hard_frame_pointer_rtx : stack_pointer_rtx;
-  target = base;
+  target = base = stack_pointer_rtx;
   if (step1 > 0)
     {
       rtx adjust;

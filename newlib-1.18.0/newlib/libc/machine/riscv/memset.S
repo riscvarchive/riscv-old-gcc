@@ -3,7 +3,6 @@
 # 2012/10/15
 
 .text
-.ent memset
 .global memset
 memset:
   li t3, 7
@@ -103,4 +102,3 @@ misaligned:
   bleu a2, t3, small
   j aligned
 .set pop
-.end memset
