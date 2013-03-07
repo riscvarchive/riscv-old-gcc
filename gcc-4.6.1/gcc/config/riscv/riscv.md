@@ -24,8 +24,7 @@
 ;; <http://www.gnu.org/licenses/>.
 
 (define_enum "processor" [
-  rocket32
-  rocket64
+  rocket
 ])
 
 (define_c_enum "unspec" [

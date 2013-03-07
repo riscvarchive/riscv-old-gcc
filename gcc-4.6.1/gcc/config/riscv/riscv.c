@@ -186,37 +186,6 @@ enum mips_builtin_type {
   MIPS_BUILTIN_DIRECT_NO_TARGET
 };
 
-/* Invoke MACRO (COND) for each C.cond.fmt condition.  */
-#define MIPS_FP_CONDITIONS(MACRO) \
-  MACRO (f),	\
-  MACRO (un),	\
-  MACRO (eq),	\
-  MACRO (ueq),	\
-  MACRO (olt),	\
-  MACRO (ult),	\
-  MACRO (ole),	\
-  MACRO (ule),	\
-  MACRO (sf),	\
-  MACRO (ngle),	\
-  MACRO (seq),	\
-  MACRO (ngl),	\
-  MACRO (lt),	\
-  MACRO (nge),	\
-  MACRO (le),	\
-  MACRO (ngt)
-
-/* Enumerates the codes above as MIPS_FP_COND_<X>.  */
-#define DECLARE_MIPS_COND(X) MIPS_FP_COND_ ## X
-enum mips_fp_condition {
-  MIPS_FP_CONDITIONS (DECLARE_MIPS_COND)
-};
-
-/* Index X provides the string representation of MIPS_FP_COND_<X>.  */
-#define STRINGIFY(X) #X
-static const char *const mips_fp_conditions[] = {
-  MIPS_FP_CONDITIONS (STRINGIFY)
-};
-
 /* Information about a function's frame layout.  */
 struct GTY(())  mips_frame_info {
   /* The size of the frame in bytes.  */
@@ -366,14 +335,8 @@ const char *current_function_file = "";
 int mips_dbx_regno[FIRST_PSEUDO_REGISTER];
 int mips_dwarf_regno[FIRST_PSEUDO_REGISTER];
 
-/* The current instruction-set architecture.  */
-enum processor mips_arch;
-
 /* The processor that we should tune the code for.  */
 enum processor mips_tune;
-
-/* The ISA level associated with mips_arch.  */
-int mips_isa;
 
 /* Which ABI to use.  */
 int mips_abi = MIPS_ABI_DEFAULT;
@@ -469,8 +432,7 @@ static const struct attribute_spec mips_attribute_table[] = {
    options correctly.  */
 static const struct mips_cpu_info mips_cpu_info_table[] = {
   /* Entries for generic ISAs.  */
-  { "rocket32", PROCESSOR_ROCKET32, ISA_RV32, 0 },
-  { "rocket64", PROCESSOR_ROCKET64, ISA_RV64, 0 }
+  { "rocket", PROCESSOR_ROCKET, 0 },
 };
 
 /* Default costs.  If these are used for a processor we should look
@@ -513,8 +475,7 @@ static const struct mips_rtx_cost_data mips_rtx_cost_optimize_size = {
 /* Costs to use when optimizing for speed, indexed by processor.  */
 static const struct mips_rtx_cost_data
   mips_rtx_cost_data[NUM_PROCESSOR_VALUES] = {
-  { /* Rocket32 */ DEFAULT_COSTS},
-  { /* Rocket64 */ DEFAULT_COSTS}
+  { /* Rocket */ DEFAULT_COSTS},
 };
 
 static int mips_register_move_cost (enum machine_mode, reg_class_t,
@@ -3540,7 +3501,6 @@ mips_print_int_branch_condition (FILE *file, enum rtx_code code, int letter)
    'T'	Print 'f' for (eq:CC ...), 't' for (ne:CC ...),
 	      'z' for (eq:?I ...), 'n' for (ne:?I ...).
    't'	Like 'T', but with the EQ/NE cases reversed
-   'Y'	Print mips_fp_conditions[INTVAL (OP)]
    'Z'	Print OP and a comma for ISA_HAS_8CC, otherwise print nothing.
    'D'	Print the second part of a double-word register or memory operand.
    'L'	Print the low-order register in a double-word register operand.
@@ -3613,14 +3573,6 @@ mips_print_operand (FILE *file, rtx op, int letter)
 	int truth = (code == NE) == (letter == 'T');
 	fputc ("zfnt"[truth * 2 + (GET_MODE (op) == CCmode)], file);
       }
-      break;
-
-    case 'Y':
-      if (code == CONST_INT && UINTVAL (op) < ARRAY_SIZE (mips_fp_conditions))
-	fputs (mips_fp_conditions[UINTVAL (op)], file);
-      else
-	output_operand_lossage ("'%%%c' is not a valid operand prefix",
-				letter);
       break;
 
     case 'Z':
@@ -4661,7 +4613,6 @@ mips_expand_epilogue (bool sibcall_p)
 {
   const struct mips_frame_info *frame;
   HOST_WIDE_INT step1, step2;
-  rtx base, target;
 
   if (!sibcall_p && mips_can_use_return_insn ())
     {
@@ -4690,47 +4641,32 @@ mips_expand_epilogue (bool sibcall_p)
     }
 
   /* Set TARGET to BASE + STEP1.  */
-  target = base = stack_pointer_rtx;
   if (step1 > 0)
     {
-      rtx adjust;
-
       /* Get an rtx for STEP1 that we can add to BASE.  */
-      adjust = GEN_INT (step1);
+      rtx adjust = GEN_INT (step1);
       if (!SMALL_OPERAND (step1))
 	{
 	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
 	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
 	}
 
-      /* Normal mode code can copy the result straight into $sp.  */
-      target = stack_pointer_rtx;
-
-      emit_insn (gen_add3_insn (target, base, adjust));
+      emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx, adjust));
     }
 
-  /* Copy TARGET into the stack pointer.  */
-  if (target != stack_pointer_rtx)
-    mips_emit_move (stack_pointer_rtx, target);
-
   /* Restore the registers.  */
-  mips_for_each_saved_gpr_and_fpr (frame->total_size - step2,
-		       mips_restore_reg);
+  mips_for_each_saved_gpr_and_fpr (frame->total_size - step2, mips_restore_reg);
 
-	  /* Deallocate the final bit of the frame.  */
+  /* Deallocate the final bit of the frame.  */
   if (step2 > 0)
-    emit_insn (gen_add3_insn (stack_pointer_rtx,
-			      stack_pointer_rtx,
+    emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx,
 			      GEN_INT (step2)));
 
   /* Add in the __builtin_eh_return stack adjustment.  We need to
      use a temporary in MIPS16 code.  */
   if (crtl->calls_eh_return)
-    {
-      emit_insn (gen_add3_insn (stack_pointer_rtx,
-				stack_pointer_rtx,
-				EH_RETURN_STACKADJ_RTX));
-    }
+    emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx,
+			      EH_RETURN_STACKADJ_RTX));
 
   if (!sibcall_p)
     emit_jump_insn (gen_return_internal (gen_rtx_REG (Pmode, RETURN_ADDR_REGNUM)));
@@ -5207,8 +5143,7 @@ mips_issue_rate (void)
 {
   switch (mips_tune)
     {
-    case PROCESSOR_ROCKET32:
-    case PROCESSOR_ROCKET64:
+    case PROCESSOR_ROCKET:
       return 1;
 
     default:
@@ -5221,9 +5156,6 @@ struct mips_builtin_description {
   /* The code of the main .md file instruction.  See mips_builtin_type
      for more information.  */
   enum insn_code icode;
-
-  /* The floating-point comparison code to use with ICODE, if any.  */
-  enum mips_fp_condition cond;
 
   /* The name of the built-in function.  */
   const char *name;
@@ -5265,23 +5197,21 @@ mips_builtin_avail_riscv (void)
 
    AVAIL is the name of the availability predicate, without the leading
    mips_builtin_avail_.  */
-#define MIPS_BUILTIN(INSN, COND, NAME, BUILTIN_TYPE,			\
-		     FUNCTION_TYPE, AVAIL)				\
-  { CODE_FOR_mips_ ## INSN, MIPS_FP_COND_ ## COND,			\
-    "__builtin_mips_" NAME, BUILTIN_TYPE, FUNCTION_TYPE,		\
-    mips_builtin_avail_ ## AVAIL }
+#define MIPS_BUILTIN(INSN, NAME, BUILTIN_TYPE, FUNCTION_TYPE, AVAIL)	\
+  { CODE_FOR_mips_ ## INSN, "__builtin_mips_" NAME,			\
+    BUILTIN_TYPE, FUNCTION_TYPE, mips_builtin_avail_ ## AVAIL }
 
 /* Define __builtin_mips_<INSN>, which is a MIPS_BUILTIN_DIRECT function
    mapped to instruction CODE_FOR_mips_<INSN>,  FUNCTION_TYPE and AVAIL
    are as for MIPS_BUILTIN.  */
 #define DIRECT_BUILTIN(INSN, FUNCTION_TYPE, AVAIL)			\
-  MIPS_BUILTIN (INSN, f, #INSN, MIPS_BUILTIN_DIRECT, FUNCTION_TYPE, AVAIL)
+  MIPS_BUILTIN (INSN, #INSN, MIPS_BUILTIN_DIRECT, FUNCTION_TYPE, AVAIL)
 
 /* Define __builtin_mips_<INSN>, which is a MIPS_BUILTIN_DIRECT_NO_TARGET
    function mapped to instruction CODE_FOR_mips_<INSN>,  FUNCTION_TYPE
    and AVAIL are as for MIPS_BUILTIN.  */
 #define DIRECT_NO_TARGET_BUILTIN(INSN, FUNCTION_TYPE, AVAIL)		\
-  MIPS_BUILTIN (INSN, f, #INSN,	MIPS_BUILTIN_DIRECT_NO_TARGET,		\
+  MIPS_BUILTIN (INSN, #INSN, MIPS_BUILTIN_DIRECT_NO_TARGET,		\
 		FUNCTION_TYPE, AVAIL)
 
 static const struct mips_builtin_description mips_builtins[] = {
@@ -5867,17 +5797,9 @@ static void
 mips_set_current_function (tree fndecl)
 {
   bool utfunc = fndecl && (lookup_attribute("utfunc", DECL_ATTRIBUTES(fndecl)) != NULL);
-
-  if (!riscv_in_utfunc && utfunc)
-  {
-    riscv_in_utfunc = true;
+  if (riscv_in_utfunc != utfunc)
     reinit_regs();
-  }
-  else if (riscv_in_utfunc && !utfunc)
-  {
-    riscv_in_utfunc = false;
-    reinit_regs();
-  }
+  riscv_in_utfunc = utfunc;
 }
 
 /* Allocate a chunk of memory for per-function machine-dependent data.  */
@@ -5886,68 +5808,6 @@ static struct machine_function *
 mips_init_machine_status (void)
 {
   return ggc_alloc_cleared_machine_function ();
-}
-
-/* Return the processor associated with the given ISA level, or null
-   if the ISA isn't valid.  */
-
-static const struct mips_cpu_info *
-mips_cpu_info_from_isa (int isa)
-{
-  unsigned int i;
-
-  for (i = 0; i < ARRAY_SIZE (mips_cpu_info_table); i++)
-    if (mips_cpu_info_table[i].isa == isa)
-      return mips_cpu_info_table + i;
-
-  return NULL;
-}
-
-/* Return true if GIVEN is the same as CANONICAL, or if it is CANONICAL
-   with a final "000" replaced by "k".  Ignore case.
-
-   Note: this function is shared between GCC and GAS.  */
-
-static bool
-mips_strict_matching_cpu_name_p (const char *canonical, const char *given)
-{
-  while (*given != 0 && TOLOWER (*given) == TOLOWER (*canonical))
-    given++, canonical++;
-
-  return ((*given == 0 && *canonical == 0)
-	  || (strcmp (canonical, "000") == 0 && strcasecmp (given, "k") == 0));
-}
-
-/* Return true if GIVEN matches CANONICAL, where GIVEN is a user-supplied
-   CPU name.  We've traditionally allowed a lot of variation here.
-
-   Note: this function is shared between GCC and GAS.  */
-
-static bool
-mips_matching_cpu_name_p (const char *canonical, const char *given)
-{
-  /* First see if the name matches exactly, or with a final "000"
-     turned into "k".  */
-  if (mips_strict_matching_cpu_name_p (canonical, given))
-    return true;
-
-  /* If not, try comparing based on numerical designation alone.
-     See if GIVEN is an unadorned number, or 'r' followed by a number.  */
-  if (TOLOWER (*given) == 'r')
-    given++;
-  if (!ISDIGIT (*given))
-    return false;
-
-  /* Skip over some well-known prefixes in the canonical name,
-     hoping to find a number there too.  */
-  if (TOLOWER (canonical[0]) == 'v' && TOLOWER (canonical[1]) == 'r')
-    canonical += 2;
-  else if (TOLOWER (canonical[0]) == 'r' && TOLOWER (canonical[1]) == 'm')
-    canonical += 2;
-  else if (TOLOWER (canonical[0]) == 'r')
-    canonical += 1;
-
-  return mips_strict_matching_cpu_name_p (canonical, given);
 }
 
 /* Return the mips_cpu_info entry for the processor or ISA given
@@ -5959,51 +5819,12 @@ static const struct mips_cpu_info *
 mips_parse_cpu (const char *cpu_string)
 {
   unsigned int i;
-  const char *s;
-
-  /* In the past, we allowed upper-case CPU names, but it doesn't
-     work well with the multilib machinery.  */
-  for (s = cpu_string; *s != 0; s++)
-    if (ISUPPER (*s))
-      {
-	warning (0, "CPU names must be lower case");
-	break;
-      }
-
-  /* 'from-abi' selects the most compatible architecture for the given
-     ABI: MIPS I for 32-bit ABIs and MIPS III for 64-bit ABIs.  For the
-     EABIs, we have to decide whether we're using the 32-bit or 64-bit
-     version.  */
-  if (strcasecmp (cpu_string, "from-abi") == 0)
-    return mips_cpu_info_from_isa (TARGET_64BIT ? ISA_RV32 : ISA_RV64);
 
   for (i = 0; i < ARRAY_SIZE (mips_cpu_info_table); i++)
-    if (mips_matching_cpu_name_p (mips_cpu_info_table[i].name, cpu_string))
+    if (strcmp (mips_cpu_info_table[i].name, cpu_string) == 0)
       return mips_cpu_info_table + i;
 
   return NULL;
-}
-
-/* Set up globals to generate code for the ISA or processor
-   described by INFO.  */
-
-static void
-mips_set_architecture (const struct mips_cpu_info *info)
-{
-  if (info != 0)
-    {
-      mips_tune = mips_arch = info->cpu;
-      mips_isa = info->isa;
-    }
-}
-
-/* Likewise for tuning.  */
-
-static void
-mips_set_tune (const struct mips_cpu_info *info)
-{
-  if (info != 0)
-    mips_tune = info->cpu;
 }
 
 /* Implement TARGET_HANDLE_OPTION.  */
@@ -6022,7 +5843,6 @@ mips_handle_option (size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
 	return false;
       return true;
 
-    case OPT_march_:
     case OPT_mtune_:
       return mips_parse_cpu (arg) != 0;
 
@@ -6037,28 +5857,22 @@ static void
 mips_option_override (void)
 {
   int i, start, regno, mode;
-  const struct mips_cpu_info *info = 0;
+  const struct mips_cpu_info *info;
 
 #ifdef SUBTARGET_OVERRIDE_OPTIONS
   SUBTARGET_OVERRIDE_OPTIONS;
 #endif
 
-  /* The following code determines the architecture and register size.
-     Similar code was added to GAS 2.14 (see tc-mips.c:md_after_parse_args()).
-     The GAS and GCC code should be kept in sync as much as possible.  */
-
-  if (mips_arch_string != 0)
-    info = mips_parse_cpu (mips_arch_string);
-  if (info == 0)
-    info = mips_parse_cpu (MIPS_CPU_STRING_DEFAULT);
+  info = mips_parse_cpu (MIPS_CPU_STRING_DEFAULT);
   gcc_assert (info);
-  mips_set_architecture (info);
+  mips_tune = info->cpu;
 
-  /* Optimize for mips_arch, unless -mtune selects a different processor.  */
   if (mips_tune_string != 0)
-    mips_set_tune (mips_parse_cpu (mips_tune_string));
-
-  /* End of code shared with GAS.  */
+    {
+      const struct mips_cpu_info *tune = mips_parse_cpu (mips_tune_string);
+      if (tune)
+	mips_tune = tune->cpu;
+    }
 
   flag_pcc_struct_return = 0;
 

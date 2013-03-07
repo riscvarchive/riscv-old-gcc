@@ -52,9 +52,6 @@ struct mips_cpu_info {
      difference between them from GCC's point of view.  */
   enum processor cpu;
 
-  /* The ISA level that the processor implements.  */
-  int isa;
-
   /* A mask of PTF_* values.  */
   unsigned int tune_flags;
 };
@@ -185,9 +182,8 @@ struct mips_cpu_info {
 #define TARGET_ENDIAN_DEFAULT 0
 #endif
 
-/* 'from-abi' makes a good default: you get whatever the ABI requires.  */
 #ifndef MIPS_CPU_STRING_DEFAULT
-#define MIPS_CPU_STRING_DEFAULT "from-abi"
+#define MIPS_CPU_STRING_DEFAULT "rocket"
 #endif
 
 #define TARGET_LIBGCC_SDATA_SECTION ".sdata"
