@@ -532,58 +532,81 @@ mips_split_plus (rtx x, rtx *base_ptr, HOST_WIDE_INT *offset_ptr)
 /* Fill CODES with a sequence of rtl operations to load VALUE.
    Return the number of operations needed.  */
 
-static unsigned int
-mips_build_integer (struct mips_integer_op *codes,
-		    unsigned HOST_WIDE_INT value)
+static int
+riscv_build_integer_simple (struct mips_integer_op *codes, HOST_WIDE_INT value)
 {
-  unsigned HOST_WIDE_INT high_part = RISCV_CONST_HIGH_PART (value);
-  unsigned HOST_WIDE_INT low_part = RISCV_CONST_LOW_PART (value);
-  unsigned cost = UINT_MAX;
+  HOST_WIDE_INT low_part = RISCV_CONST_LOW_PART (value);
+  int cost = INT_MAX, alt_cost;
+  struct mips_integer_op alt_codes[MIPS_MAX_INTEGER_OPS];
 
   if (SMALL_OPERAND (value) || LUI_OPERAND (value))
     {
-      /* The value can be loaded with a single instruction.  */
+      /* Simply ADDI or LUI */
       codes[0].code = UNKNOWN;
       codes[0].value = value;
       return 1;
     }
 
-  if (LUI_OPERAND (high_part))
-    {
-      /* The value can be loaded with a LUI/ADDI combination. */
-      codes[0].code = UNKNOWN;
-      codes[0].value = high_part;
-      codes[1].code = PLUS;
-      codes[1].value = low_part;
-      return 2;
-    }
-
-  if ((value & 1) == 0)
-    {
-      /* Try eliminating all trailing zeros by ending with SLL. */
-      unsigned lshift = __builtin_ctzl (value);
-      cost = mips_build_integer (codes, (HOST_WIDE_INT)value >> lshift);
-      codes[cost].code = ASHIFT;
-      codes[cost].value = lshift;
-      cost++;
-    }
-
+  /* End with ADDI */
   if (low_part != 0)
     {
-      struct mips_integer_op add_codes[MIPS_MAX_INTEGER_OPS];
-      unsigned add_cost = mips_build_integer (add_codes, high_part);
-      add_codes[add_cost].code = PLUS;
-      add_codes[add_cost].value = low_part;
-      add_cost++;
-
-      if (add_cost < cost)
-	{
-	  memcpy (codes, add_codes, add_cost * sizeof (codes[0]));
-          cost = add_cost;
-	}
+      cost = 1 + riscv_build_integer_simple (codes, value - low_part);
+      codes[cost-1].code = PLUS;
+      codes[cost-1].value = low_part;
     }
 
-  gcc_assert (cost != UINT_MAX);
+  /* End with XORI */
+  if (low_part < 0)
+    {
+      alt_cost = 1 + riscv_build_integer_simple (alt_codes, value ^ low_part);
+      alt_codes[alt_cost-1].code = XOR;
+      alt_codes[alt_cost-1].value = low_part;
+      if (alt_cost < cost)
+	cost = alt_cost, memcpy (codes, alt_codes, sizeof(alt_codes));
+    }
+
+  /* Eliminate trailing zeros and end with SLLI */
+  if ((value & 1) == 0)
+    {
+      int shift = __builtin_ctzl(value);
+      alt_cost = 1 + riscv_build_integer_simple (alt_codes, value >> shift);
+      alt_codes[alt_cost-1].code = ASHIFT;
+      alt_codes[alt_cost-1].value = shift;
+      if (alt_cost < cost)
+	cost = alt_cost, memcpy (codes, alt_codes, sizeof(alt_codes));
+    }
+
+  gcc_assert (cost <= MIPS_MAX_INTEGER_OPS);
+  return cost;
+}
+
+static int
+riscv_build_integer (struct mips_integer_op *codes, HOST_WIDE_INT value)
+{
+  int cost = riscv_build_integer_simple (codes, value);
+
+  /* Eliminate leading zeros and end with SRLI */
+  if (value > 0 && cost > 2)
+    {
+      struct mips_integer_op alt_codes[MIPS_MAX_INTEGER_OPS];
+      int alt_cost, shift;
+
+      shift = __builtin_clzl(value);
+      alt_cost = 1 + riscv_build_integer_simple (alt_codes, value << shift);
+      alt_codes[alt_cost-1].code = LSHIFTRT;
+      alt_codes[alt_cost-1].value = shift;
+      if (alt_cost < cost)
+	cost = alt_cost, memcpy (codes, alt_codes, sizeof(alt_codes));
+
+      /* Also try filling discarded bits with 1s */
+      shift = __builtin_clzl(value);
+      alt_cost = 1 + riscv_build_integer_simple (alt_codes,
+			value << shift | ((1L<<shift)-1));
+      alt_codes[alt_cost-1].code = LSHIFTRT;
+      alt_codes[alt_cost-1].value = shift;
+      if (alt_cost < cost)
+	cost = alt_cost, memcpy (codes, alt_codes, sizeof(alt_codes));
+    }
 
   return cost;
 }
@@ -1007,7 +1030,7 @@ mips_const_insns (rtx x)
       return 1;
 
     case CONST_INT:
-      return mips_build_integer (codes, INTVAL (x));
+      return riscv_build_integer (codes, INTVAL (x));
 
     case CONST_DOUBLE:
     case CONST_VECTOR:
@@ -1036,7 +1059,7 @@ mips_const_insns (rtx x)
 	      if (SMALL_INT (offset))
 		return n + 1;
 	      else if (!targetm.cannot_force_const_mem (x))
-		return n + 1 + mips_build_integer (codes, INTVAL (offset));
+		return n + 1 + riscv_build_integer (codes, INTVAL (offset));
 	    }
 	}
       return 0;
@@ -1480,7 +1503,7 @@ mips_legitimize_address (rtx x, rtx oldx ATTRIBUTE_UNUSED,
 /* Load VALUE into DEST.  TEMP is as for mips_force_temporary.  */
 
 void
-mips_move_integer (rtx temp, rtx dest, unsigned HOST_WIDE_INT value)
+mips_move_integer (rtx temp, rtx dest, HOST_WIDE_INT value)
 {
   struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
   enum machine_mode mode;
@@ -1488,23 +1511,39 @@ mips_move_integer (rtx temp, rtx dest, unsigned HOST_WIDE_INT value)
   rtx x;
 
   mode = GET_MODE (dest);
-  num_ops = mips_build_integer (codes, value);
+  num_ops = riscv_build_integer (codes, value);
 
-  /* Apply each binary operation to X.  Invariant: X is a legitimate
-     source operand for a SET pattern.  */
-  x = GEN_INT (codes[0].value);
-
-  for (i = 1; i < num_ops; i++)
+  if (can_create_pseudo_p () && num_ops > 4)
     {
-      if (!can_create_pseudo_p ())
-        {
-          emit_insn (gen_rtx_SET (VOIDmode, temp, x));
-          x = temp;
-        }
-      else
-        x = force_reg (mode == HImode ? SImode : mode, x);
+      /* Split into two 32-bit constants. */
+      rtx upper = gen_reg_rtx (mode);
+      mips_move_integer (upper, upper, value >> 32);
 
-      x = gen_rtx_fmt_ee (codes[i].code, mode, x, GEN_INT (codes[i].value));
+      rtx lower = gen_reg_rtx (mode);
+      mips_move_integer (lower, lower, value << 32 >> 32);
+
+      upper = gen_rtx_fmt_ee (ASHIFT, mode, upper, GEN_INT (32));
+      upper = force_reg (mode, upper);
+
+      x = gen_rtx_fmt_ee (PLUS, mode, upper, lower);
+    }
+  else
+    {
+      /* Apply each binary operation to X. */
+      x = GEN_INT (codes[0].value);
+
+      for (i = 1; i < num_ops; i++)
+        {
+          if (!can_create_pseudo_p ())
+            {
+              emit_insn (gen_rtx_SET (VOIDmode, temp, x));
+              x = temp;
+            }
+          else
+            x = force_reg (mode == HImode ? SImode : mode, x);
+
+          x = gen_rtx_fmt_ee (codes[i].code, mode, x, GEN_INT (codes[i].value));
+        }
     }
 
   emit_insn (gen_rtx_SET (VOIDmode, dest, x));
@@ -1885,7 +1924,7 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
 
 	     Also, if we have a CONST_INT, we don't know whether it is
 	     for a word or doubleword operation, so we cannot rely on
-	     the result of mips_build_integer.  */
+	     the result of riscv_build_integer.  */
 	  else if (outer_code == SET || mode == VOIDmode)
 	    cost = 1;
 	  *total = COSTS_N_INSNS (cost);
