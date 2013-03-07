@@ -2,26 +2,16 @@
 #include <stdint.h>
 #include <limits.h>
 
-#define DETECTNULL(x, c) (~(((((x) & (c)) + (c)) | (x)) | (c)))
-
-/* work around crappy 64b constant generation */
-static inline unsigned long getDetectNullConst()
-{
-  unsigned long y = 0x7F7F7F7F;
 #if LONG_MAX == 2147483647L
+# define MASK 0x7F7F7F7F
 #elif LONG_MAX == 9223372036854775807L
-  asm volatile ("" : "+r"(y));
-  y = y << 32 | y;
-#else
-#error long int is not a 32bit or 64bit type.
+# define MASK 0x7F7F7F7F7F7F7F7F
 #endif
-  return y;
-}
+#define DETECTNULL(x) (~(((((x) & MASK) + MASK) | (x)) | MASK))
 
 int strcmp(const char* s1, const char* s2)
 {
 #if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__)
-  unsigned long c = getDetectNullConst();
   int misaligned = ((uintptr_t)s1 | (uintptr_t)s2) & (sizeof(long)-1);
   if (__builtin_expect(!misaligned, 1))
   {
@@ -31,7 +21,7 @@ int strcmp(const char* s1, const char* s2)
       {
         /* To get here, *a1 == *a2, thus if we find a null in *a1,
            then the strings must be equal, so return zero.  */
-        if (__builtin_expect(DETECTNULL (*(a1-1), c), 1))
+        if (__builtin_expect(DETECTNULL (*(a1-1)), 1))
           return 0;
       }
       asm volatile("" : "+r"(a1), "+r"(a2)); /* prevent "optimization" */
