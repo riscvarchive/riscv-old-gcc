@@ -4664,6 +4664,19 @@ mips_expand_epilogue (bool sibcall_p)
   step1 = frame->total_size;
   step2 = 0;
 
+  /* Move past any dynamic stack allocations. */
+  if (cfun->calls_alloca)
+    {
+      rtx adjust = GEN_INT (-frame->hard_frame_pointer_offset);
+      if (!SMALL_INT (adjust))
+	{
+	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
+	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
+	}
+
+      emit_insn (gen_add3_insn (stack_pointer_rtx, hard_frame_pointer_rtx, adjust));
+    }
+
   /* If we need to restore registers, deallocate as much stack as
      possible in the second step without going out of range.  */
   if ((frame->mask | frame->fmask) != 0)
