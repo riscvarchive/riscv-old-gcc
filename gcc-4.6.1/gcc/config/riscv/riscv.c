@@ -1515,9 +1515,10 @@ mips_move_integer (rtx temp, rtx dest, HOST_WIDE_INT value)
 
   if (can_create_pseudo_p () && num_ops > 4)
     {
-      /* Split into two 32-bit constants. */
+      /* Split into two 32-bit constants. Account for SExt of lower word. */
       rtx upper = gen_reg_rtx (mode);
-      mips_move_integer (upper, upper, value >> 32);
+      HOST_WIDE_INT correction = (value & 0x80000000L) ? 1 : 0;
+      mips_move_integer (upper, upper, (value >> 32) + correction);
 
       rtx lower = gen_reg_rtx (mode);
       mips_move_integer (lower, lower, value << 32 >> 32);
