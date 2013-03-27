@@ -1,5 +1,8 @@
 #!/bin/bash
 
+INSTALL_DIR := @prefix@
+scrdir := @top_srcdir@
+
 BINUTILS_VERSION := 2.21.1
 GCC_VERSION := 4.6.1
 GLIBC_VERSION := 2.14.1
@@ -45,7 +48,7 @@ linux: build-gcc-linux-stage2
 build-binutils-newlib:
 	rm -rf $@
 	mkdir $@
-	cd $@ && ../binutils-$(BINUTILS_VERSION)/configure \
+	cd $@ && $(scrdir)/binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-elf \
 		--program-prefix=riscv- \
 		--prefix=$(INSTALL_DIR) \
@@ -57,9 +60,9 @@ build-binutils-newlib:
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-gcc-newlib-src: build-binutils-newlib
-	cp -r gcc-$(GCC_VERSION) $@
-	cp -r newlib-$(NEWLIB_VERSION)/newlib $@
-	cp -r newlib-$(NEWLIB_VERSION)/libgloss $@
+	cp -r $(scrdir)/gcc-$(GCC_VERSION) $@
+	cp -r $(scrdir)/newlib-$(NEWLIB_VERSION)/newlib $@
+	cp -r $(scrdir)/newlib-$(NEWLIB_VERSION)/libgloss $@
 
 build-gcc-newlib: build-gcc-newlib-src
 	rm -rf $@
@@ -84,7 +87,7 @@ build-gcc-newlib: build-gcc-newlib-src
 build-binutils-linux:
 	rm -rf $@
 	mkdir $@
-	cd $@ && ../binutils-$(BINUTILS_VERSION)/configure \
+	cd $@ && $(scrdir)/binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-linux \
 		--prefix=$(INSTALL_DIR) \
 		--enable-shared \
@@ -98,7 +101,7 @@ build-binutils-linux:
 build-gcc-linux-stage1: build-binutils-linux
 	rm -rf $@
 	mkdir $@
-	cd $@ && ../gcc-$(GCC_VERSION)/configure \
+	cd $@ && $(scrdir)/gcc-$(GCC_VERSION)/configure \
 		--target=riscv-linux \
 		--prefix=$(INSTALL_DIR) \
 		--enable-shared \
@@ -135,7 +138,7 @@ build-glibc-linux: build-gcc-linux-stage1
 build-gcc-linux-stage2: build-glibc-linux
 	rm -rf $@
 	mkdir $@
-	cd $@ && ../gcc-$(GCC_VERSION)/configure \
+	cd $@ && $(scrdir)/gcc-$(GCC_VERSION)/configure \
 		--target=riscv-linux \
 		--prefix=$(INSTALL_DIR) \
 		--enable-shared \

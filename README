@@ -14,11 +14,14 @@ To build the Newlib cross-compiler, pick an install path.  If you choose,
 say, /opt/riscv-gcc, then add /opt/riscv-gcc/bin to your PATH now.  Then,
 simply run the following command:
 
- % make INSTALL_DIR=/opt/riscv-gcc
+ % ./configure --prefix=/opt/riscv-gcc
+ % make
 
 You should now be able to use riscv-gcc and its cousins.
 
 
 To build the Linux cross-compiler, riscv-linux-gcc:
 
- % make linux INSTALL_DIR=/opt/riscv-linux-gcc
+ % ./configure --prefix=/opt/riscv-linux-gcc
+ % make linux
+
