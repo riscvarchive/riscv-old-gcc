@@ -437,6 +437,9 @@
 ;; This attribute gives the format suffix for floating-point operations.
 (define_mode_attr fmt [(SF "s") (DF "d") (V2SF "ps")])
 
+;; This attribute gives the format suffix for atomic memory operations.
+(define_mode_attr amo [(SI "w") (DI "d")])
+
 ;; This attribute gives the upper-case mode name for one unit of a
 ;; floating-point mode.
 (define_mode_attr UNITMODE [(SF "SF") (DF "DF") (V2SF "SF")])
