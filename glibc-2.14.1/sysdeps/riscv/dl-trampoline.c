@@ -116,12 +116,11 @@ int _dl_mips_gnu_objects = 1;
 
 /* This is called from assembly stubs below which the compiler can't see.  */
 static ElfW(Addr)
-__dl_runtime_resolve (ElfW(Word), ElfW(Word), ElfW(Addr), ElfW(Addr))
+__dl_runtime_resolve (ElfW(Word), ElfW(Addr), ElfW(Addr))
 		  __attribute_used__;
 
 static ElfW(Addr)
 __dl_runtime_resolve (ElfW(Word) sym_index,
-		      ElfW(Word) return_address,
 		      ElfW(Addr) old_gpreg,
 		      ElfW(Addr) stub_pc)
 {
@@ -207,22 +206,6 @@ __dl_runtime_resolve (ElfW(Word) sym_index,
 	" STRINGXP(REG_L) " a7, 8*" STRINGXP(SZREG) "(sp)\n						      \
 "
 
-/* The PLT resolver should also save and restore $2 and $3, which are used
-   as arguments to MIPS16 stub functions.  */
-#define ELF_DL_PLT_FRAME_SIZE (12*SZREG)
-
-#define ELF_DL_PLT_SAVE_ARG_REGS \
-	ELF_DL_SAVE_ARG_REGS "\
-	" STRINGXP(REG_S) " v0, 10*" STRINGXP(SZREG) "(sp)\n						      \
-	" STRINGXP(REG_S) " v1, 11*" STRINGXP(SZREG) "(sp)\n						      \
-"
-
-#define ELF_DL_PLT_RESTORE_ARG_REGS \
-	ELF_DL_RESTORE_ARG_REGS "\
-	" STRINGXP(REG_L) " v0, 10*" STRINGXP(SZREG) "(sp)\n						      \
-	" STRINGXP(REG_L) " v1, 11*" STRINGXP(SZREG) "(sp)\n						      \
-"
-
 asm ("\n\
 	.text\n\
 	.align	2\n\
@@ -233,12 +216,10 @@ _dl_runtime_resolve:\n\
 	# Save arguments and sp value in stack.\n\
 	addi  sp, sp, " STRINGXP(-ELF_DL_FRAME_SIZE) "\n\
 	# Save slot call pc.\n\
-	move	v0, ra\n\
 	" ELF_DL_SAVE_ARG_REGS "\
 	move	a0, t6\n\
-	move	a1, t5\n\
-	move	a2, v1\n\
-	move	a3, v0\n\
+	move	a1, v1\n\
+	move	a2, ra\n\
 	" STRINGXV(PIC_JAL(t4, __dl_runtime_resolve)) "\n\
 	" ELF_DL_RESTORE_ARG_REGS "\
 	move	t7, v0\n\
@@ -274,15 +255,14 @@ asm ("\n\
 _dl_runtime_pltresolve:\n\
 	" STRINGXV(SETUP_GP64(t4, _dl_runtime_pltresolve)) "\n\
 	# Save arguments and sp value in stack.\n\
-1:	addi	sp, sp, " STRINGXP(-ELF_DL_PLT_FRAME_SIZE) "\n\
-	" STRINGXP(REG_L) "	t1, " STRINGXP(PTRSIZE) "(t2)" "\n\
-	" ELF_DL_PLT_SAVE_ARG_REGS "\
-	move	a0, t1\n\
+1:	addi	sp, sp, " STRINGXP(-ELF_DL_FRAME_SIZE) "\n\
+	" ELF_DL_SAVE_ARG_REGS "\
+	" STRINGXP(REG_L) "	a0, " STRINGXP(PTRSIZE) "(t2)" "\n\
 	sll	a1, t6, " STRINGXP(PTRLOG) " + 1\n\
 	" STRINGXV(PIC_JAL(t4, _dl_fixup)) "\n\
 	move	t7, v0\n\
-	" ELF_DL_PLT_RESTORE_ARG_REGS "\
-	addi	sp, sp, " STRINGXP(ELF_DL_PLT_FRAME_SIZE) "\n\
+	" ELF_DL_RESTORE_ARG_REGS "\
+	addi	sp, sp, " STRINGXP(ELF_DL_FRAME_SIZE) "\n\
 	jr	t7\n\
 	.previous\n\
 ");
