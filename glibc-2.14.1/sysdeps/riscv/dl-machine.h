@@ -87,13 +87,10 @@ elf_mips_got_from_gpreg (ElfW(Addr) gpreg)
 static inline ElfW(Addr)
 elf_machine_dynamic (void)
 {
-  ElfW(Addr) tmp, gp;
-  asm ("   rdnpc %0\n"
-       "1: lui   %1, %%hi(%%neg(%%gp_rel(1b)))\n"
-       "   add   %1, %1, %0\n"
-       "   addi  %1, %1, %%lo(%%neg(%%gp_rel(1b)))\n"
-       : "=r"(tmp), "=r"(gp));
-
+  ElfW(Addr) gp;
+  asm ("1: luipc %0, %%hi(%%neg(%%gp_rel(1b)))\n"
+       "   addi  %0, %0, %%lo(%%neg(%%gp_rel(1b)))\n"
+       : "=r"(gp));
   return *elf_mips_got_from_gpreg (gp);
 }
 
@@ -106,8 +103,8 @@ static inline ElfW(Addr)
 elf_machine_load_address (void)
 {
   ElfW(Addr) load, link, tmp;
-  asm ("   rdnpc %0\n"
-       "1: lui   %1, %%hi(%%neg(%%gp_rel(1b)))\n"
+  asm ("1: rdpc %0\n"
+       "   lui   %1, %%hi(%%neg(%%gp_rel(1b)))\n"
        "   add   %1, %1, %0\n"
        "   addi  %1, %1, %%lo(%%neg(%%gp_rel(1b)))\n"
        "   lui   %2, %%got_hi(1b)\n"
@@ -196,8 +193,7 @@ do {									\
 	" STRINGXV(PIC_LA(a0, gp, _DYNAMIC)) "\n\
 	" STRINGXP(REG_S) " a0, 0(gp)\n\
 	move a0, sp\n\
-	rdnpc t0\n\
-.Lcoff: \n\
+.Lcoff:	rdpc t0\n\
 	" STRINGXV(PIC_LA(t1, gp, .Lcoff)) "\n\
 	" STRINGXV(PIC_LA(t7, gp, _dl_start)) "\n\
 	sub  t0, t0, t1\n\

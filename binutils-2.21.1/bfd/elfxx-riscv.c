@@ -956,7 +956,7 @@ mips_elf_local_pic_function_p (struct mips_elf_link_hash_entry *h)
 }
 
 /* STUB describes an la25 stub that we have decided to implement
-   by inserting RDNPC before the target function.
+   by inserting LUIPC/ADDI before the target function.
    Create the section and redirect the function symbol to it.  */
 
 static bfd_boolean
@@ -990,7 +990,7 @@ mips_elf_add_la25_intro (struct mips_elf_la25_stub *stub,
   if (!bfd_set_section_alignment (s->owner, s, align))
     return FALSE;
   if (align > 2)
-    s->size = (1 << align) - 4;
+    s->size = (1 << align) - 8;
 
   /* Create a symbol for the stub.  */
   mips_elf_create_stub_symbol (info, stub->h, ".pic.", s, s->size, 8);
@@ -6157,11 +6157,12 @@ mips_elf_create_la25_stub (void **slot, void *data)
 
   if (stub->stub_section != htab->strampoline)
     {
-      /* This is a simple RDNPC stub.  Zero out the beginning
+      /* This is a simple LUIPC stub.  Zero out the beginning
 	 of the section and write the instruction at the end. */
       memset (loc, 0, offset);
       loc += offset;
-      bfd_put_32 (hti->output_bfd, RISCV_ITYPE (RDNPC, 19, 0, 0), loc);
+      bfd_put_32 (hti->output_bfd, RISCV_LTYPE (LUIPC, 19, 0), loc);
+      bfd_put_32 (hti->output_bfd, RISCV_ITYPE (ADDI, 19, 19, 8), loc + 4);
     }
   else
     {

@@ -59,8 +59,8 @@
 # define SETUP_GP64(gp_reg, func) SETUP_GP64_(gp_reg, func, t7)
 
 # define SETUP_GPX64(gp_reg, scratch)	\
-  rdnpc scratch;			\
-10: SETUP_GP64_(gp_reg, 10b, scratch)
+10: rdpc scratch;			\
+    SETUP_GP64_(gp_reg, 10b, scratch)
 
 # define PIC_LA(dst, gp_reg, sym)	\
   lui   dst, %got_hi(sym);		\

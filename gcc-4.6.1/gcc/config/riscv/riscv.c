@@ -6116,23 +6116,19 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 #define OP(X) gen_int_mode (X, SImode)
 #define MATCH_LREG ((Pmode) == DImode ? MATCH_LD : MATCH_LW)
 
-  /* We want:
-
-        rdnpc   t6
-     1: l[wd]   t7, target_function_offset - 4(t6)
-	l[wd]   $static_chain, static_chain_offset - 4(t6)
-	jr      t7
-
-     where 4 is the offset of "1:" from the start of the code block.  */
-
+  /* luipc   t6, 0x0
+     l[wd]   t7, target_function_offset(t6)
+     l[wd]   $static_chain, static_chain_offset(t6)
+     jr      t7
+  */
   i = 0;
   gp = GLOBAL_POINTER_REGNUM - GP_REG_FIRST;
 
-  trampoline[i++] = OP (RISCV_ITYPE (RDNPC, gp, 0, 0));
+  trampoline[i++] = OP (RISCV_LTYPE (LUIPC, gp, 0));
   trampoline[i++] = OP (RISCV_ITYPE (LREG, PIC_FUNCTION_ADDR_REGNUM,
-    				   gp, target_function_offset - 4));
+    				   gp, target_function_offset));
   trampoline[i++] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,
-    				   gp, static_chain_offset - 4));
+    				   gp, static_chain_offset));
   trampoline[i++] = OP (RISCV_ITYPE (JALR_J, 0, PIC_FUNCTION_ADDR_REGNUM, 0));
 
   gcc_assert (i * 4 == TRAMPOLINE_CODE_SIZE);
