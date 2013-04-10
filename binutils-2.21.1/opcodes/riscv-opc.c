@@ -263,7 +263,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"ori",     "d,s,j",	MATCH_ORI, MASK_ORI,	 WR_xd|RD_xs1 },
   /* pref and prefx are at the start of the table.  */
 {"luipc",   "d,u",	MATCH_LUIPC, MASK_LUIPC,  WR_xd },
-{"rdpc",   "d,u",	MATCH_LUIPC, MASK_LUIPC | MASK_BIGIMM,  WR_xd },
+{"rdpc",   "d",		MATCH_LUIPC, MASK_LUIPC | MASK_BIGIMM,  WR_xd },
 {"rem",    "d,s,t",	MATCH_REM, MASK_REM,  WR_xd|RD_xs1|RD_xs2 },
 {"remw",    "d,s,t",	MATCH_REMW, MASK_REMW,  WR_xd|RD_xs1|RD_xs2 },
 {"remu",    "d,s,t",	MATCH_REMU, MASK_REMU,  WR_xd|RD_xs1|RD_xs2 },

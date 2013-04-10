@@ -989,7 +989,7 @@ mips_elf_add_la25_intro (struct mips_elf_la25_stub *stub,
   align = input_section->alignment_power;
   if (!bfd_set_section_alignment (s->owner, s, align))
     return FALSE;
-  if (align > 2)
+  if (align > 3)
     s->size = (1 << align) - 8;
 
   /* Create a symbol for the stub.  */
@@ -998,7 +998,7 @@ mips_elf_add_la25_intro (struct mips_elf_la25_stub *stub,
   stub->offset = s->size;
 
   /* Allocate room for it.  */
-  s->size += 4;
+  s->size += 8;
   return TRUE;
 }
 
