@@ -956,53 +956,6 @@ mips_elf_local_pic_function_p (struct mips_elf_link_hash_entry *h)
 }
 
 /* STUB describes an la25 stub that we have decided to implement
-   by inserting LUIPC/ADDI before the target function.
-   Create the section and redirect the function symbol to it.  */
-
-static bfd_boolean
-mips_elf_add_la25_intro (struct mips_elf_la25_stub *stub,
-			 struct bfd_link_info *info)
-{
-  struct mips_elf_link_hash_table *htab;
-  char *name;
-  asection *s, *input_section;
-  unsigned int align;
-
-  htab = mips_elf_hash_table (info);
-  if (htab == NULL)
-    return FALSE;
-
-  /* Create a unique name for the new section.  */
-  name = bfd_malloc (11 + sizeof (".text.stub."));
-  if (name == NULL)
-    return FALSE;
-  sprintf (name, ".text.stub.%d", (int) htab_elements (htab->la25_stubs));
-
-  /* Create the section.  */
-  input_section = stub->h->root.root.u.def.section;
-  s = htab->add_stub_section (name, input_section,
-			      input_section->output_section);
-  if (s == NULL)
-    return FALSE;
-
-  /* Make sure that any padding goes before the stub.  */
-  align = input_section->alignment_power;
-  if (!bfd_set_section_alignment (s->owner, s, align))
-    return FALSE;
-  if (align > 3)
-    s->size = (1 << align) - 8;
-
-  /* Create a symbol for the stub.  */
-  mips_elf_create_stub_symbol (info, stub->h, ".pic.", s, s->size, 8);
-  stub->stub_section = s;
-  stub->offset = s->size;
-
-  /* Allocate room for it.  */
-  s->size += 8;
-  return TRUE;
-}
-
-/* STUB describes an la25 stub that we have decided to implement
    with a separate trampoline.  Allocate room for it and redirect
    the function symbol to it.  */
 
@@ -1048,7 +1001,6 @@ mips_elf_add_la25_stub (struct bfd_link_info *info,
 {
   struct mips_elf_link_hash_table *htab;
   struct mips_elf_la25_stub search, *stub;
-  bfd_boolean use_trampoline_p;
   asection *s;
   bfd_vma value;
   void **slot;
@@ -1057,7 +1009,6 @@ mips_elf_add_la25_stub (struct bfd_link_info *info,
      of the section and if we would need no more than 2 nops.  */
   s = h->root.root.u.def.section;
   value = h->root.root.u.def.value;
-  use_trampoline_p = (value != 0 || s->alignment_power > 4);
 
   /* Describe the stub we want.  */
   search.stub_section = NULL;
@@ -1089,9 +1040,7 @@ mips_elf_add_la25_stub (struct bfd_link_info *info,
   *slot = stub;
 
   h->la25_stub = stub;
-  return (use_trampoline_p
-	  ? mips_elf_add_la25_trampoline (stub, info)
-	  : mips_elf_add_la25_intro (stub, info));
+  return mips_elf_add_la25_trampoline (stub, info);
 }
 
 /* A mips_elf_link_hash_traverse callback that is called before sizing
@@ -6155,24 +6104,13 @@ mips_elf_create_la25_stub (void **slot, void *data)
 	    + stub->h->root.root.u.def.section->output_offset
 	    + stub->h->root.root.u.def.value);
 
-  if (stub->stub_section != htab->strampoline)
-    {
-      /* This is a simple LUIPC stub.  Zero out the beginning
-	 of the section and write the instruction at the end. */
-      memset (loc, 0, offset);
-      loc += offset;
-      bfd_put_32 (hti->output_bfd, RISCV_LTYPE (LUIPC, 19, 0), loc);
-      bfd_put_32 (hti->output_bfd, RISCV_ITYPE (ADDI, 19, 19, 8), loc + 4);
-    }
-  else
-    {
-      /* This is trampoline.  */
-      loc += offset;
-      bfd_put_32 (hti->output_bfd, RISCV_LTYPE (LUI, 18, RISCV_LUI_HIGH_PART(target)), loc);
-      bfd_put_32 (hti->output_bfd, RISCV_ITYPE (ADDI, 19, 18, RISCV_CONST_LOW_PART(target)), loc + 4);
-      bfd_put_32 (hti->output_bfd, RISCV_ITYPE (JALR_J, 0, 18, RISCV_CONST_LOW_PART(target)), loc + 8);
-      bfd_put_32 (hti->output_bfd, 0, loc + 12);
-    }
+  BFD_ASSERT (stub->stub_section == htab->strampoline);
+
+  loc += offset;
+  bfd_put_32 (hti->output_bfd, RISCV_LTYPE (LUI, 18, RISCV_LUI_HIGH_PART(target)), loc);
+  bfd_put_32 (hti->output_bfd, RISCV_ITYPE (ADDI, 19, 18, RISCV_CONST_LOW_PART(target)), loc + 4);
+  bfd_put_32 (hti->output_bfd, RISCV_ITYPE (JALR_J, 0, 18, RISCV_CONST_LOW_PART(target)), loc + 8);
+  bfd_put_32 (hti->output_bfd, 0, loc + 12);
   return TRUE;
 }
 
