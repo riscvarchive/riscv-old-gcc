@@ -76,7 +76,7 @@
   PIC_LA(t7, t6, target);       	\
   jr t7
 
-# define PIC_ASM_DECL .abicalls; .option pic2
+# define PIC_ASM_DECL .pic
 
 #else
 
@@ -86,7 +86,7 @@
 # define PIC_JAL(gp_reg, target) jal target
 # define PIC_J(target) j target
 
-# define PIC_ASM_DECL .abicalls; .option pic0
+# define PIC_ASM_DECL
 
 #endif
 

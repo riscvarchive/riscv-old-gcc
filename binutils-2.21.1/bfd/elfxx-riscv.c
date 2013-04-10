@@ -1001,14 +1001,7 @@ mips_elf_add_la25_stub (struct bfd_link_info *info,
 {
   struct mips_elf_link_hash_table *htab;
   struct mips_elf_la25_stub search, *stub;
-  asection *s;
-  bfd_vma value;
   void **slot;
-
-  /* Prefer to use LUI/ADDIU stubs if the function is at the beginning
-     of the section and if we would need no more than 2 nops.  */
-  s = h->root.root.u.def.section;
-  value = h->root.root.u.def.value;
 
   /* Describe the stub we want.  */
   search.stub_section = NULL;
@@ -3482,7 +3475,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       /* We're allowed to handle these two relocations identically.
 	 The dynamic linker is allowed to handle the CALL relocations
 	 differently by creating a lazy evaluation stub.  */
-      value = mips_elf_high (g) << OP_SH_BIGIMMEDIATE;
+      value = (mips_elf_high (g - p) << OP_SH_BIGIMMEDIATE);
       break;
 
     case R_RISCV_TLS_GOT_LO16:
@@ -3490,7 +3483,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_LDM_LO16:
     case R_RISCV_GOT_LO16:
     case R_RISCV_CALL_LO16:
-      value = (g << OP_SH_IMMEDIATE) & howto->dst_mask;
+      value = ((g - p) << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
 
     case R_RISCV_SUB:
@@ -3579,11 +3572,8 @@ mips_elf_perform_relocation (struct bfd_link_info *info ATTRIBUTE_UNUSED,
       dst_mask = (OP_MASK_IMMHI << OP_SH_IMMHI) | (OP_MASK_IMMLO << OP_SH_IMMLO);
     }
 
-  /* Clear the field we are setting.  */
-  x &= ~dst_mask;
-
-  /* Set the field.  */
-  x |= (value & dst_mask);
+  /* Update the field, adding in any nonzero bits in the original. */
+  x = (x &~ dst_mask) | (((x & dst_mask) + value) & dst_mask);
 
   /* Put the value into the output.  */
   bfd_put (8 * bfd_get_reloc_size (howto), input_bfd, x, location);
@@ -7931,15 +7921,6 @@ _bfd_riscv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
     return TRUE;
 
   ok = TRUE;
-
-  if (((new_flags & (EF_MIPS_PIC | EF_MIPS_CPIC)) != 0)
-      != ((old_flags & (EF_MIPS_PIC | EF_MIPS_CPIC)) != 0))
-    {
-      (*_bfd_error_handler)
-	(_("%B: warning: linking abicalls files with non-abicalls files"),
-	 ibfd);
-      ok = TRUE;
-    }
 
   if (new_flags & (EF_MIPS_PIC | EF_MIPS_CPIC))
     elf_elfheader (obfd)->e_flags |= EF_MIPS_CPIC;

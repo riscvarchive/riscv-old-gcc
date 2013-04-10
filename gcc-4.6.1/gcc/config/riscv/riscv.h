@@ -134,11 +134,6 @@ struct mips_cpu_info {
 	  builtin_define_std ("RISCVEL");				\
 	  builtin_define ("_RISCVEL");					\
 	}								\
-                                                                        \
-      /* Whether calls should go through $25.  The separate __PIC__	\
-	 macro indicates whether abicalls code might use a GOT.  */	\
-      if (TARGET_ABICALLS)						\
-	builtin_define ("__mips_abicalls");				\
 									\
       /* Macros dependent on the C dialect.  */				\
       if (preprocessing_asm_p ())					\

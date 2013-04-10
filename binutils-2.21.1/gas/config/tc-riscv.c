@@ -126,9 +126,6 @@ enum mips_abi_level
 /* MIPS ABI we are using for this output file.  */
 static enum mips_abi_level mips_abi = ABI_64;
 
-/* Whether or not we have code that can call pic code.  */
-int mips_abicalls = FALSE;
-
 /* This is the set of options which may be modified by the .set
    pseudo-op.  We use a struct so that .set push and .set pop are more
    reliable.  */
@@ -165,15 +162,13 @@ unsigned long mips_fprmask;
 /* The ABI-derived address size.  */
 #define HAVE_64BIT_ADDRESSES HAVE_64BIT_GPRS
 #define HAVE_32BIT_ADDRESSES (!HAVE_64BIT_ADDRESSES)
-
 /* The size of symbolic constants (i.e., expressions of the form
    "SYMBOL" or "SYMBOL + OFFSET").  */
 #define HAVE_32BIT_SYMBOLS 1
 #define HAVE_64BIT_SYMBOLS (!HAVE_32BIT_SYMBOLS)
 
-/* MIPS PIC level.  */
-
-enum mips_pic_level mips_pic;
+/* Whether or not we're generating position-independent code.  */
+static bfd_boolean is_pic = FALSE;
 
 /* handle of the OPCODE hash table */
 static struct hash_control *op_hash = NULL;
@@ -327,9 +322,9 @@ static void s_change_section (int);
 static void s_cons (int);
 static void s_float_cons (int);
 static void s_mips_globl (int);
-static void s_option (int);
 static void s_mipsset (int);
-static void s_abicalls (int);
+static void s_pic (int);
+static void s_nopic (int);
 static void s_dtprelword (int);
 static void s_dtpreldword (int);
 static void s_gpword (int);
@@ -362,12 +357,11 @@ static int relaxed_branch_length (fragS *fragp, asection *sec, int update);
 static const pseudo_typeS mips_pseudo_table[] =
 {
   /* MIPS specific pseudo-ops.  */
-  {"option", s_option, 0},
   {"set", s_mipsset, 0},
   {"rdata", s_change_sec, 'r'},
   {"sdata", s_change_sec, 's'},
-  {"livereg", s_ignore, 0},
-  {"abicalls", s_abicalls, 0},
+  {"pic", s_pic, 0},
+  {"nopic", s_nopic, 0},
   {"dtprelword", s_dtprelword, 0},
   {"dtpreldword", s_dtpreldword, 0},
   {"gpword", s_gpword, 0},
@@ -1477,6 +1471,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	    default:
 	      internalError ();
 	    }
+	    *reloc_type = BFD_RELOC_UNUSED;
 	}
       else if (*reloc_type < BFD_RELOC_UNUSED)
 	{
@@ -1611,19 +1606,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
   gas_assert (mo);
   gas_assert (strcmp (name, mo->name) == 0);
 
-  while (1)
-    {
-      /* Search until we get a match for NAME.  It is assumed here that
-	 macros will never generate MDMX, MIPS-3D, or MT instructions.  */
-      if (strcmp (fmt, mo->args) == 0
-	  && mo->pinfo != INSN_MACRO)
-	break;
-
-      ++mo;
-      gas_assert (mo->name);
-      gas_assert (strcmp (name, mo->name) == 0);
-    }
-
   create_insn (&insn, mo);
   for (;;)
     {
@@ -1731,8 +1713,9 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  INSERT_OPERAND (RM, insn, va_arg (args, int));
 	  continue;
 
+	case 'O': /* An off-by-4 PC-relative address for PIC. */
+	  INSERT_OPERAND (IMMEDIATE, insn, 4);
 	case 'j':
-	case 'o':
 	  macro_read_relocs (&args, r);
 	  gas_assert (*r == BFD_RELOC_GPREL16
 		  || *r == BFD_RELOC_MIPS_LITERAL
@@ -1842,45 +1825,21 @@ normalize_address_expr (expressionS *ex)
  * Generate a "lui" instruction.
  */
 static void
-macro_build_lui (expressionS *ep, int regnum)
+macro_build_lui (const char* name, expressionS *ep, int regnum, bfd_reloc_code_real_type reloc)
 {
-  expressionS high_expr;
   const struct riscv_opcode *mo;
   struct mips_cl_insn insn;
-  bfd_reloc_code_real_type r[3]
-    = {BFD_RELOC_UNUSED, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
-  const char *name = "lui";
-  const char *fmt = "d,u";
+  bfd_reloc_code_real_type r[3] = {reloc, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
 
-  high_expr = *ep;
-
-  if (high_expr.X_op == O_constant)
-    {
-      /* We can compute the instruction now without a relocation entry.  */
-      high_expr.X_add_number = ((high_expr.X_add_number + RISCV_IMM_REACH/2)
-				>> RISCV_IMM_BITS) & (RISCV_IMM_REACH-1);
-      *r = BFD_RELOC_UNUSED;
-    }
-  else
-    {
-      gas_assert (ep->X_op == O_symbol);
-      *r = BFD_RELOC_HI16_S;
-    }
+  gas_assert (ep->X_op == O_symbol);
 
   mo = hash_find (op_hash, name);
-  gas_assert (strcmp (name, mo->name) == 0);
-  gas_assert (strcmp (fmt, mo->args) == 0);
+  gas_assert (mo);
   create_insn (&insn, mo);
 
   insn.insn_opcode = insn.insn_mo->match;
   INSERT_OPERAND (RD, insn, regnum);
-  if (*r == BFD_RELOC_UNUSED)
-    {
-      insn.insn_opcode |= high_expr.X_add_number;
-      append_insn (&insn, NULL, r);
-    }
-  else
-    append_insn (&insn, &high_expr, r);
+  append_insn (&insn, ep, r);
 }
 
 /* Warn if an expression is not a constant.  */
@@ -1999,15 +1958,21 @@ macro (struct mips_cl_insn *ip)
       }
 
       /* We're loading a symbol, not an absolute address. */
-      if(mips_pic != NO_PIC)
-        as_bad("can't use la with PIC");
-
       if(HAVE_64BIT_SYMBOLS)
         as_bad("la is unimplemented for 64-bit symbols");
 
-      macro_build_lui (&offset_expr, dreg);
-      macro_build (&offset_expr, "addi", "d,s,j",
-                   dreg, dreg, BFD_RELOC_LO16);
+      if (is_pic)
+      {
+        macro_build_lui ("luipc", &offset_expr, dreg, BFD_RELOC_MIPS_GOT_HI16);
+        macro_build (&offset_expr, HAVE_64BIT_GPRS ? "ld" : "lw", "d,O(b)",
+                     dreg, BFD_RELOC_MIPS_GOT_LO16, dreg);
+      }
+      else
+      {
+        macro_build_lui ("lui", &offset_expr, dreg, BFD_RELOC_HI16_S);
+        macro_build (&offset_expr, "addi", "d,s,j",
+                     dreg, dreg, BFD_RELOC_LO16);
+      }
 
       if (breg != ZERO)
         macro_build (NULL, "add", "d,s,t", dreg, dreg, breg);
@@ -2772,6 +2737,8 @@ enum options
   {
     OPTION_MARCH = OPTION_MD_BASE,
     OPTION_MABI,
+    OPTION_PIC,
+    OPTION_NO_PIC,
     OPTION_EB,
     OPTION_EL,
     OPTION_MRVC,
@@ -2781,10 +2748,10 @@ enum options
   
 struct option md_longopts[] =
 {
-  /* Options which specify architecture.  */
   {"mabi", required_argument, NULL, OPTION_MABI},
-
-  /* Miscellaneous options.  */
+  {"fPIC", no_argument, NULL, OPTION_PIC},
+  {"fpic", no_argument, NULL, OPTION_PIC},
+  {"fno-pic", no_argument, NULL, OPTION_NO_PIC},
   {"EB", no_argument, NULL, OPTION_EB},
   {"EL", no_argument, NULL, OPTION_EL},
   {"mrvc", no_argument, NULL, OPTION_MRVC},
@@ -2832,6 +2799,14 @@ md_parse_option (int c, char *arg)
 	  as_fatal (_("invalid abi -mabi=%s"), arg);
 	  return 0;
 	}
+      break;
+
+    case OPTION_NO_PIC:
+      is_pic = FALSE;
+      break;
+
+    case OPTION_PIC:
+      is_pic = TRUE;
       break;
 
     default:
@@ -3412,37 +3387,6 @@ s_mips_globl (int x ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
-static void
-s_option (int x ATTRIBUTE_UNUSED)
-{
-  char *opt;
-  char c;
-
-  opt = input_line_pointer;
-  c = get_symbol_end ();
-
-  if (strncmp (opt, "pic", 3) == 0)
-    {
-      int i;
-
-      i = atoi (opt + 3);
-      if (i == 0)
-	mips_pic = NO_PIC;
-      else if (i == 2)
-	{
-	mips_pic = SVR4_PIC;
-	  mips_abicalls = TRUE;
-	}
-      else
-	as_bad (_(".option pic%d not supported"), i);
-    }
-  else
-    as_warn (_("Unrecognized option \"%s\""), opt);
-
-  *input_line_pointer = c;
-  demand_empty_rest_of_line ();
-}
-
 /* This structure is used to hold a stack of .set values.  */
 
 struct mips_option_stack
@@ -3508,15 +3452,17 @@ s_mipsset (int x ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
-/* Handle the .abicalls pseudo-op.  I believe this is equivalent to
-   .option pic2.  It means to generate SVR4 PIC calls.  */
+static void
+s_pic (int ignore ATTRIBUTE_UNUSED)
+{
+  is_pic = TRUE;
+  demand_empty_rest_of_line ();
+}
 
 static void
-s_abicalls (int ignore ATTRIBUTE_UNUSED)
+s_nopic (int ignore ATTRIBUTE_UNUSED)
 {
-  mips_pic = SVR4_PIC;
-  mips_abicalls = TRUE;
-
+  is_pic = FALSE;
   demand_empty_rest_of_line ();
 }
 
@@ -3579,7 +3525,7 @@ s_gpword (int ignore ATTRIBUTE_UNUSED)
   char *p;
 
   /* When not generating PIC code, this is treated as .word.  */
-  if (mips_pic != SVR4_PIC)
+  if (!is_pic)
     {
       s_cons (2);
       return;
@@ -3619,7 +3565,7 @@ s_gpdword (int ignore ATTRIBUTE_UNUSED)
   char *p;
 
   /* When not generating PIC code, this is treated as .dword.  */
-  if (mips_pic != SVR4_PIC)
+  if (!is_pic)
     {
       s_cons (3);
       return;
@@ -4023,13 +3969,11 @@ mips_elf_final_processing (void)
 
   /* Set the MIPS ELF flag bits.  FIXME: There should probably be some
      sort of BFD interface for this.  */
-  if (mips_pic != NO_PIC)
+  if (is_pic)
     {
       elf_elfheader (stdoutput)->e_flags |= EF_MIPS_PIC;
       elf_elfheader (stdoutput)->e_flags |= EF_MIPS_CPIC;
     }
-  if (mips_abicalls)
-    elf_elfheader (stdoutput)->e_flags |= EF_MIPS_CPIC;
 
   /* Set the MIPS ELF ABI flags.  */
   if (mips_abi == ABI_64)

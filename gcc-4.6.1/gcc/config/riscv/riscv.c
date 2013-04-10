@@ -3947,12 +3947,8 @@ mips_file_start (void)
   default_file_start ();
 
   /* If TARGET_ABICALLS, tell GAS to generate -KPIC code.  */
-  if (TARGET_ABICALLS)
-    {
-      fprintf (asm_out_file, "\t.abicalls\n");
-      if (!flag_pic)
-	fprintf (asm_out_file, "\t.option\tpic0\n");
-    }
+  if (TARGET_ABICALLS && flag_pic)
+    fprintf (asm_out_file, "\t.pic\n");
 }
 
 /* Make the last instruction frame-related and note that it performs
