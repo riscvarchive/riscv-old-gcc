@@ -37,7 +37,7 @@ extern int target_flags_explicit;
 /* Which ABI to use. */
 
 #define ABI_32  1
-#define ABI_64  2
+#define ABI_64  3
 
 /* Information about one recognized processor.  Defined here for the
    benefit of TARGET_CPU_CPP_BUILTINS.  */
@@ -99,7 +99,7 @@ struct mips_cpu_info {
 	builtin_define ("__riscv64");					\
 									\
       builtin_define ("_ABI32=1");					\
-      builtin_define ("_ABI64=2");					\
+      builtin_define ("_ABI64=3");					\
 									\
       switch (mips_abi)							\
 	{								\

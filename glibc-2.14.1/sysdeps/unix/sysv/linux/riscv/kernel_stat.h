@@ -1,57 +1,66 @@
-#include <sgidefs.h>
-/* As tempting as it is to define XSTAT_IS_XSTAT64 for n64, the
-   userland data structures are not identical, because of different
-   padding.  */
-/* Definition of `struct stat' used in the kernel.  */
-#if _RISCV_SIM != _ABIO32
-struct kernel_stat
-  {
-    unsigned int st_dev;
-    unsigned int __pad1[3];
-    unsigned long long st_ino;
-    unsigned int st_mode;
-    unsigned int st_nlink;
-    int st_uid;
-    int st_gid;
-    unsigned int st_rdev;
-    unsigned int __pad2[3];
-    long long st_size;
-    unsigned int st_atime_sec;
-    unsigned int st_atime_nsec;
-    unsigned int st_mtime_sec;
-    unsigned int st_mtime_nsec;
-    unsigned int st_ctime_sec;
-    unsigned int st_ctime_nsec;
-    unsigned int st_blksize;
-    unsigned int __pad3;
-    unsigned long long st_blocks;
-  };
+#ifndef __ASM_GENERIC_STAT_H
+#define __ASM_GENERIC_STAT_H
+
+/*
+ * Everybody gets this wrong and has to stick with it for all
+ * eternity. Hopefully, this version gets used by new architectures
+ * so they don't fall into the same traps.
+ *
+ * stat64 is copied from powerpc64, with explicit padding added.
+ * stat is the same structure layout on 64-bit, without the 'long long'
+ * types.
+ *
+ * By convention, 64 bit architectures use the stat interface, while
+ * 32 bit architectures use the stat64 interface. Note that we don't
+ * provide an __old_kernel_stat here, which new architecture should
+ * not have to start with.
+ */
+
+#ifdef _RISCV_SIM == _ABI64
+
+#define STAT_HAVE_NSEC 1
+
+struct kernel_stat {
+	unsigned long	st_dev;		/* Device.  */
+	unsigned long	st_ino;		/* File serial number.  */
+	unsigned int	st_mode;	/* File mode.  */
+	unsigned int	st_nlink;	/* Link count.  */
+	unsigned int	st_uid;		/* User ID of the file's owner.  */
+	unsigned int	st_gid;		/* Group ID of the file's group. */
+	unsigned long	st_rdev;	/* Device number, if device.  */
+	unsigned long	__pad1;
+	long		st_size;	/* Size of file, in bytes.  */
+	int		st_blksize;	/* Optimal block size for I/O.  */
+	int		__pad2;
+	long		st_blocks;	/* Number 512-byte blocks allocated. */
+    struct timespec st_atim;
+    struct timespec st_mtim;
+    struct timespec st_ctim;
+	unsigned int	__unused4;
+	unsigned int	__unused5;
+};
+
+/* This matches struct stat64 in glibc2.1. Only used for 32 bit. */
 #else
-struct kernel_stat
-  {
-    unsigned long int st_dev;
-    long int __pad1[3];			/* Reserved for network id */
-    unsigned long int st_ino;
-    unsigned long int st_mode;
-    unsigned long int st_nlink;
-    long int st_uid;
-    long int st_gid;
-    unsigned long int st_rdev;
-    long int __pad2[2];
-    long int st_size;
-    long int __pad3;
-    unsigned int st_atime_sec;
-    unsigned int st_atime_nsec;
-    unsigned int st_mtime_sec;
-    unsigned int st_mtime_nsec;
-    unsigned int st_ctime_sec;
-    unsigned int st_ctime_nsec;
-    long int st_blksize;
-    long int st_blocks;
-    char st_fstype[16];			/* Filesystem type name, unsupported */
-    long st_pad4[8];
-    /* Linux specific fields */
-    unsigned int st_flags;
-    unsigned int st_gen;
-  };
+struct kernel_stat {
+	unsigned long long st_dev;	/* Device.  */
+	unsigned long long st_ino;	/* File serial number.  */
+	unsigned int	st_mode;	/* File mode.  */
+	unsigned int	st_nlink;	/* Link count.  */
+	unsigned int	st_uid;		/* User ID of the file's owner.  */
+	unsigned int	st_gid;		/* Group ID of the file's group. */
+	unsigned long long st_rdev;	/* Device number, if device.  */
+	unsigned long long __pad1;
+	long long	st_size;	/* Size of file, in bytes.  */
+	int		st_blksize;	/* Optimal block size for I/O.  */
+	int		__pad2;
+	long long	st_blocks;	/* Number 512-byte blocks allocated. */
+    struct timespec st_atim;
+    struct timespec st_mtim;
+    struct timespec st_ctim;
+	unsigned int	__unused4;
+	unsigned int	__unused5;
+};
 #endif
+
+#endif /* __ASM_GENERIC_STAT_H */

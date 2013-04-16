@@ -71,7 +71,7 @@
 #define INTERNAL_SYSCALL_ERROR_P(val, err)   ((long) (err))
 
 #undef INTERNAL_SYSCALL_ERRNO
-#define INTERNAL_SYSCALL_ERRNO(val, err)     (val)
+#define INTERNAL_SYSCALL_ERRNO(val, err)     (-val)
 
 #undef INTERNAL_SYSCALL
 #define INTERNAL_SYSCALL(name, err, nr, args...) \

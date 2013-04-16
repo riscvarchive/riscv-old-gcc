@@ -21,9 +21,10 @@
 
 SYSCALL__ (pipe, 1)
 	/* Plop in the two descriptors.  */
-	sw v0, 0(a0)
+/*	sw v0, 0(a0)
 	sw v1, 4(a0)
 
+*/
 	/* Go out with a clean status.  */
 	move v0, zero
 	ret
