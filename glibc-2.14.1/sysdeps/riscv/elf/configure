@@ -18,9 +18,9 @@ foo:	.long	1
 bar:	.skip	4
 	.text
 
-	lw	t7, %call16(__tls_get_addr)(gp)
-	add	a0, gp, %tlsgd(x) 
-	jalr	t7
+	la		v0, __tls_get_addr
+	la.tls.gd	a0, x
+	jalr		v0
 EOF
 if { ac_try='${CC-cc} -c $CFLAGS conftest.s 1>&5'
   { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5

@@ -186,6 +186,8 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"divu",    "d,s,t",	MATCH_DIVU, MASK_DIVU,  WR_xd|RD_xs1|RD_xs2 },
 {"divuw",    "d,s,t",	MATCH_DIVUW, MASK_DIVUW,  WR_xd|RD_xs1|RD_xs2 },
 {"la",     "d,A(b)",	0,    (int) M_LA_AB,	INSN_MACRO },
+{"la.tls.gd", "d,A",	0,    (int) M_LA_TLS_GD,	INSN_MACRO },
+{"la.tls.ie", "d,A",	0,    (int) M_LA_TLS_IE,	INSN_MACRO },
 {"mffsr",   "d",	MATCH_MFFSR, MASK_MFFSR,  WR_xd },
 {"mtfsr",   "s",	MATCH_MTFSR, MASK_MTFSR | MASK_RD,  RD_xs1 },
 {"mtfsr",   "d,s",	MATCH_MTFSR, MASK_MTFSR,  WR_xd|RD_xs1 },

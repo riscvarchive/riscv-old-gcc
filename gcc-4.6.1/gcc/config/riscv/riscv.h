@@ -66,9 +66,6 @@ struct mips_cpu_info {
 /* True if we need to use a global offset table to access some symbols.  */
 #define TARGET_USE_GOT TARGET_ABICALLS
 
-/* True if .gpword or .gpdword should be used for switch tables. */
-#define TARGET_GPWORD (TARGET_ABICALLS && flag_pic)
-
 /* True if the output must have a writable .eh_frame.
    See ASM_PREFERRED_EH_DATA_FORMAT for details.  */
 #ifdef HAVE_LD_PERSONALITY_RELAXATION
@@ -328,12 +325,10 @@ struct mips_cpu_info {
 #undef ASM_SPEC
 #define ASM_SPEC "\
 %{G*} %(endian_spec) \
-%(subtarget_asm_optimizing_spec) \
 %(subtarget_asm_debugging_spec) \
 %{mabi=*} %{!mabi=*: %(asm_abi_default_spec)} \
+%{fPIC|fpic:-fpic} \
 %{march=*} \
-%{mshared} %{mno-shared} \
-%{mtune=*} \
 %(subtarget_asm_spec)"
 
 /* Extra switches sometimes passed to the linker.  */
@@ -848,15 +843,6 @@ struct mips_cpu_info {
    function address than to call an address kept in a register.  */
 #define NO_FUNCTION_CSE 1
 
-/* The ABI-defined global pointer.  Sometimes we use a different
-   register in leaf functions: see PIC_OFFSET_TABLE_REGNUM.  */
-#define GLOBAL_POINTER_REGNUM (GP_REG_FIRST + 18)
-#define GLOBAL_POINTER_REGNUM_NONLEAF (GP_REG_FIRST + 28)
-
-#define PIC_OFFSET_TABLE_REGNUM GLOBAL_POINTER_REGNUM
-
-#define PIC_FUNCTION_ADDR_REGNUM (GP_REG_FIRST + 19)
-
 /* Define the classes of registers for register constraints in the
    machine description.  Also define ranges of constants.
 
@@ -1507,14 +1493,9 @@ while (0)
 
 #define ASM_OUTPUT_ADDR_DIFF_ELT(STREAM, BODY, VALUE, REL)		\
 do {									\
-  if (TARGET_GPWORD)						\
-    fprintf (STREAM, "\t%s\t%sL%d\n",					\
-	     ptr_mode == DImode ? ".gpdword" : ".gpword",		\
-	     LOCAL_LABEL_PREFIX, VALUE);				\
-  else									\
-    fprintf (STREAM, "\t%s\t%sL%d\n",					\
-	     ptr_mode == DImode ? ".dword" : ".word",			\
-	     LOCAL_LABEL_PREFIX, VALUE);				\
+  fprintf (STREAM, "\t%s\t%sL%d\n",					\
+	   ptr_mode == DImode ? ".dword" : ".word",			\
+	   LOCAL_LABEL_PREFIX, VALUE);					\
 } while (0)
 
 /* This is how to output an assembler line

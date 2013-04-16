@@ -218,22 +218,6 @@ struct GTY(())  machine_function {
 
   /* The current frame information, calculated by mips_compute_frame_info.  */
   struct mips_frame_info frame;
-
-  /* The register to use as the function's global pointer, or INVALID_REGNUM
-     if the function doesn't need one.  */
-  unsigned int global_pointer;
-
-  /* True if the function has "inflexible" and "flexible" references
-     to the global pointer.  See mips_cfun_has_inflexible_gp_ref_p
-     and mips_cfun_has_flexible_gp_ref_p for details.  */
-  bool has_flexible_gp_insn_p;
-
-  /* True if the function's prologue must load the global pointer
-     value into pic_offset_table_rtx and store the same value in
-     the function's cprestore slot (if any).  Even if this value
-     is currently false, we may decide to set it to true later;
-     see mips_must_initialize_gp_p () for details.  */
-  bool must_initialize_gp_p;
 };
 
 /* Information about a single argument.  */
@@ -627,11 +611,6 @@ mips_classify_symbol (const_rtx x)
 {
   if (mips_tls_symbol_p (x))
     return SYMBOL_TLS;
-
-  /* Don't use GOT accesses when -mno-shared is in effect.  */
-  if (TARGET_ABICALLS && flag_pic)
-    return SYMBOL_GOT_DISP;
-
   return SYMBOL_ABSOLUTE;
 }
 
@@ -680,7 +659,7 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
     {
       *symbol_type = mips_classify_symbol (x);
       if (*symbol_type == SYMBOL_TLS)
-	return false;
+	return true; //false;
     }
   else
     return false;
@@ -695,13 +674,14 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
     case SYMBOL_ABSOLUTE:
     case SYMBOL_FORCE_TO_MEM:
     case SYMBOL_32_HIGH:
+      if (flag_pic)
+	return false;
       /* If the target has 64-bit pointers and the object file only
 	 supports 32-bit symbols, the values of those symbols will be
 	 sign-extended.  In this case we can't allow an arbitrary offset
 	 in case the 32-bit value X + OFFSET has a different sign from X.  */
       if (Pmode == DImode)
 	return offset_within_block_p (x, INTVAL (offset));
-
       /* In other cases the relocations can handle any offset.  */
       return true;
 
@@ -711,13 +691,8 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
 	 offset is only valid if we know it won't lead to such a carry.  */
       return mips_offset_within_alignment_p (x, INTVAL (offset));
 
-    case SYMBOL_GOT_DISP:
-    case SYMBOL_GOTOFF_DISP:
-    case SYMBOL_GOTOFF_CALL:
-    case SYMBOL_GOTOFF_LOADGP:
     case SYMBOL_TLSGD:
     case SYMBOL_TLSLDM:
-    case SYMBOL_GOTTPREL:
     case SYMBOL_TLS:
       return false;
     }
@@ -738,30 +713,13 @@ mips_symbol_insns (enum mips_symbol_type type, enum machine_mode mode)
       return 2;
 
     case SYMBOL_FORCE_TO_MEM:
-      /* LEAs will be converted into constant-pool references by
-	 mips_reorg.  */
-      if (mode == MAX_MACHINE_MODE)
-	return 1;
-
       /* The constant must be loaded and then dereferenced.  */
       return 0;
 
-    case SYMBOL_GOT_DISP:
-      /* The constant will have to be loaded from the GOT before it
-	 is used in an address.  */
-      if (mode != MAX_MACHINE_MODE)
-	return 0;
-
-      /* Fall through.  */
-
-    case SYMBOL_GOTOFF_DISP:
-    case SYMBOL_GOTOFF_CALL:
-    case SYMBOL_GOTOFF_LOADGP:
     case SYMBOL_32_HIGH:
     case SYMBOL_TLSGD:
     case SYMBOL_TLSLDM:
     case SYMBOL_DTPREL:
-    case SYMBOL_GOTTPREL:
     case SYMBOL_TPREL:
       /* A 16-bit constant formed by a single relocation, or a 32-bit
 	 constant formed from a high 16-bit relocation and a low 16-bit
@@ -959,7 +917,8 @@ mips_classify_address (struct mips_address_info *info, rtx x,
     case LABEL_REF:
     case SYMBOL_REF:
       info->type = ADDRESS_SYMBOLIC;
-      return (mips_symbolic_constant_p (x, &info->symbol_type)
+      return (!flag_pic
+              && mips_symbolic_constant_p (x, &info->symbol_type)
 	      && mips_symbol_insns (info->symbol_type, mode) > 0
 	      && !mips_split_p[info->symbol_type]);
 
@@ -1165,33 +1124,6 @@ mips_force_temporary (rtx dest, rtx value)
     }
 }
 
-/* Emit a call sequence with call pattern PATTERN and return the call
-   instruction itself (which is not necessarily the last instruction
-   emitted).  ORIG_ADDR is the original, unlegitimized address,
-   ADDR is the legitimized form, and LAZY_P is true if the call
-   address is lazily-bound.  */
-
-static rtx
-mips_emit_call_insn (rtx pattern, bool lazy_p)
-{
-  rtx insn;
-
-  insn = emit_call_insn (pattern);
-
-  if (lazy_p)
-    /* Lazy-binding stubs require $gp to be valid on entry.  */
-    use_reg (&CALL_INSN_FUNCTION_USAGE (insn), pic_offset_table_rtx);
-
-  if (TARGET_USE_GOT)
-    {
-      /* See the comment above load_call<mode> for details.  */
-      use_reg (&CALL_INSN_FUNCTION_USAGE (insn),
-	       gen_rtx_REG (Pmode, GOT_VERSION_REGNUM));
-      emit_insn (gen_update_got_version ());
-    }
-  return insn;
-}
-
 /* Wrap symbol or label BASE in an UNSPEC address of type SYMBOL_TYPE,
    then add CONST_INT OFFSET to the result.  */
 
@@ -1251,43 +1183,6 @@ mips_unspec_offset_high (rtx temp, rtx base, rtx addr,
   return base;
 }
 
-/* Return the RHS of a load_call<mode> insn.  */
-
-static rtx
-mips_unspec_call (rtx reg, rtx symbol)
-{
-  rtvec vec;
-
-  vec = gen_rtvec (3, reg, symbol, gen_rtx_REG (SImode, GOT_VERSION_REGNUM));
-  return gen_rtx_UNSPEC (Pmode, vec, UNSPEC_LOAD_CALL);
-}
-
-/* Create and return a GOT reference of type TYPE for address ADDR.
-   TEMP, if nonnull, is a scratch Pmode base register.  */
-
-rtx
-mips_got_load (rtx temp, rtx addr, enum mips_symbol_type type)
-{
-  rtx base, high, lo_sum_symbol;
-
-  base = pic_offset_table_rtx;
-
-  /* If we used the temporary register to load $gp, we can't use
-     it for the high part as well.  */
-  if (temp != NULL && reg_overlap_mentioned_p (base, temp))
-    temp = NULL;
-
-  high = mips_unspec_offset_high (temp, base, addr, type);
-  lo_sum_symbol = mips_unspec_address (addr, type);
-
-  if (type == SYMBOL_GOTOFF_CALL)
-    return mips_unspec_call (high, lo_sum_symbol);
-  else
-    return (Pmode == SImode
-	    ? gen_unspec_gotsi (high, lo_sum_symbol)
-	    : gen_unspec_gotdi (high, lo_sum_symbol));
-}
-
 /* If MODE is MAX_MACHINE_MODE, ADDR appears as a move operand, otherwise
    it appears in a MEM of that mode.  Return true if ADDR is a legitimate
    constant in that context and can be split into high and low parts.
@@ -1314,19 +1209,11 @@ mips_split_symbol (rtx temp, rtx addr, enum machine_mode mode, rtx *low_out)
 	  && mips_split_p[symbol_type])
 	{
 	  if (low_out)
-	    switch (symbol_type)
-	      {
-	      case SYMBOL_GOT_DISP:
-		/* SYMBOL_GOT_DISP symbols are loaded from the GOT.  */
-		*low_out = mips_got_load (temp, addr, SYMBOL_GOTOFF_DISP);
-		break;
-
-	      default:
-		high = gen_rtx_HIGH (Pmode, copy_rtx (addr));
-		high = mips_force_temporary (temp, high);
-		*low_out = gen_rtx_LO_SUM (Pmode, high, addr);
-		break;
-	      }
+	    {
+	      high = gen_rtx_HIGH (Pmode, copy_rtx (addr));
+	      high = mips_force_temporary (temp, high);
+	      *low_out = gen_rtx_LO_SUM (Pmode, high, addr);
+	    }
 	  return true;
 	}
     }
@@ -1354,7 +1241,21 @@ mips_add_offset (rtx temp, rtx reg, HOST_WIDE_INT offset)
     }
   return plus_constant (reg, offset);
 }
-
+
+/* Load an entry from the GOT. */
+static rtx riscv_got_load(rtx dest, rtx sym)
+{
+  return (Pmode == DImode ? gen_got_loaddi(dest, sym) : gen_got_loadsi(dest, sym));
+}
+static rtx riscv_got_load_tls_gd(rtx dest, rtx sym)
+{
+  return (Pmode == DImode ? gen_got_load_tls_gddi(dest, sym) : gen_got_load_tls_gdsi(dest, sym));
+}
+static rtx riscv_got_load_tls_ie(rtx dest, rtx sym)
+{
+  return (Pmode == DImode ? gen_got_load_tls_iedi(dest, sym) : gen_got_load_tls_iesi(dest, sym));
+}
+
 /* The __tls_get_attr symbol.  */
 static GTY(()) rtx mips_tls_symbol;
 
@@ -1364,25 +1265,19 @@ static GTY(()) rtx mips_tls_symbol;
    return value location.  */
 
 static rtx
-mips_call_tls_get_addr (rtx sym, enum mips_symbol_type type, rtx v0)
+mips_call_tls_get_addr (rtx sym, enum mips_symbol_type type ATTRIBUTE_UNUSED, rtx v0)
 {
-  rtx insn, loc, a0, temp;
+  rtx insn, a0;
 
   a0 = gen_rtx_REG (Pmode, GP_ARG_FIRST);
 
   if (!mips_tls_symbol)
     mips_tls_symbol = init_one_libfunc ("__tls_get_addr");
 
-  temp = gen_reg_rtx (Pmode);
-  loc = mips_unspec_offset_high (temp, pic_offset_table_rtx, sym, type);
-  loc = gen_rtx_LO_SUM (Pmode, loc,
-			mips_unspec_address (sym, type));
-
   start_sequence ();
-
-  emit_insn (gen_rtx_SET (Pmode, a0, loc));
-  insn = mips_expand_call (MIPS_CALL_NORMAL, v0, mips_tls_symbol,
-			   const0_rtx, NULL_RTX, false);
+  
+  emit_insn (riscv_got_load_tls_gd(a0, sym));
+  insn = mips_expand_call (MIPS_CALL_NORMAL, v0, mips_tls_symbol, const0_rtx);
   RTL_CONST_CALL_P (insn) = 1;
   use_reg (&CALL_INSN_FUNCTION_USAGE (insn), a0);
   insn = get_insns ();
@@ -1399,7 +1294,7 @@ mips_call_tls_get_addr (rtx sym, enum mips_symbol_type type, rtx v0)
 static rtx
 mips_legitimize_tls_address (rtx loc)
 {
-  rtx dest, insn, v0, tp, tmp1, tmp2, eqv;
+  rtx dest, insn, v0, tp, tmp1;
   enum tls_model model;
 
   model = SYMBOL_REF_TLS_MODEL (loc);
@@ -1411,6 +1306,8 @@ mips_legitimize_tls_address (rtx loc)
 
   switch (model)
     {
+    case TLS_MODEL_LOCAL_DYNAMIC:
+      /* We don't support LDM TLS, so fall through.*/
     case TLS_MODEL_GLOBAL_DYNAMIC:
       v0 = gen_rtx_REG (Pmode, GP_RETURN);
       insn = mips_call_tls_get_addr (loc, SYMBOL_TLSGD, v0);
@@ -1418,27 +1315,10 @@ mips_legitimize_tls_address (rtx loc)
       emit_libcall_block (insn, dest, v0, loc);
       break;
 
-    case TLS_MODEL_LOCAL_DYNAMIC:
-      v0 = gen_rtx_REG (Pmode, GP_RETURN);
-      insn = mips_call_tls_get_addr (loc, SYMBOL_TLSLDM, v0);
-      tmp1 = gen_reg_rtx (Pmode);
-
-      /* Attach a unique REG_EQUIV, to allow the RTL optimizers to
-	 share the LDM result with other LD model accesses.  */
-      eqv = gen_rtx_UNSPEC (Pmode, gen_rtvec (1, const0_rtx),
-			    UNSPEC_TLS_LDM);
-      emit_libcall_block (insn, tmp1, v0, eqv);
-
-      tmp2 = mips_unspec_offset_high (NULL, tmp1, loc, SYMBOL_DTPREL);
-      dest = gen_rtx_LO_SUM (Pmode, tmp2,
-			     mips_unspec_address (loc, SYMBOL_DTPREL));
-      break;
-
     case TLS_MODEL_INITIAL_EXEC:
       tp = gen_rtx_REG (Pmode, THREAD_POINTER_REGNUM);
       tmp1 = gen_reg_rtx (Pmode);
-      tmp2 = mips_got_load (tmp1, loc, SYMBOL_GOTTPREL);
-      emit_insn (gen_rtx_SET (VOIDmode, tmp1, tmp2));
+      emit_insn (riscv_got_load_tls_ie(tmp1, loc));
       dest = gen_reg_rtx (Pmode);
       emit_insn (gen_add3_insn (dest, tmp1, tp));
       break;
@@ -2329,6 +2209,12 @@ mips_output_move (rtx dest, rtx src)
 	  gcc_assert (!mips_split_p[symbol_type]);
 	  return "li\t%0,%R1";
 	}
+
+      if (symbolic_operand (src, VOIDmode))
+	{
+	  gcc_assert (flag_pic);
+	  return "la\t%0,%1";
+	}
     }
   if (src_code == REG && FP_REG_P (REGNO (src)))
     {
@@ -3162,51 +3048,6 @@ mips_va_start (tree valist, rtx nextarg)
   std_expand_builtin_va_start (valist, nextarg);
 }
 
-/* Return true if SYMBOL_REF X binds locally.  */
-
-static bool
-mips_symbol_binds_local_p (const_rtx x)
-{
-  return (SYMBOL_REF_DECL (x)
-	  ? targetm.binds_local_p (SYMBOL_REF_DECL (x))
-	  : SYMBOL_REF_LOCAL_P (x));
-}
-
-/* Return true if calls to X can use R_MIPS_CALL* relocations.  */
-
-static bool
-mips_ok_for_lazy_binding_p (rtx x)
-{
-  return (TARGET_USE_GOT
-	  && GET_CODE (x) == SYMBOL_REF
-	  && !SYMBOL_REF_BIND_NOW_P (x)
-	  && !mips_symbol_binds_local_p (x));
-}
-
-/* Load function address ADDR into register DEST.  TYPE is as for
-   mips_expand_call.  Return true if we used an explicit lazy-binding
-   sequence.  */
-
-static bool
-mips_load_call_address (enum mips_call_type type, rtx dest, rtx addr)
-{
-  /* If we're generating PIC, and this call is to a global function,
-     try to allow its address to be resolved lazily.  This isn't
-     possible for sibcalls when $gp is call-saved because the value
-     of $gp on entry to the stub would be our caller's gp, not ours.  */
-  if (type != MIPS_CALL_SIBCALL && mips_ok_for_lazy_binding_p (addr))
-    {
-      addr = mips_got_load (dest, addr, SYMBOL_GOTOFF_CALL);
-      emit_insn (gen_rtx_SET (VOIDmode, dest, addr));
-      return true;
-    }
-  else
-    {
-      mips_emit_move (dest, addr);
-      return false;
-    }
-}
-
 /* Expand a call of type TYPE.  RESULT is where the result will go (null
    for "call"s and "sibcall"s), ADDR is the address of the function,
    ARGS_SIZE is the size of the arguments and AUX is the value passed
@@ -3217,10 +3058,9 @@ mips_load_call_address (enum mips_call_type type, rtx dest, rtx addr)
    Return the call itself.  */
 
 rtx
-mips_expand_call (enum mips_call_type type, rtx result, rtx addr,
-		  rtx args_size, rtx aux ATTRIBUTE_UNUSED, bool lazy_p)
+mips_expand_call (enum mips_call_type type, rtx result, rtx addr, rtx args_size)
 {
-  rtx orig_addr, pattern;
+  rtx orig_addr, pattern, insn;
 
   orig_addr = addr;
   if (!call_insn_operand (addr, VOIDmode))
@@ -3229,7 +3069,7 @@ mips_expand_call (enum mips_call_type type, rtx result, rtx addr,
 	addr = MIPS_EPILOGUE_TEMP (Pmode);
       else
 	addr = gen_reg_rtx (Pmode);
-      lazy_p |= mips_load_call_address (type, addr, orig_addr);
+      mips_emit_move(addr, orig_addr);
     }
 
   if (result == 0)
@@ -3273,7 +3113,16 @@ mips_expand_call (enum mips_call_type type, rtx result, rtx addr,
       pattern = fn (result, addr, args_size);
     }
 
-  return mips_emit_call_insn (pattern, lazy_p);
+  insn = emit_call_insn (pattern);
+
+  if (TARGET_USE_GOT)
+    {
+      /* See the comment above load_call<mode> for details.  */
+      use_reg (&CALL_INSN_FUNCTION_USAGE (insn),
+	       gen_rtx_REG (Pmode, GOT_VERSION_REGNUM));
+      emit_insn (gen_update_got_version ());
+    }
+  return insn;
 }
 
 /* Emit straight-line code to move LENGTH bytes from SRC to DEST.
@@ -3436,26 +3285,14 @@ mips_init_relocs (void)
   memset (mips_hi_relocs, '\0', sizeof (mips_hi_relocs));
   memset (mips_lo_relocs, '\0', sizeof (mips_lo_relocs));
 
-  mips_split_p[SYMBOL_ABSOLUTE] = true;
-  mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
-  mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
+  if (!flag_pic)
+    {
+      mips_split_p[SYMBOL_ABSOLUTE] = true;
+      mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
+      mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
 
-  mips_lo_relocs[SYMBOL_32_HIGH] = "%hi(";
-
-  /* The HIGH and LO_SUM are matched by special .md patterns.  */
-  mips_split_p[SYMBOL_GOT_DISP] = true;
-
-  mips_split_p[SYMBOL_GOTOFF_DISP] = true;
-  mips_hi_relocs[SYMBOL_GOTOFF_DISP] = "%got_hi(";
-  mips_lo_relocs[SYMBOL_GOTOFF_DISP] = "%got_lo(";
-
-  mips_split_p[SYMBOL_GOTOFF_CALL] = true;
-  mips_hi_relocs[SYMBOL_GOTOFF_CALL] = "%call_hi(";
-  mips_lo_relocs[SYMBOL_GOTOFF_CALL] = "%call_lo(";
-
-  mips_split_p[SYMBOL_GOTTPREL] = true;
-  mips_hi_relocs[SYMBOL_GOTTPREL] = "%gottp_hi(";
-  mips_lo_relocs[SYMBOL_GOTTPREL] = "%gottp_lo(";
+      mips_lo_relocs[SYMBOL_32_HIGH] = "%hi(";
+    }
 
   mips_split_p[SYMBOL_TLSGD] = true;
   mips_hi_relocs[SYMBOL_TLSGD] = "%tlsgd_hi(";
@@ -3980,136 +3817,6 @@ mips_frame_set (rtx mem, rtx reg)
   return set;
 }
 
-/* Return true if predicate PRED is true for at least one instruction.
-   Cache the result in *CACHE, and assume that the result is true
-   if *CACHE is already true.  */
-
-static bool
-mips_find_gp_ref (bool *cache, bool (*pred) (rtx))
-{
-  rtx insn;
-
-  if (!*cache)
-    {
-      push_topmost_sequence ();
-      for (insn = get_insns (); insn; insn = NEXT_INSN (insn))
-	if (USEFUL_INSN_P (insn) && pred (insn))
-	  {
-	    *cache = true;
-	    break;
-	  }
-      pop_topmost_sequence ();
-    }
-  return *cache;
-}
-
-/* Return true if INSN refers to the global pointer in a "flexible" way.
-   See mips_cfun_has_flexible_gp_ref_p for details.  */
-
-static bool
-mips_insn_has_flexible_gp_ref_p (rtx insn)
-{
-  return (get_attr_got (insn) != GOT_UNSET
-	  || reg_overlap_mentioned_p (pic_offset_table_rtx, PATTERN (insn)));
-}
-
-/* Return true if the current function references the global pointer,
-   but if those references do not inherently require the global pointer
-   to be $28.  Assume !mips_cfun_has_inflexible_gp_ref_p ().  */
-
-static bool
-mips_cfun_has_flexible_gp_ref_p (void)
-{
-  return mips_find_gp_ref (&cfun->machine->has_flexible_gp_insn_p,
-			   mips_insn_has_flexible_gp_ref_p);
-}
-
-/* Return true if the current function's prologue must load the global
-   pointer value into pic_offset_table_rtx and store the same value in
-   the function's cprestore slot (if any).
-
-   One problem we have to deal with is that, when emitting GOT-based
-   position independent code, long-branch sequences will need to load
-   the address of the branch target from the GOT.  We don't know until
-   the very end of compilation whether (and where) the function needs
-   long branches, so we must ensure that _any_ branch can access the
-   global pointer in some form.  However, we do not want to pessimize
-   the usual case in which all branches are short.
-
-   We handle this as follows:
-
-   (1) During reload, we set cfun->machine->global_pointer to
-       INVALID_REGNUM if we _know_ that the current function
-       doesn't need a global pointer.  This is only valid if
-       long branches don't need the GOT.
-
-       Otherwise, we assume that we might need a global pointer
-       and pick an appropriate register.
-
-   (2) If cfun->machine->global_pointer != INVALID_REGNUM,
-       we ensure that the global pointer is available at every
-       block boundary bar entry and exit.  We do this in one of two ways:
-
-       - If the function has a cprestore slot, we ensure that this
-	 slot is valid at every branch.  However, as explained in
-	 point (6) below, there is no guarantee that pic_offset_table_rtx
-	 itself is valid if new uses of the global pointer are introduced
-	 after the first post-epilogue split.
-
-	 We guarantee that the cprestore slot is valid by loading it
-	 into a fake register, CPRESTORE_SLOT_REGNUM.  We then make
-	 this register live at every block boundary bar function entry
-	 and exit.  It is then invalid to move the load (and thus the
-	 preceding store) across a block boundary.
-
-       - If the function has no cprestore slot, we guarantee that
-	 pic_offset_table_rtx itself is valid at every branch.
-
-   (3) During prologue and epilogue generation, we emit "ghost"
-       placeholder instructions to manipulate the global pointer.
-
-   (4) During prologue generation, we set cfun->machine->must_initialize_gp_p
-       and cfun->machine->must_restore_gp_when_clobbered_p if we already know
-       that the function needs a global pointer.  (There is no need to set
-       them earlier than this, and doing it as late as possible leads to
-       fewer false positives.)
-
-   (5) If cfun->machine->must_initialize_gp_p is true during a
-       split_insns pass, we split the ghost instructions into real
-       instructions.  These split instructions can then be optimized in
-       the usual way.  Otherwise, we keep the ghost instructions intact,
-       and optimize for the case where they aren't needed.  We still
-       have the option of splitting them later, if we need to introduce
-       new uses of the global pointer.
-
-       For example, the scheduler ignores a ghost instruction that
-       stores $28 to the stack, but it handles the split form of
-       the ghost instruction as an ordinary store.
-
-   Note that the ghost instructions must have a zero length for three reasons:
-
-   - Giving the length of the underlying $gp sequence might cause
-     us to use long branches in cases where they aren't really needed.
-
-   - They would perturb things like alignment calculations.
-
-   - More importantly, the hazard detection in md_reorg relies on
-     empty instructions having a zero length.
-
-   If we find a long branch and split the ghost instructions at the
-   end of md_reorg, the split could introduce more long branches.
-   That isn't a problem though, because we still do the split before
-   the final shorten_branches pass.
-
-   This is extremely ugly, but it seems like the best compromise between
-   correctness and efficiency.  */
-
-bool
-mips_must_initialize_gp_p (void)
-{
-  return cfun->machine->must_initialize_gp_p;
-}
-
 /* Return true if the current function must save register REGNO.  */
 
 static bool
@@ -4118,35 +3825,11 @@ mips_save_reg_p (unsigned int regno)
   bool call_saved = !global_regs[regno] && !call_really_used_regs[regno];
   bool might_clobber = crtl->saves_all_registers
 		       || df_regs_ever_live_p (regno)
-		       || cfun->machine->global_pointer == regno
 		       || (regno == HARD_FRAME_POINTER_REGNUM
 			   && frame_pointer_needed);
 
   return (call_saved && might_clobber)
 	 || (regno == RETURN_ADDR_REGNUM && crtl->calls_eh_return);
-}
-
-/* Return the register that should be used as the global pointer
-   within this function.  Return INVALID_REGNUM if the function
-   doesn't need a global pointer.  */
-
-static unsigned int
-mips_global_pointer (void)
-{
-  /* $gp is always available unless we're using a GOT.  */
-  if (!TARGET_USE_GOT)
-    return GLOBAL_POINTER_REGNUM;
-
-  /* If there are no current references to $gp, then the only uses
-     we can introduce later are those involved in long branches.  */
-  if (!mips_cfun_has_flexible_gp_ref_p ())
-    return INVALID_REGNUM;
-
-  /* For non-leaf functions, use a saved register. */
-  if (!current_function_is_leaf)
-    return GLOBAL_POINTER_REGNUM_NONLEAF;
-
-  return GLOBAL_POINTER_REGNUM;
 }
 
 /* Populate the current function's mips_frame_info structure.
@@ -4213,8 +3896,6 @@ mips_compute_frame_info (void)
   frame = &cfun->machine->frame;
   memset (frame, 0, sizeof (*frame));
 
-  cfun->machine->global_pointer = mips_global_pointer ();
-
   /* Find out which GPRs we need to save.  */
   for (regno = GP_REG_FIRST; regno <= GP_REG_LAST; regno++)
     if (mips_save_reg_p (regno))
@@ -4264,21 +3945,6 @@ mips_compute_frame_info (void)
   /* Next points the incoming stack pointer and any incoming arguments. */
 }
 
-/* Return the style of GP load sequence that is being used for the
-   current function.  */
-
-enum mips_loadgp_style
-mips_current_loadgp_style (void)
-{
-  if (!TARGET_USE_GOT || cfun->machine->global_pointer == INVALID_REGNUM)
-    return LOADGP_NONE;
-
-  if (TARGET_ABICALLS && !flag_pic)
-    return LOADGP_ABSOLUTE;
-
-  return LOADGP_NEWABI;
-}
-
 /* Make sure that we're not trying to eliminate to the wrong hard frame
    pointer.  */
 
@@ -4323,11 +3989,6 @@ mips_extra_live_on_entry (bitmap regs)
 {
   if (TARGET_USE_GOT)
     {
-      /* PIC_FUNCTION_ADDR_REGNUM is live if we need it to set up
-	 the global pointer.   */
-      if (flag_pic)
-	bitmap_set_bit (regs, PIC_FUNCTION_ADDR_REGNUM);
-
       /* See the comment above load_call<mode> for details.  */
       bitmap_set_bit (regs, GOT_VERSION_REGNUM);
     }
@@ -4450,18 +4111,6 @@ mips_emit_save_slot_move (rtx dest, rtx src, rtx temp)
       mem = src;
     }
 
-  if (regno == cfun->machine->global_pointer && !mips_must_initialize_gp_p ())
-    {
-      /* We don't yet know whether we'll need this instruction or not.
-	 Postpone the decision by emitting a ghost move.  This move
-	 is specifically not frame-related; only the split version is.  */
-      if (TARGET_64BIT)
-	emit_insn (gen_move_gpdi (dest, src));
-      else
-	emit_insn (gen_move_gpsi (dest, src));
-      return;
-    }
-
   if (mips_direct_save_slot_move_p (regno, mem, mem == src))
     mips_emit_move (dest, src);
   else
@@ -4492,16 +4141,6 @@ mips_output_function_prologue (FILE *file ATTRIBUTE_UNUSED,
   fputs (":\n", asm_out_file);
 }
 
-/* Implement TARGET_OUTPUT_FUNCTION_EPILOGUE.  */
-
-static void
-mips_output_function_epilogue (FILE *file ATTRIBUTE_UNUSED,
-			       HOST_WIDE_INT size ATTRIBUTE_UNUSED)
-{
-  /* Reinstate the normal $gp.  */
-  SET_REGNO (pic_offset_table_rtx, GLOBAL_POINTER_REGNUM);
-}
-
 /* Save register REG to MEM.  Make the instruction frame-related.  */
 
 static void
@@ -4510,45 +4149,6 @@ mips_save_reg (rtx reg, rtx mem)
   mips_emit_save_slot_move (mem, reg, MIPS_PROLOGUE_TEMP (GET_MODE (reg)));
 }
 
-/* The __gnu_local_gp symbol.  */
-
-static GTY(()) rtx mips_gnu_local_gp;
-
-/* If we're generating n32 or n64 abicalls, emit instructions
-   to set up the global pointer.  */
-
-static void
-mips_emit_loadgp (void)
-{
-  rtx addr, offset, incoming_address, pic_reg;
-
-  pic_reg = pic_offset_table_rtx;
-  switch (mips_current_loadgp_style ())
-    {
-    case LOADGP_ABSOLUTE:
-      if (mips_gnu_local_gp == NULL)
-	{
-	  mips_gnu_local_gp = gen_rtx_SYMBOL_REF (Pmode, "__gnu_local_gp");
-	  SYMBOL_REF_FLAGS (mips_gnu_local_gp) |= SYMBOL_FLAG_LOCAL;
-	}
-      emit_insn (Pmode == SImode
-		 ? gen_loadgp_absolute_si (pic_reg, mips_gnu_local_gp)
-		 : gen_loadgp_absolute_di (pic_reg, mips_gnu_local_gp));
-      break;
-
-    case LOADGP_NEWABI:
-      addr = XEXP (DECL_RTL (current_function_decl), 0);
-      offset = mips_unspec_address (addr, SYMBOL_GOTOFF_LOADGP);
-      incoming_address = gen_rtx_REG (Pmode, PIC_FUNCTION_ADDR_REGNUM);
-      emit_insn (Pmode == SImode
-		 ? gen_loadgp_newabi_si (pic_reg, offset, incoming_address)
-		 : gen_loadgp_newabi_di (pic_reg, offset, incoming_address));
-      break;
-
-    default:
-      return;
-    }
-}
 
 /* Expand the "prologue" pattern.  */
 
@@ -4558,17 +4158,6 @@ mips_expand_prologue (void)
   const struct mips_frame_info *frame;
   HOST_WIDE_INT size;
   rtx insn;
-
-  if (cfun->machine->global_pointer != INVALID_REGNUM)
-    {
-      /* Check whether an insn uses pic_offset_table_rtx, either explicitly
-	 or implicitly.  If so, we can commit to using a global pointer
-	 straight away, otherwise we need to defer the decision.  */
-      if (mips_cfun_has_flexible_gp_ref_p ())
-	cfun->machine->must_initialize_gp_p = true;
-
-      SET_REGNO (pic_offset_table_rtx, cfun->machine->global_pointer);
-    }
 
   frame = &cfun->machine->frame;
   size = frame->total_size;
@@ -4620,8 +4209,6 @@ mips_expand_prologue (void)
 			  plus_constant (stack_pointer_rtx, -size)));
 	}
     }
-
-  mips_emit_loadgp ();
 }
 
 /* Emit instructions to restore register REG from slot MEM.  */
@@ -5753,17 +5340,6 @@ mips_output_mi_thunk (FILE *file, tree thunk_fndecl ATTRIBUTE_UNUSED,
   fnaddr = XEXP (DECL_RTL (function), 0);
   use_sibcall_p = const_call_insn_operand (fnaddr, Pmode);
 
-  /* Determine if we need to load FNADDR from the GOT.  */
-  if (!use_sibcall_p && mips_classify_symbol (fnaddr) == SYMBOL_GOT_DISP)
-    {
-      cfun->machine->global_pointer = GLOBAL_POINTER_REGNUM - GP_REG_FIRST;
-      cfun->machine->must_initialize_gp_p = true;
-      SET_REGNO (pic_offset_table_rtx, cfun->machine->global_pointer);
-
-      /* Set up the global pointer for n32 or n64 abicalls.  */
-      mips_emit_loadgp ();
-    }
-
   /* We need two temporary registers in some cases.  */
   temp1 = gen_rtx_REG (Pmode, 2);
   temp2 = gen_rtx_REG (Pmode, 3);
@@ -5811,9 +5387,7 @@ mips_output_mi_thunk (FILE *file, tree thunk_fndecl ATTRIBUTE_UNUSED,
     }
   else
     {
-      if (TARGET_ABICALLS)
-	temp1 = gen_rtx_REG (Pmode, PIC_FUNCTION_ADDR_REGNUM);
-      mips_load_call_address (MIPS_CALL_SIBCALL, temp1, fnaddr);
+      mips_emit_move(temp1, fnaddr);
       emit_jump_insn (gen_indirect_jump (temp1));
     }
 
@@ -6097,7 +5671,7 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 {
   rtx addr, end_addr, mem;
   rtx trampoline[8];
-  unsigned int i, j, gp;
+  unsigned int i, j;
   HOST_WIDE_INT static_chain_offset, target_function_offset;
 
   /* Work out the offsets of the pointers from the start of the
@@ -6113,19 +5687,18 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 #define MATCH_LREG ((Pmode) == DImode ? MATCH_LD : MATCH_LW)
 
   /* luipc   t6, 0x0
-     l[wd]   t7, target_function_offset(t6)
+     l[wd]   v0, target_function_offset(t6)
      l[wd]   $static_chain, static_chain_offset(t6)
-     jr      t7
+     jr      v0
   */
   i = 0;
-  gp = GLOBAL_POINTER_REGNUM - GP_REG_FIRST;
 
-  trampoline[i++] = OP (RISCV_LTYPE (LUIPC, gp, 0));
-  trampoline[i++] = OP (RISCV_ITYPE (LREG, PIC_FUNCTION_ADDR_REGNUM,
-    				   gp, target_function_offset));
+  trampoline[i++] = OP (RISCV_LTYPE (LUIPC, STATIC_CHAIN_REGNUM, 0));
+  trampoline[i++] = OP (RISCV_ITYPE (LREG, MIPS_PROLOGUE_TEMP_REGNUM,
+    			  STATIC_CHAIN_REGNUM, target_function_offset));
   trampoline[i++] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,
-    				   gp, static_chain_offset));
-  trampoline[i++] = OP (RISCV_ITYPE (JALR_J, 0, PIC_FUNCTION_ADDR_REGNUM, 0));
+    			  STATIC_CHAIN_REGNUM, static_chain_offset));
+  trampoline[i++] = OP (RISCV_ITYPE (JALR_J, 0, MIPS_PROLOGUE_TEMP_REGNUM, 0));
 
   gcc_assert (i * 4 == TRAMPOLINE_CODE_SIZE);
 
@@ -6246,8 +5819,6 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 
 #undef TARGET_ASM_FUNCTION_PROLOGUE
 #define TARGET_ASM_FUNCTION_PROLOGUE mips_output_function_prologue
-#undef TARGET_ASM_FUNCTION_EPILOGUE
-#define TARGET_ASM_FUNCTION_EPILOGUE mips_output_function_epilogue
 
 #undef TARGET_SCHED_ADJUST_COST
 #define TARGET_SCHED_ADJUST_COST mips_adjust_cost

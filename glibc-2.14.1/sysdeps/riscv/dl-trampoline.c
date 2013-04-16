@@ -212,7 +212,6 @@ asm ("\n\
 	.globl	_dl_runtime_resolve\n\
 	.type	_dl_runtime_resolve,@function\n\
 _dl_runtime_resolve:\n\
-	" STRINGXV(SETUP_GP64(t4, _dl_runtime_resolve)) "\n\
 	# Save arguments and sp value in stack.\n\
 	addi  sp, sp, " STRINGXP(-ELF_DL_FRAME_SIZE) "\n\
 	# Save slot call pc.\n\
@@ -220,11 +219,10 @@ _dl_runtime_resolve:\n\
 	move	a0, t6\n\
 	move	a1, v1\n\
 	move	a2, ra\n\
-	" STRINGXV(PIC_JAL(t4, __dl_runtime_resolve)) "\n\
+	" STRINGXV(PIC_JAL(__dl_runtime_resolve)) "\n\
 	" ELF_DL_RESTORE_ARG_REGS "\
-	move	t7, v0\n\
 	addi	sp, sp, " STRINGXP(ELF_DL_FRAME_SIZE) "\n\
-	jr	t7\n\
+	jr	v0\n\
 	.previous\n\
 ");
 
@@ -253,17 +251,15 @@ asm ("\n\
 	.globl	_dl_runtime_pltresolve\n\
 	.type	_dl_runtime_pltresolve,@function\n\
 _dl_runtime_pltresolve:\n\
-	" STRINGXV(SETUP_GP64(t4, _dl_runtime_pltresolve)) "\n\
 	# Save arguments and sp value in stack.\n\
 1:	addi	sp, sp, " STRINGXP(-ELF_DL_FRAME_SIZE) "\n\
 	" ELF_DL_SAVE_ARG_REGS "\
 	" STRINGXP(REG_L) "	a0, " STRINGXP(PTRSIZE) "(t2)" "\n\
 	sll	a1, t6, " STRINGXP(PTRLOG) " + 1\n\
-	" STRINGXV(PIC_JAL(t4, _dl_fixup)) "\n\
-	move	t7, v0\n\
+	" STRINGXV(PIC_JAL(_dl_fixup)) "\n\
 	" ELF_DL_RESTORE_ARG_REGS "\
 	addi	sp, sp, " STRINGXP(ELF_DL_FRAME_SIZE) "\n\
-	jr	t7\n\
+	jr	v0\n\
 	.previous\n\
 ");
 

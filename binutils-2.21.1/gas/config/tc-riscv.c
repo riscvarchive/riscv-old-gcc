@@ -152,12 +152,12 @@ unsigned long mips_fprmask;
 
 /* Likewise 64-bit registers.  */
 #define ABI_NEEDS_64BIT_REGS(ABI) ((ABI) == ABI_64)
-
 #define HAVE_32BIT_GPRS ABI_NEEDS_32BIT_REGS (mips_abi)
-
 #define HAVE_64BIT_GPRS (!HAVE_32BIT_GPRS)
-
 #define HAVE_64BIT_OBJECTS ABI_NEEDS_64BIT_REGS (mips_abi)
+
+#define ADD32_INSN (HAVE_64BIT_GPRS ? "addiw" : "addi")
+#define LOAD_ADDRESS_INSN (HAVE_64BIT_GPRS ? "ld" : "lw")
 
 /* The ABI-derived address size.  */
 #define HAVE_64BIT_ADDRESSES HAVE_64BIT_GPRS
@@ -977,7 +977,6 @@ struct regname {
     {"s6",	RTYPE_GP | 26}, \
     {"s7",	RTYPE_GP | 27}, \
     {"s8",	RTYPE_GP | 28}, \
-    {"gp",	RTYPE_GP | 28}, \
     {"s9",	RTYPE_GP | 29}, \
     {"sp",	RTYPE_GP | 30}, \
     {"tp",	RTYPE_GP | 31}
@@ -1715,6 +1714,12 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 
 	case 'O': /* An off-by-4 PC-relative address for PIC. */
 	  INSERT_OPERAND (IMMEDIATE, insn, 4);
+	  macro_read_relocs (&args, r);
+	  gas_assert (*r == BFD_RELOC_RISCV_TLS_GD_LO16
+		  || *r == BFD_RELOC_RISCV_TLS_GOT_LO16
+		  || *r == BFD_RELOC_MIPS_GOT_LO16);
+	  continue;
+
 	case 'j':
 	  macro_read_relocs (&args, r);
 	  gas_assert (*r == BFD_RELOC_GPREL16
@@ -1842,6 +1847,24 @@ macro_build_lui (const char* name, expressionS *ep, int regnum, bfd_reloc_code_r
   append_insn (&insn, ep, r);
 }
 
+/* Load an entry from the GOT. */
+static void
+load_static_addr (int destreg, expressionS *ep)
+{
+  macro_build_lui ("lui", ep, destreg, BFD_RELOC_HI16_S);
+  macro_build (ep, "addi", "d,s,j", destreg, destreg, BFD_RELOC_LO16);
+}
+
+/* Load an entry from the GOT. */
+static void
+load_got_addr (int destreg, expressionS *ep, const char* lo_insn,
+               bfd_reloc_code_real_type hi_reloc,
+	       bfd_reloc_code_real_type lo_reloc)
+{
+  macro_build_lui ("luipc", ep, destreg, hi_reloc);
+  macro_build (ep, lo_insn, "d,O(b)", destreg, lo_reloc, destreg);
+}
+
 /* Warn if an expression is not a constant.  */
 
 static void
@@ -1857,10 +1880,10 @@ check_absolute_expr (struct mips_cl_insn *ip, expressionS *ex)
     normalize_constant_expr (ex);
 }
 
-/* load_register generates an unoptimized instruction sequence to load
+/* load_const generates an unoptimized instruction sequence to load
  * an absolute expression into a register. */
 static void
-load_register (int reg, expressionS *ep)
+load_const (int reg, expressionS *ep)
 {
   gas_assert (ep->X_op == O_constant);
   gas_assert (reg != ZERO);
@@ -1871,7 +1894,7 @@ load_register (int reg, expressionS *ep)
   {
     expressionS upper = *ep, lower = *ep;
     upper.X_add_number = (int64_t)ep->X_add_number >> (RISCV_IMM_BITS-1);
-    load_register(reg, &upper);
+    load_const(reg, &upper);
 
     macro_build (NULL, "sll", "d,s,>", reg, reg, RISCV_IMM_BITS-1);
 
@@ -1893,10 +1916,7 @@ load_register (int reg, expressionS *ep)
     }
 
     if((ep->X_add_number & (RISCV_IMM_REACH-1)) || hi_reg == ZERO)
-    {
-      macro_build (ep, (HAVE_64BIT_GPRS ? "addiw" : "addi"), "d,s,j",
-                   reg, hi_reg, BFD_RELOC_LO16);
-    }
+      macro_build (ep, ADD32_INSN, "d,s,j", reg, hi_reg, BFD_RELOC_LO16);
   }
 }
 
@@ -1932,50 +1952,31 @@ macro (struct mips_cl_insn *ip)
     {
     case M_LA_AB:
       /* Load the address of a symbol into a register. */
-
-      if(offset_expr.X_op == O_constant
-         && offset_expr.X_add_number >= -(signed)RISCV_IMM_REACH/2
-         && offset_expr.X_add_number < (signed)RISCV_IMM_REACH/2)
-      {
-        macro_build (&offset_expr, "addi",
-                     "d,s,j", dreg, breg, BFD_RELOC_LO16);
-        break;
-      }
-
-      if(!IS_SEXT_32BIT_NUM (offset_expr.X_add_number))
+      if (!IS_SEXT_32BIT_NUM (offset_expr.X_add_number))
         as_bad(_("offset too large"));
+      if (breg == dreg && breg != ZERO)
+        as_bad(_("expression too complex: dest and base regs must differ"));
 
-      if(breg == dreg && breg != ZERO)
-        as_bad(_("expression too complex"));
-
-      if(offset_expr.X_op == O_constant)
-      {
-        load_register(dreg, &offset_expr);
-        if(breg != ZERO)
-           macro_build (NULL, "add", "d,s,t", dreg, dreg, breg);
-
-        break;
-      }
-
-      /* We're loading a symbol, not an absolute address. */
-      if(HAVE_64BIT_SYMBOLS)
-        as_bad("la is unimplemented for 64-bit symbols");
-
-      if (is_pic)
-      {
-        macro_build_lui ("luipc", &offset_expr, dreg, BFD_RELOC_MIPS_GOT_HI16);
-        macro_build (&offset_expr, HAVE_64BIT_GPRS ? "ld" : "lw", "d,O(b)",
-                     dreg, BFD_RELOC_MIPS_GOT_LO16, dreg);
-      }
-      else
-      {
-        macro_build_lui ("lui", &offset_expr, dreg, BFD_RELOC_HI16_S);
-        macro_build (&offset_expr, "addi", "d,s,j",
-                     dreg, dreg, BFD_RELOC_LO16);
-      }
+      if (offset_expr.X_op == O_constant)
+        load_const (dreg, &offset_expr);
+      else if (is_pic) /* O_symbol */
+	load_got_addr (dreg, &offset_expr, LOAD_ADDRESS_INSN,
+	               BFD_RELOC_MIPS_GOT_HI16, BFD_RELOC_MIPS_GOT_LO16);
+      else /* non-PIC O_symbol */
+	load_static_addr (dreg, &offset_expr);
 
       if (breg != ZERO)
         macro_build (NULL, "add", "d,s,t", dreg, dreg, breg);
+      break;
+
+    case M_LA_TLS_GD: 
+      load_got_addr(dreg, &offset_expr, "addi",
+                    BFD_RELOC_RISCV_TLS_GD_HI16, BFD_RELOC_RISCV_TLS_GD_LO16);
+      break;
+
+    case M_LA_TLS_IE: 
+      load_got_addr(dreg, &offset_expr, LOAD_ADDRESS_INSN,
+                    BFD_RELOC_RISCV_TLS_GOT_HI16, BFD_RELOC_RISCV_TLS_GOT_LO16);
       break;
 
     case M_J: /* replace "j $rs" with "ret" if rs=ra, else with "jr $rs" */
@@ -1986,7 +1987,7 @@ macro (struct mips_cl_insn *ip)
       break;
 
     case M_LI:
-      load_register (dreg, &imm_expr);
+      load_const (dreg, &imm_expr);
       break;
 
     default:

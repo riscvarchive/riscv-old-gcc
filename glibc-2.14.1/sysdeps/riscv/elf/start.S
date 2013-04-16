@@ -77,24 +77,17 @@
 	.globl ENTRY_POINT
 	.type ENTRY_POINT,@function
 ENTRY_POINT:
-	SETUP_GPX64(t6, t7)
-
-	PIC_LA	(a0, t6, main)  /* &main */
-	REG_L  	a1, 0(sp)      /* argc */
-	addi   	a2, sp, SZREG  /* argv */
-
-	/* Align stack. */
-	andi   	sp, sp, ALMASK
-
-	PIC_LA	(a3, t6, __libc_csu_init)
-	PIC_LA	(a4, t6, __libc_csu_fini)
-
-	move   	a5, v0  /* rtld_fini */
-	move   	a6, sp  /* stack_end */
-
-	PIC_JAL	(t6, __libc_start_main)
-
-	unimp
+	la    a0, main
+	REG_L a1, 0(sp)      /* argc */
+	addi  a2, sp, SZREG  /* argv */
+	andi  sp, sp, ALMASK /* Align stack. */
+	la    a3, __libc_csu_init
+	la    a4, __libc_csu_fini
+	move  a5, v0  /* rtld_fini */
+	move  a6, sp  /* stack_end */
+	
+	la    v0, __libc_start_main
+	jr    v0
 
 /* Define a symbol for the first piece of initialized data.  */
 	.data

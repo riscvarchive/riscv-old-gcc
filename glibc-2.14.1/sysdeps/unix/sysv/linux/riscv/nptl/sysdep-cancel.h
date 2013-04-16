@@ -124,14 +124,14 @@
 # define RESTORESTK 	addi sp, sp, STKSPACE; cfi_adjust_cfa_offset(-STKSPACE)
 
 # ifdef IS_IN_libpthread
-#  define CENABLE  SETUP_GPX64(t6, t7); PIC_JAL(t6, __pthread_enable_asynccancel)
-#  define CDISABLE SETUP_GPX64(t6, t7); PIC_JAL(t6, __pthread_disable_asynccancel)
+#  define CENABLE  PIC_JAL(__pthread_enable_asynccancel)
+#  define CDISABLE PIC_JAL(__pthread_disable_asynccancel)
 # elif defined IS_IN_librt
-#  define CENABLE  SETUP_GPX64(t6, t7); PIC_JAL(t6, __librt_enable_asynccancel)
-#  define CDISABLE SETUP_GPX64(t6, t7); PIC_JAL(t6, __librt_disable_asynccancel)
+#  define CENABLE  PIC_JAL(__librt_enable_asynccancel)
+#  define CDISABLE PIC_JAL(__librt_disable_asynccancel)
 # else
-#  define CENABLE  SETUP_GPX64(t6, t7); PIC_JAL(t6, __libc_enable_asynccancel)
-#  define CDISABLE SETUP_GPX64(t6, t7); PIC_JAL(t6, __libc_disable_asynccancel)
+#  define CENABLE  PIC_JAL(__libc_enable_asynccancel)
+#  define CDISABLE PIC_JAL(__libc_disable_asynccancel)
 # endif
 
 # ifndef __ASSEMBLER__

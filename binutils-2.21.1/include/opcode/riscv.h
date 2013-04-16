@@ -228,6 +228,8 @@ struct riscv_opcode
 enum
 {
   M_LA_AB,
+  M_LA_TLS_GD,
+  M_LA_TLS_IE,
   M_J,
   M_LI,
   M_NUM_MACROS

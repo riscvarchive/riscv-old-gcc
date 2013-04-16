@@ -1,4 +1,4 @@
-/* Copyright (C) 1997, 1998, 2002, 2003, 2004, 2005
+/* copyright (c) 1997, 1998, 2002, 2003, 2004, 2005
    Free Software Foundation, Inc.
    This file is part of the GNU C Library.
    Contributed by Ralf Baechle <ralf@gnu.org>.
@@ -51,41 +51,18 @@
  */
 #ifdef __PIC__
 
-# define SETUP_GP64_(gp_reg, func, pc_reg) 		\
-  lui   gp_reg, %hi(%neg(%gp_rel(func)));		\
-  add   gp_reg, gp_reg, %lo(%neg(%gp_rel(func)));	\
-  add   gp_reg, gp_reg, pc_reg
-
-# define SETUP_GP64(gp_reg, func) SETUP_GP64_(gp_reg, func, t7)
-
-# define SETUP_GPX64(gp_reg, scratch)	\
-10: rdpc scratch;			\
-    SETUP_GP64_(gp_reg, 10b, scratch)
-
-# define PIC_LA(dst, gp_reg, sym)	\
-  lui   dst, %got_hi(sym);		\
-  add   dst, dst, gp_reg;		\
-  REG_L dst, %got_lo(sym)(dst)
-
-# define PIC_JAL(gp_reg, target)	\
-  PIC_LA(t7, gp_reg, target); 		\
-  jalr t7
-
-# define PIC_J(target)              	\
-  SETUP_GPX64(t6, t7);          	\
-  PIC_LA(t7, t6, target);       	\
-  jr t7
-
+# define PIC_JAL(target)		\
+  la   v0, target;			\
+  jalr v0
+# define PIC_J(target)			\
+  la   v0, target;			\
+  jr   v0
 # define PIC_ASM_DECL .pic
 
 #else
 
-# define SETUP_GP64(gp_reg, func)
-# define SETUP_GPX64(gp_reg, scratch)
-# define PIC_LA(dst, gp_reg, sym) la dst, sym
-# define PIC_JAL(gp_reg, target) jal target
+# define PIC_JAL(target) jal target
 # define PIC_J(target) j target
-
 # define PIC_ASM_DECL
 
 #endif
