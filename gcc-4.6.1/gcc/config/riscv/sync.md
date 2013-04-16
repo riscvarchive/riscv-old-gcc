@@ -50,60 +50,43 @@
   ""
   "fence")
 
-(define_insn "sync_<optab>di"
-  [(set (match_operand:DI 0 "memory_operand" "+YR")
-	(unspec_volatile:DI
-          [(any_atomic:DI (match_dup 0)
-		     (match_operand:DI 1 "register_operand" "d"))]
-	 UNSPEC_SYNC_OLD_OP))]
-  "TARGET_64BIT"
-  "amo<insn>.d zero,%1,%0")
-
-(define_insn "sync_old_<optab>di"
-  [(set (match_operand:DI 0 "register_operand" "=&d")
-	(match_operand:DI 1 "memory_operand" "+YR"))
-   (set (match_dup 1)
-	(unspec_volatile:DI
-          [(any_atomic:DI (match_dup 1)
-		     (match_operand:DI 2 "register_operand" "d"))]
-	 UNSPEC_SYNC_OLD_OP))]
-  "TARGET_64BIT"
-  "amo<insn>.d %0,%2,%1")
-
-(define_insn "sync_lock_test_and_setdi"
-  [(set (match_operand:DI 0 "register_operand" "=&d")
-	(match_operand:DI 1 "memory_operand" "+YR"))
-   (set (match_dup 1)
-	(unspec_volatile:DI [(match_operand:DI 2 "register_operand" "d")]
-	 UNSPEC_SYNC_EXCHANGE))]
-  "TARGET_64BIT"
-  "amoswap.d %0,%2,%1")
-
-(define_insn "sync_<optab>si"
-  [(set (match_operand:SI 0 "memory_operand" "+YR")
-	(unspec_volatile:SI
-          [(any_atomic:SI (match_dup 0)
-		     (match_operand:SI 1 "register_operand" "d"))]
+(define_insn "sync_<optab><mode>"
+  [(set (match_operand:GPR 0 "memory_operand" "+YR")
+	(unspec_volatile:GPR
+          [(any_atomic:GPR (match_dup 0)
+		     (match_operand:GPR 1 "register_operand" "d"))]
 	 UNSPEC_SYNC_OLD_OP))]
   ""
-  "amo<insn>.w zero,%1,%0")
+  "amo<insn>.<amo> zero,%1,%0")
 
-(define_insn "sync_old_<optab>si"
-  [(set (match_operand:SI 0 "register_operand" "=&d")
-	(match_operand:SI 1 "memory_operand" "+YR"))
+(define_insn "sync_old_<optab><mode>"
+  [(set (match_operand:GPR 0 "register_operand" "=&d")
+	(match_operand:GPR 1 "memory_operand" "+YR"))
    (set (match_dup 1)
-	(unspec_volatile:SI
-          [(any_atomic:SI (match_dup 1)
-		     (match_operand:SI 2 "register_operand" "d"))]
+	(unspec_volatile:GPR
+          [(any_atomic:GPR (match_dup 1)
+		     (match_operand:GPR 2 "register_operand" "d"))]
 	 UNSPEC_SYNC_OLD_OP))]
   ""
-  "amo<insn>.w %0,%2,%1")
+  "amo<insn>.<amo> %0,%2,%1")
 
-(define_insn "sync_lock_test_and_setsi"
-  [(set (match_operand:SI 0 "register_operand" "=&d")
-	(match_operand:SI 1 "memory_operand" "+YR"))
+(define_insn "sync_lock_test_and_set<mode>"
+  [(set (match_operand:GPR 0 "register_operand" "=&d")
+	(match_operand:GPR 1 "memory_operand" "+YR"))
    (set (match_dup 1)
-	(unspec_volatile:SI [(match_operand:SI 2 "register_operand" "d")]
+	(unspec_volatile:GPR [(match_operand:GPR 2 "reg_or_0_operand" "d")]
 	 UNSPEC_SYNC_EXCHANGE))]
   ""
-  "amoswap.w %0,%2,%1")
+  "amoswap.<amo> %0,%2,%1")
+
+(define_insn "sync_compare_and_swap<mode>"
+  [(set (match_operand:GPR 0 "register_operand" "=&d")
+	(match_operand:GPR 1 "memory_operand" "+YR"))
+   (set (match_dup 1)
+	(unspec_volatile:GPR [(match_operand:GPR 2 "reg_or_0_operand" "d")
+			      (match_operand:GPR 3 "reg_or_0_operand" "d")]
+	 UNSPEC_COMPARE_AND_SWAP))
+   (clobber (match_scratch:GPR 4 "=d"))]
+  ""
+  "1: lr.<amo> %0,%1; bne %0,%2,1f; sc.<amo> %4,%3,%1; bnez %4,1b; 1:"
+  [(set (attr "length") (const_int 16))])
