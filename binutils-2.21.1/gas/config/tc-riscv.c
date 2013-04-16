@@ -327,10 +327,6 @@ static void s_pic (int);
 static void s_nopic (int);
 static void s_dtprelword (int);
 static void s_dtpreldword (int);
-static void s_gpword (int);
-static void s_gpdword (int);
-static void s_insn (int);
-static void s_mips_stab (int);
 static void s_mips_weakext (int);
 static void s_mips_file (int);
 static void s_mips_loc (int);
@@ -359,14 +355,10 @@ static const pseudo_typeS mips_pseudo_table[] =
   /* MIPS specific pseudo-ops.  */
   {"set", s_mipsset, 0},
   {"rdata", s_change_sec, 'r'},
-  {"sdata", s_change_sec, 's'},
   {"pic", s_pic, 0},
   {"nopic", s_nopic, 0},
   {"dtprelword", s_dtprelword, 0},
   {"dtpreldword", s_dtpreldword, 0},
-  {"gpword", s_gpword, 0},
-  {"gpdword", s_gpdword, 0},
-  {"insn", s_insn, 0},
 
   /* Relatively generic pseudo-ops that happen to be used on MIPS
      chips.  */
@@ -396,7 +388,6 @@ static const pseudo_typeS mips_pseudo_table[] =
   {"section", s_change_section, 0},
   {"short", s_cons, 1},
   {"single", s_float_cons, 'f'},
-  {"stabn", s_mips_stab, 'n'},
   {"text", s_change_sec, 't'},
   {"word", s_cons, 2},
 
@@ -2581,28 +2572,8 @@ static const struct percent_op_match mips_percent_op[] =
 {
   {"%lo", BFD_RELOC_LO16},
 #ifdef OBJ_ELF
-  {"%call_hi", BFD_RELOC_MIPS_CALL_HI16},
-  {"%call_lo", BFD_RELOC_MIPS_CALL_LO16},
-  {"%call16", BFD_RELOC_MIPS_CALL16},
-  {"%got_disp", BFD_RELOC_MIPS_GOT_DISP},
-  {"%got_hi", BFD_RELOC_MIPS_GOT_HI16},
-  {"%got_lo", BFD_RELOC_MIPS_GOT_LO16},
-  {"%got", BFD_RELOC_MIPS_GOT16},
-  {"%gp_rel", BFD_RELOC_GPREL16},
-  {"%neg", BFD_RELOC_MIPS_SUB},
-  {"%tlsgd", BFD_RELOC_MIPS_TLS_GD},
-  {"%tlsgd_hi", BFD_RELOC_RISCV_TLS_GD_HI16},
-  {"%tlsgd_lo", BFD_RELOC_RISCV_TLS_GD_LO16},
-  {"%tlsldm", BFD_RELOC_MIPS_TLS_LDM},
-  {"%tlsldm_hi", BFD_RELOC_RISCV_TLS_LDM_HI16},
-  {"%tlsldm_lo", BFD_RELOC_RISCV_TLS_LDM_LO16},
-  {"%dtprel_hi", BFD_RELOC_MIPS_TLS_DTPREL_HI16},
-  {"%dtprel_lo", BFD_RELOC_MIPS_TLS_DTPREL_LO16},
   {"%tprel_hi", BFD_RELOC_MIPS_TLS_TPREL_HI16},
   {"%tprel_lo", BFD_RELOC_MIPS_TLS_TPREL_LO16},
-  {"%gottprel", BFD_RELOC_MIPS_TLS_GOTTPREL},
-  {"%gottp_hi", BFD_RELOC_RISCV_TLS_GOT_HI16},
-  {"%gottp_lo", BFD_RELOC_RISCV_TLS_GOT_LO16},
 #endif
   {"%hi", BFD_RELOC_HI16_S}
 };
@@ -3195,18 +3166,6 @@ s_change_sec (int sec)
 	}
       demand_empty_rest_of_line ();
       break;
-
-    case 's':
-      seg = subseg_new (".sdata", (subsegT) get_absolute_expression ());
-      if (IS_ELF)
-	{
-	  bfd_set_section_flags (stdoutput, seg,
-				 SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA);
-	  if (strncmp (TARGET_OS, "elf", 3) != 0)
-	    record_alignment (seg, 4);
-	}
-      demand_empty_rest_of_line ();
-      break;
     }
 
   auto_align = 1;
@@ -3511,120 +3470,6 @@ static void
 s_dtpreldword (int ignore ATTRIBUTE_UNUSED)
 {
   s_dtprel_internal (8);
-}
-
-/* Handle the .gpword pseudo-op.  This is used when generating PIC
-   code.  It generates a 32 bit GP relative reloc.  */
-
-static void
-s_gpword (int ignore ATTRIBUTE_UNUSED)
-{
-  segment_info_type *si;
-  struct insn_label_list *l;
-  symbolS *label;
-  expressionS ex;
-  char *p;
-
-  /* When not generating PIC code, this is treated as .word.  */
-  if (!is_pic)
-    {
-      s_cons (2);
-      return;
-    }
-
-  si = seg_info (now_seg);
-  l = si->label_list;
-  label = l != NULL ? l->label : NULL;
-  mips_clear_insn_labels ();
-  if (auto_align)
-    mips_align (2, 0, label);
-  mips_clear_insn_labels ();
-
-  expression (&ex);
-
-  if (ex.X_op != O_symbol || ex.X_add_number != 0)
-    {
-      as_bad (_("Unsupported use of .gpword"));
-      ignore_rest_of_line ();
-    }
-
-  p = frag_more (4);
-  md_number_to_chars (p, 0, 4);
-  fix_new_exp (frag_now, p - frag_now->fr_literal, 4, &ex, FALSE,
-	       BFD_RELOC_GPREL32);
-
-  demand_empty_rest_of_line ();
-}
-
-static void
-s_gpdword (int ignore ATTRIBUTE_UNUSED)
-{
-  segment_info_type *si;
-  struct insn_label_list *l;
-  symbolS *label;
-  expressionS ex;
-  char *p;
-
-  /* When not generating PIC code, this is treated as .dword.  */
-  if (!is_pic)
-    {
-      s_cons (3);
-      return;
-    }
-
-  si = seg_info (now_seg);
-  l = si->label_list;
-  label = l != NULL ? l->label : NULL;
-  mips_clear_insn_labels ();
-  if (auto_align)
-    mips_align (3, 0, label);
-  mips_clear_insn_labels ();
-
-  expression (&ex);
-
-  if (ex.X_op != O_symbol || ex.X_add_number != 0)
-    {
-      as_bad (_("Unsupported use of .gpdword"));
-      ignore_rest_of_line ();
-    }
-
-  p = frag_more (8);
-  md_number_to_chars (p, 0, 8);
-  fix_new_exp (frag_now, p - frag_now->fr_literal, 4, &ex, FALSE,
-	       BFD_RELOC_GPREL32)->fx_tcbit = 1;
-
-  /* GPREL32 composed with 64 gives a 64-bit GP offset.  */
-  fix_new (frag_now, p - frag_now->fr_literal, 8, NULL, 0,
-	   FALSE, BFD_RELOC_64)->fx_tcbit = 1;
-
-  demand_empty_rest_of_line ();
-}
-
-/* Handle the .insn pseudo-op.  This marks instruction labels in
-   mips16 mode.  This permits the linker to handle them specially,
-   such as generating jalx instructions when needed.  We also make
-   them odd for the duration of the assembly, in order to generate the
-   right sort of code.  We will make them even in the adjust_symtab
-   routine, while leaving them marked.  This is convenient for the
-   debugger and the disassembler.  The linker knows to make them odd
-   again.  */
-
-static void
-s_insn (int ignore ATTRIBUTE_UNUSED)
-{
-  demand_empty_rest_of_line ();
-}
-
-/* Handle a .stabn directive.  We need these in order to mark a label
-   as being a mips16 text label correctly.  Sometimes the compiler
-   will emit a label, followed by a .stabn, and then switch sections.
-   If the label and .stabn are in mips16 mode, then the label is
-   really a mips16 text label.  */
-
-static void
-s_mips_stab (int type)
-{
-  s_stab (type);
 }
 
 /* Handle the .weakext pseudo-op as defined in Kane and Heinrich.  */

@@ -52,10 +52,6 @@
 (define_register_constraint "z" "GR_REGS"
   "A floating-point condition code register.")
 
-(define_constraint "kf"
-  "@internal"
-  (match_operand 0 "force_to_mem_operand"))
-
 ;; This is a normal rather than a register constraint because we can
 ;; never use the stack pointer as a reload register.
 (define_constraint "ks"

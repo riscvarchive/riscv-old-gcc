@@ -301,16 +301,6 @@ struct mips_elf_link_hash_table
   bfd_size_type dynsym_sec_strindex[SIZEOF_MIPS_DYNSYM_SECNAMES];
 #endif
 
-  /* The number of .rtproc entries.  */
-  bfd_size_type procedure_count;
-
-  /* This flag indicates that the value of DT_MIPS_RLD_MAP dynamic
-     entry is set to the address of __rld_obj_head as in IRIX5.  */
-  bfd_boolean use_rld_obj_head;
-
-  /* This is the value of the __rld_map or __rld_obj_head symbol.  */
-  bfd_vma rld_value;
-
   /* True if we can generate copy relocs and PLTs.  */
   bfd_boolean use_plts_and_copy_relocs;
 
@@ -1279,15 +1269,11 @@ mips_elf_output_extsym (struct mips_elf_link_hash_entry *h, void *data)
 		h->esym.asym.sc = scText;
 	      else if (strcmp (name, ".data") == 0)
 		h->esym.asym.sc = scData;
-	      else if (strcmp (name, ".sdata") == 0)
-		h->esym.asym.sc = scSData;
 	      else if (strcmp (name, ".rodata") == 0
 		       || strcmp (name, ".rdata") == 0)
 		h->esym.asym.sc = scRData;
 	      else if (strcmp (name, ".bss") == 0)
 		h->esym.asym.sc = scBss;
-	      else if (strcmp (name, ".sbss") == 0)
-		h->esym.asym.sc = scSBss;
 	      else if (strcmp (name, ".init") == 0)
 		h->esym.asym.sc = scInit;
 	      else if (strcmp (name, ".fini") == 0)
@@ -1306,10 +1292,8 @@ mips_elf_output_extsym (struct mips_elf_link_hash_entry *h, void *data)
   else if (h->root.root.type == bfd_link_hash_defined
 	   || h->root.root.type == bfd_link_hash_defweak)
     {
-      if (h->esym.asym.sc == scCommon)
+      if (h->esym.asym.sc == scCommon || h->esym.asym.sc == scSCommon)
 	h->esym.asym.sc = scBss;
-      else if (h->esym.asym.sc == scSCommon)
-	h->esym.asym.sc = scSBss;
 
       sec = h->root.root.u.def.section;
       output_section = sec->output_section;
@@ -2666,8 +2650,7 @@ mips_elf_create_got_section (bfd *abfd, struct bfd_link_info *info)
   if (g->got_page_entries == NULL)
     return FALSE;
   htab->got_info = g;
-  mips_elf_section_data (s)->elf.this_hdr.sh_flags
-    |= SHF_ALLOC | SHF_WRITE | SHF_MIPS_GPREL;
+  mips_elf_section_data (s)->elf.this_hdr.sh_flags |= SHF_ALLOC | SHF_WRITE;
 
   /* We also need a .got.plt section when generating PLTs.  */
   s = bfd_make_section_with_flags (abfd, ".got.plt",
@@ -3637,31 +3620,7 @@ _bfd_riscv_elf_section_processing (bfd *abfd, Elf_Internal_Shdr *hdr)
     {
       const char *name = bfd_get_section_name (abfd, hdr->bfd_section);
 
-      /* .sbss is not handled specially here because the GNU/Linux
-	 prelinker can convert .sbss from NOBITS to PROGBITS and
-	 changing it back to NOBITS breaks the binary.  The entry in
-	 _bfd_riscv_elf_special_sections will ensure the correct flags
-	 are set on .sbss if BFD creates it without reading it from an
-	 input file, and without special handling here the flags set
-	 on it in an input file will be followed.  */
-      if (strcmp (name, ".sdata") == 0
-	  || strcmp (name, ".lit8") == 0
-	  || strcmp (name, ".lit4") == 0)
-	{
-	  hdr->sh_flags |= SHF_ALLOC | SHF_WRITE | SHF_MIPS_GPREL;
-	  hdr->sh_type = SHT_PROGBITS;
-	}
-      else if (strcmp (name, ".srdata") == 0)
-	{
-	  hdr->sh_flags |= SHF_ALLOC | SHF_MIPS_GPREL;
-	  hdr->sh_type = SHT_PROGBITS;
-	}
-      else if (strcmp (name, ".compact_rel") == 0)
-	{
-	  hdr->sh_flags = 0;
-	  hdr->sh_type = SHT_PROGBITS;
-	}
-      else if (strcmp (name, ".rtproc") == 0)
+      if (strcmp (name, ".rtproc") == 0)
 	{
 	  if (hdr->sh_addralign != 0 && hdr->sh_entsize == 0)
 	    {
@@ -4128,16 +4087,6 @@ _bfd_riscv_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
   if (! mips_elf_rel_dyn_section (info, TRUE))
     return FALSE;
 
-  if (!info->shared && bfd_get_section_by_name (abfd, ".rld_map") == NULL)
-    {
-      s = bfd_make_section_with_flags (abfd, ".rld_map",
-				       flags &~ (flagword) SEC_READONLY);
-      if (s == NULL
-	  || ! bfd_set_section_alignment (abfd, s,
-					  MIPS_ELF_LOG_FILE_ALIGN (abfd)))
-	return FALSE;
-    }
-
   if (!info->shared)
     {
       const char *name;
@@ -4156,31 +4105,6 @@ _bfd_riscv_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
 
       if (! bfd_elf_link_record_dynamic_symbol (info, h))
 	return FALSE;
-
-      if (! mips_elf_hash_table (info)->use_rld_obj_head)
-	{
-	  /* __rld_map is a four byte word located in the .data section
-	     and is filled in by the rtld to contain a pointer to
-	     the _r_debug structure. Its symbol value will be set in
-	     _bfd_riscv_elf_finish_dynamic_symbol.  */
-	  s = bfd_get_section_by_name (abfd, ".rld_map");
-	  BFD_ASSERT (s != NULL);
-
-	  name = "__RLD_MAP";
-	  bh = NULL;
-	  if (!(_bfd_generic_link_add_one_symbol
-		(info, abfd, name, BSF_GLOBAL, s, 0, NULL, FALSE,
-		 get_elf_backend_data (abfd)->collect, &bh)))
-	    return FALSE;
-
-	  h = (struct elf_link_hash_entry *) bh;
-	  h->non_elf = 0;
-	  h->def_regular = 1;
-	  h->type = STT_OBJECT;
-
-	  if (! bfd_elf_link_record_dynamic_symbol (info, h))
-	    return FALSE;
-	}
     }
 
   /* Create the .plt, .rel(a).plt, .dynbss and .rel(a).bss sections.
@@ -5122,14 +5046,6 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	      info->combreloc = 0;
 	    }
 	}
-      else if (! info->shared
-	       && ! mips_elf_hash_table (info)->use_rld_obj_head
-	       && CONST_STRNEQ (name, ".rld_map"))
-	{
-	  /* We add a room for __rld_map.  It will be filled in by the
-	     rtld to contain a pointer to the _r_debug structure.  */
-	  s->size += 4;
-	}
       else if (s == htab->splt)
 	{
 	}
@@ -5166,14 +5082,6 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	 values later, in _bfd_riscv_elf_finish_dynamic_sections, but we
 	 must add the entries now so that we get the correct size for
 	 the .dynamic section.  */
-
-      /* SGI object has the equivalence of DT_DEBUG in the
-	 DT_MIPS_RLD_MAP entry.  This must come first because glibc
-	 only fills in DT_MIPS_RLD_MAP (not DT_DEBUG) and GDB only
-	 looks at the first one it sees.  */
-      if (!info->shared
-	  && !MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_RLD_MAP, 0))
-	return FALSE;
 
       /* The DT_DEBUG entry may be filled in by the dynamic linker and
 	 used by the debugger.  */
@@ -5633,27 +5541,6 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
 					  h->dynindx, R_RISCV_COPY, symval);
     }
 
-  if (! info->shared)
-    {
-      if (! mips_elf_hash_table (info)->use_rld_obj_head
-	  && (strcmp (name, "__rld_map") == 0
-	      || strcmp (name, "__RLD_MAP") == 0))
-	{
-	  asection *s = bfd_get_section_by_name (dynobj, ".rld_map");
-	  BFD_ASSERT (s != NULL);
-	  sym->st_value = s->output_section->vma + s->output_offset;
-	  bfd_put_32 (output_bfd, 0, s->contents);
-	  if (mips_elf_hash_table (info)->rld_value == 0)
-	    mips_elf_hash_table (info)->rld_value = sym->st_value;
-	}
-      else if (mips_elf_hash_table (info)->use_rld_obj_head
-	       && strcmp (name, "__rld_obj_head") == 0)
-	{
-	  BFD_ASSERT (bfd_get_section_by_name (dynobj, ".rld_map") != NULL);
-	  mips_elf_hash_table (info)->rld_value = sym->st_value;
-	}
-    }
-
   return TRUE;
 }
 
@@ -5814,10 +5701,6 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 
 	    case DT_MIPS_HIPAGENO:
 	      dyn.d_un.d_val = g->local_gotno - htab->reserved_gotno;
-	      break;
-
-	    case DT_MIPS_RLD_MAP:
-	      dyn.d_un.d_ptr = mips_elf_hash_table (info)->rld_value;
 	      break;
 
 	    case DT_MIPS_OPTIONS:
@@ -6705,9 +6588,6 @@ _bfd_riscv_elf_link_hash_table_create (bfd *abfd)
   for (i = 0; i < SIZEOF_MIPS_DYNSYM_SECNAMES; i++)
     ret->dynsym_sec_strindex[i] = (bfd_size_type) -1;
 #endif
-  ret->procedure_count = 0;
-  ret->use_rld_obj_head = FALSE;
-  ret->rld_value = 0;
   ret->use_plts_and_copy_relocs = FALSE;
   ret->srelbss = NULL;
   ret->sdynbss = NULL;
@@ -6756,12 +6636,12 @@ _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
   static const char * const secname[] =
   {
     ".text", ".init", ".fini", ".data",
-    ".rodata", ".sdata", ".sbss", ".bss"
+    ".rodata", ".bss"
   };
   static const int sc[] =
   {
     scText, scInit, scFini, scData,
-    scRData, scSData, scSBss, scBss
+    scRData, scBss
   };
 
   /* Sort the dynamic symbols so that those with GOT entries come after

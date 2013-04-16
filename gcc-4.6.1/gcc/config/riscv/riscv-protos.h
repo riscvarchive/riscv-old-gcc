@@ -32,32 +32,9 @@ along with GCC; see the file COPYING3.  If not see
        The symbol's value will be calculated using absolute relocations,
        such as %hi and %lo.
 
-   SYMBOL_FORCE_TO_MEM
-       The symbol's value must be forced to memory and loaded from there.
-
-   SYMBOL_GOT_DISP
-       The symbol's value will be loaded directly from the GOT.
-
-   SYMBOL_GOTOFF_DISP
-       An UNSPEC wrapper around a SYMBOL_GOT_DISP.  It represents the
-       the offset from _gp of the symbol's GOT entry.
-
-   SYMBOL_GOTOFF_CALL
-       Like SYMBOL_GOTOFF_DISP, but used when calling a global function.
-       The GOT entry is allowed to point to a stub rather than to the
-       function itself.
-
-   SYMBOL_GOTOFF_LOADGP
-       An UNSPEC wrapper around a function's address.  It represents the
-       offset of _gp from the start of the function.
-
    SYMBOL_TLS
        A thread-local symbol.
 
-   SYMBOL_TLSGD
-   SYMBOL_TLSLDM
-   SYMBOL_DTPREL
-   SYMBOL_GOTTPREL
    SYMBOL_TPREL
        UNSPEC wrappers around SYMBOL_TLS, corresponding to the
        thread-local storage relocation operators.
@@ -66,20 +43,10 @@ along with GCC; see the file COPYING3.  If not see
        For a 32-bit symbolic address X, this is the value of %hi(X). */
 enum mips_symbol_type {
   SYMBOL_ABSOLUTE,
-  SYMBOL_FORCE_TO_MEM,
-  SYMBOL_GOT_DISP,
-  SYMBOL_GOTOFF_DISP,
-  SYMBOL_GOTOFF_CALL,
-  SYMBOL_GOTOFF_LOADGP,
   SYMBOL_TLS,
-  SYMBOL_TLSGD,
-  SYMBOL_TLSLDM,
-  SYMBOL_DTPREL,
-  SYMBOL_GOTTPREL,
   SYMBOL_TPREL,
-  SYMBOL_32_HIGH
 };
-#define NUM_SYMBOL_TYPES (SYMBOL_32_HIGH + 1)
+#define NUM_SYMBOL_TYPES (SYMBOL_TPREL + 1)
 
 /* Classifies a type of call.
 

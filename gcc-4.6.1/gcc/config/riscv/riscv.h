@@ -178,8 +178,6 @@ struct mips_cpu_info {
 #define MIPS_CPU_STRING_DEFAULT "rocket"
 #endif
 
-#define TARGET_LIBGCC_SDATA_SECTION ".sdata"
-
 #ifndef MULTILIB_ENDIAN_DEFAULT
 #if TARGET_ENDIAN_DEFAULT == 0
 #define MULTILIB_ENDIAN_DEFAULT "EL"

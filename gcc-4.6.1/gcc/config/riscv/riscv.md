@@ -47,10 +47,6 @@
   UNSPEC_SET_HILO
 
   ;; GP manipulation.
-  UNSPEC_LOADGP
-  UNSPEC_COPYGP
-  UNSPEC_MOVE_GP
-  UNSPEC_RESTORE_GP
   UNSPEC_EH_RETURN
   UNSPEC_SET_GOT_VERSION
   UNSPEC_UPDATE_GOT_VERSION
@@ -59,7 +55,7 @@
   UNSPEC_LOAD_CALL
   UNSPEC_LOAD_GOT
   UNSPEC_TLS_GD
-  UNSPEC_TLS_LDM
+  UNSPEC_TLS_IE
 
   ;; MIPS16 constant pools.
   UNSPEC_ALIGN
@@ -1840,7 +1836,7 @@
 (define_insn "got_load_tls_ie<mode>"
   [(set (match_operand:P 0 "register_operand" "=d")
        (unspec:P [(match_operand:P 1 "symbolic_operand" "")]
-                 UNSPEC_TLS_LDM))]
+                 UNSPEC_TLS_IE))]
   "TARGET_USE_GOT"
   "la.tls.ie\t%0,%1"
   [(set_attr "got" "load")

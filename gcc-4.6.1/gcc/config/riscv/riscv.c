@@ -656,43 +656,34 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
       x = UNSPEC_ADDRESS (x);
     }
   else if (GET_CODE (x) == SYMBOL_REF || GET_CODE (x) == LABEL_REF)
-    {
-      *symbol_type = mips_classify_symbol (x);
-      if (*symbol_type == SYMBOL_TLS)
-	return true; //false;
-    }
+    *symbol_type = mips_classify_symbol (x);
   else
     return false;
 
   if (offset == const0_rtx)
     return true;
 
+  if (flag_pic)
+  /* Load the base address from the GOT, then add the offset. The offset
+     calculation can usually be folded into the load or store instruction. */
+    return false;
+
   /* Check whether a nonzero offset is valid for the underlying
      relocations.  */
   switch (*symbol_type)
     {
     case SYMBOL_ABSOLUTE:
-    case SYMBOL_FORCE_TO_MEM:
-    case SYMBOL_32_HIGH:
-      if (flag_pic)
-	return false;
       /* If the target has 64-bit pointers and the object file only
 	 supports 32-bit symbols, the values of those symbols will be
 	 sign-extended.  In this case we can't allow an arbitrary offset
 	 in case the 32-bit value X + OFFSET has a different sign from X.  */
-      if (Pmode == DImode)
-	return offset_within_block_p (x, INTVAL (offset));
-      /* In other cases the relocations can handle any offset.  */
-      return true;
+      return Pmode == SImode || offset_within_block_p (x, INTVAL (offset));
 
     case SYMBOL_TPREL:
-    case SYMBOL_DTPREL:
       /* There is no carry between the HI and LO REL relocations, so the
 	 offset is only valid if we know it won't lead to such a carry.  */
       return mips_offset_within_alignment_p (x, INTVAL (offset));
 
-    case SYMBOL_TLSGD:
-    case SYMBOL_TLSLDM:
     case SYMBOL_TLS:
       return false;
     }
@@ -710,23 +701,9 @@ mips_symbol_insns (enum mips_symbol_type type, enum machine_mode mode)
   switch (type)
     {
     case SYMBOL_ABSOLUTE:
-      return 2;
-
-    case SYMBOL_FORCE_TO_MEM:
-      /* The constant must be loaded and then dereferenced.  */
-      return 0;
-
-    case SYMBOL_32_HIGH:
-    case SYMBOL_TLSGD:
-    case SYMBOL_TLSLDM:
-    case SYMBOL_DTPREL:
     case SYMBOL_TPREL:
-      /* A 16-bit constant formed by a single relocation, or a 32-bit
-	 constant formed from a high 16-bit relocation and a low 16-bit
-	 relocation.  Use mips_split_p to determine which.  32-bit
-	 constants need an "lui; addiu" sequence for normal mode and
-	 an "li; sll; addiu" sequence for MIPS16 mode.  */
-      return !mips_split_p[type] ? 1 : 2;
+      /* One of LUI or LUIPC, followed by one of ADDI, LD, or LW. */
+      return 2;
 
     case SYMBOL_TLS:
       /* We don't treat a bare TLS symbol as a constant.  */
@@ -770,7 +747,7 @@ mips_cannot_force_const_mem (rtx x)
     return true;
 
   split_const (x, &base, &offset);
-  if (mips_symbolic_constant_p (base, &type) && type != SYMBOL_FORCE_TO_MEM)
+  if (mips_symbolic_constant_p (base, &type))
     {
       /* The same optimization as for CONST_INT.  */
       if (SMALL_INT (offset) && mips_symbol_insns (type, MAX_MACHINE_MODE) > 0)
@@ -917,10 +894,7 @@ mips_classify_address (struct mips_address_info *info, rtx x,
     case LABEL_REF:
     case SYMBOL_REF:
       info->type = ADDRESS_SYMBOLIC;
-      return (!flag_pic
-              && mips_symbolic_constant_p (x, &info->symbol_type)
-	      && mips_symbol_insns (info->symbol_type, mode) > 0
-	      && !mips_split_p[info->symbol_type]);
+      return false;
 
     default:
       return false;
@@ -1265,7 +1239,7 @@ static GTY(()) rtx mips_tls_symbol;
    return value location.  */
 
 static rtx
-mips_call_tls_get_addr (rtx sym, enum mips_symbol_type type ATTRIBUTE_UNUSED, rtx v0)
+mips_call_tls_get_addr (rtx sym, rtx v0)
 {
   rtx insn, a0;
 
@@ -1310,7 +1284,7 @@ mips_legitimize_tls_address (rtx loc)
       /* We don't support LDM TLS, so fall through.*/
     case TLS_MODEL_GLOBAL_DYNAMIC:
       v0 = gen_rtx_REG (Pmode, GP_RETURN);
-      insn = mips_call_tls_get_addr (loc, SYMBOL_TLSGD, v0);
+      insn = mips_call_tls_get_addr (loc, v0);
       dest = gen_reg_rtx (Pmode);
       emit_libcall_block (insn, dest, v0, loc);
       break;
@@ -1774,11 +1748,6 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
     case SYMBOL_REF:
     case LABEL_REF:
     case CONST_DOUBLE:
-      if (force_to_mem_operand (x, VOIDmode))
-	{
-	  *total = COSTS_N_INSNS (1);
-	  return true;
-	}
       cost = mips_const_insns (x);
       if (cost > 0)
 	{
@@ -3290,25 +3259,7 @@ mips_init_relocs (void)
       mips_split_p[SYMBOL_ABSOLUTE] = true;
       mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
       mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
-
-      mips_lo_relocs[SYMBOL_32_HIGH] = "%hi(";
     }
-
-  mips_split_p[SYMBOL_TLSGD] = true;
-  mips_hi_relocs[SYMBOL_TLSGD] = "%tlsgd_hi(";
-  mips_lo_relocs[SYMBOL_TLSGD] = "%tlsgd_lo(";
-
-  mips_split_p[SYMBOL_TLSLDM] = true;
-  mips_hi_relocs[SYMBOL_TLSLDM] = "%tlsldm_hi(";
-  mips_lo_relocs[SYMBOL_TLSLDM] = "%tlsldm_lo(";
-
-  mips_split_p[SYMBOL_GOTOFF_LOADGP] = true;
-  mips_hi_relocs[SYMBOL_GOTOFF_LOADGP] = "%hi(%neg(%gp_rel(";
-  mips_lo_relocs[SYMBOL_GOTOFF_LOADGP] = "%lo(%neg(%gp_rel(";
-
-  mips_split_p[SYMBOL_DTPREL] = true;
-  mips_hi_relocs[SYMBOL_DTPREL] = "%dtprel_hi(";
-  mips_lo_relocs[SYMBOL_DTPREL] = "%dtprel_lo(";
 
   mips_split_p[SYMBOL_TPREL] = true;
   mips_hi_relocs[SYMBOL_TPREL] = "%tprel_hi(";
