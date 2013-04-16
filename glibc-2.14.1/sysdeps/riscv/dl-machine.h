@@ -666,7 +666,7 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
 # ifndef RTLD_BOOTSTRAP
   ElfW(Addr) *got;
   extern void _dl_runtime_resolve (ElfW(Word));
-  extern void _dl_runtime_pltresolve (void);
+  extern void _dl_fixup (void);
   extern int _dl_mips_gnu_objects;
 
   if (lazy)
@@ -703,7 +703,7 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
 	 The prelinker saved the address of .plt for us here.  */
       if (gotplt[1])
 	l->l_mach.plt = gotplt[1] + l->l_addr;
-      gotplt[0] = (ElfW(Addr)) &_dl_runtime_pltresolve;
+      gotplt[0] = (ElfW(Addr)) &_dl_fixup;
       gotplt[1] = (ElfW(Addr)) l;
     }
 

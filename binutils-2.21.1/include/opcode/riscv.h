@@ -68,6 +68,8 @@ static const char rvc_rs2_regmap[8] = { 20, 21, 2, 3, 4, 5, 6, 0 };
   ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | (((bigimm) & ((1<<RISCV_BIGIMM_BITS)-1)) << OP_SH_BIGIMMEDIATE))
 #define RISCV_ITYPE(insn, rd, rs1, imm) \
   ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS) | (((imm) & (RISCV_IMM_REACH-1)) << OP_SH_IMMEDIATE))
+#define RISCV_BTYPE(insn, rs1, rs2, imm) \
+  ((MATCH_ ## insn) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT) | (((imm) & OP_MASK_IMMLO) << OP_SH_IMMLO) | ((((imm) >> RISCV_IMMLO_BITS) & OP_MASK_IMMHI) << OP_SH_IMMHI))
 #define RISCV_RTYPE(insn, rd, rs1, rs2) \
   ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT))
 

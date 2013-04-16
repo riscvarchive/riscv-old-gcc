@@ -531,6 +531,7 @@ static bfd *reldyn_sorting_bfd;
    && OPCODE_IS_STORE(opcode))
 
 #define MATCH_LREG(abfd) (ABI_64_P(abfd) ? MATCH_LD : MATCH_LW)
+#define MATCH_SREG(abfd) (ABI_64_P(abfd) ? MATCH_SD : MATCH_SW)
 
 #define OPCODE_MATCHES(OPCODE, OP) \
   (((OPCODE) & MASK_##OP) == MATCH_##OP)
@@ -542,29 +543,64 @@ static bfd *reldyn_sorting_bfd;
 
 /* The format of the first PLT entry.  */
 
-#define RISCV_PLT0_ENTRY_INSNS 8
+#define RISCV_PLT0_ENTRY_INSNS 32
 static void
 riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value,
                       bfd_vma entry[RISCV_PLT0_ENTRY_INSNS])
 {
-  /* lui    t2, %hi(GOTPLT)
-     l[w|d] t7, %lo(GOTPLT)(t2)
-     addi   t2, t2, %lo(GOTPLT)
-     sub    t6, t6, t2
-     move   t5, ra
-     srli   t6, t6, (RV32 ? 2 : 3)
-     addi   t6, t6, -2
-     jalr   t7
+  /* addi   sp, sp, -72
+     sd     ra, 64(sp)
+     sd     a7, 56(sp)
+     sd     a6, 48(sp)
+     sd     a5, 40(sp)
+     sd     a4, 32(sp)
+     sd     a3, 24(sp)
+     sd     a2, 16(sp)
+     sd     a1,  8(sp)
+     sd     a0,  0(sp)
+     lui    v0, %hi(GOTPLT)
+     sub    a1, v1, v0
+     ld     a0, %lo(GOTPLT)+8(v0)  # assumes .got.plt is 16B aligned
+     sub    a1, a1, %lo(GOTPLT)
+     ld     v0, %lo(GOTPLT)(v0)
+     slli   a1, a1, 1
+     addi   a1, a1, -32
+     jalr   v0
+     ld     ra, 64(sp)
+     ld     a7, 56(sp)
+     ld     a6, 48(sp)
+     ld     a5, 40(sp)
+     ld     a4, 32(sp)
+     ld     a3, 24(sp)
+     ld     a2, 16(sp)
+     ld     a1,  8(sp)
+     ld     a0,  0(sp)
+     addi   sp, sp, 72
+     jr     v0
   */
 
-  entry[0] = RISCV_LTYPE(LUI, 14, RISCV_LUI_HIGH_PART(gotplt_value));
-  entry[1] = RISCV_ITYPE(LREG(abfd),  19, 14, RISCV_CONST_LOW_PART(gotplt_value));
-  entry[2] = RISCV_ITYPE(ADDI, 14, 14, RISCV_CONST_LOW_PART(gotplt_value));
-  entry[3] = RISCV_RTYPE(SUB, 18, 18, 14);
-  entry[4] = RISCV_ITYPE(ADDI, 17, LINK_REG, 0);
-  entry[5] = RISCV_ITYPE(SRLI, 18, 18, ABI_64_P(abfd) ? 3 : 2);
-  entry[6] = RISCV_ITYPE(ADDI, 18, 18, -2);
-  entry[7] = RISCV_ITYPE(JALR_C, LINK_REG, 19, 0);
+  int i = 0, j, regbytes = ABI_64_P(abfd) ? 8 : 4;
+  entry[i++] = RISCV_ITYPE(ADDI, 30, 30, -10*regbytes);
+  entry[i++] = RISCV_BTYPE(SREG(abfd), 30, LINK_REG, 9*regbytes);
+  for (j = 0; j < 8; j++)
+    entry[i++] = RISCV_BTYPE(SREG(abfd), 30, 4+j, j*regbytes);
+  entry[i++] = RISCV_LTYPE(LUI, 2, RISCV_LUI_HIGH_PART(gotplt_value));
+  entry[i++] = RISCV_RTYPE(SUB, 5, 3, 2);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), 4, 2, RISCV_CONST_LOW_PART(regbytes+gotplt_value));
+  entry[i++] = RISCV_ITYPE(ADDI, 5, 5, RISCV_CONST_LOW_PART(-gotplt_value));
+  entry[i++] = RISCV_ITYPE(LREG(abfd), 2, 2, RISCV_CONST_LOW_PART(gotplt_value));
+  entry[i++] = RISCV_ITYPE(SLLI, 5, 5, 1);
+  entry[i++] = RISCV_ITYPE(ADDI, 5, 5, -4*regbytes);
+  entry[i++] = RISCV_ITYPE(JALR_C, LINK_REG, 2, 0);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, 30, 9*regbytes);
+  for (j = 0; j < 8; j++)
+    entry[i++] = RISCV_ITYPE(LREG(abfd), 4+j, 30, j*regbytes);
+  entry[i++] = RISCV_ITYPE(ADDI, 30, 30, 10*regbytes);
+  entry[i++] = RISCV_ITYPE(JALR_J, 0, 2, 0);
+
+  BFD_ASSERT(i <= RISCV_PLT0_ENTRY_INSNS);
+  while (i < RISCV_PLT0_ENTRY_INSNS)
+    entry[i++] = RISCV_ITYPE(ADDI, 0, 0, 0);
 }
 
 /* The format of subsequent PLT entries.  */
@@ -574,16 +610,16 @@ static void
 riscv_make_plt_entry(bfd* abfd, bfd_vma got_address,
                      bfd_vma entry[RISCV_PLT_ENTRY_INSNS])
 {
-  /* lui    t6, %hi(.got.plt entry)
-     l[w|d] t7, %lo(.got.plt entry)(t6)
-     addi   t6, t6, %lo(.got.plt entry)
-     jr     t7
+  /* lui    v1, %hi(.got.plt entry)
+     l[w|d] v0, %lo(.got.plt entry)(t6)
+     addi   v1, v1, %lo(.got.plt entry)
+     jr     v0
   */
 
-  entry[0] = RISCV_LTYPE(LUI, 18, RISCV_LUI_HIGH_PART(got_address));
-  entry[1] = RISCV_ITYPE(LREG(abfd),  19, 18, RISCV_CONST_LOW_PART(got_address));
-  entry[2] = RISCV_ITYPE(ADDI, 18, 18, RISCV_CONST_LOW_PART(got_address));
-  entry[3] = RISCV_ITYPE(JALR_J, 0, 19, 0);
+  entry[0] = RISCV_LTYPE(LUI, 3, RISCV_LUI_HIGH_PART(got_address));
+  entry[1] = RISCV_ITYPE(LREG(abfd),  2, 3, RISCV_CONST_LOW_PART(got_address));
+  entry[2] = RISCV_ITYPE(ADDI, 3, 3, RISCV_CONST_LOW_PART(got_address));
+  entry[3] = RISCV_ITYPE(JALR_J, 0, 2, 0);
 }
 
 /* Look up an entry in a MIPS ELF linker hash table.  */
