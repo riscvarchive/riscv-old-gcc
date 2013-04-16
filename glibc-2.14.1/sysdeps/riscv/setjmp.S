@@ -44,7 +44,7 @@ ENTRY (__sigsetjmp)
   REG_S s9, 12*SZREG(a0)
 
 #ifdef __riscv_hard_float
-  mffsr t0
+  mffsr a3
 
   fsd  fs0, 8*0 + 14*SZREG(a0)
   fsd  fs1, 8*1 + 14*SZREG(a0)
@@ -57,7 +57,7 @@ ENTRY (__sigsetjmp)
   fsd  fs8, 8*8 + 14*SZREG(a0)
   fsd  fs9, 8*9 + 14*SZREG(a0)
 
-  REG_S t0, 13*SZREG(a0)
+  REG_S a3, 13*SZREG(a0)
 #endif
 
 #if defined NOT_IN_libc && defined IS_IN_rtld

@@ -23,7 +23,7 @@ setjmp:
   fsd   fs8, 8*8(a0)
   fsd   fs9, 9*8(a0)
 
-  mffsr t0
+  mffsr a2
 
   STORE s0,  10*8+ 0*REGBYTES(a0)
   STORE s1,  10*8+ 1*REGBYTES(a0)
@@ -38,7 +38,7 @@ setjmp:
   STORE sp,  10*8+10*REGBYTES(a0)
   STORE tp,  10*8+11*REGBYTES(a0)
   STORE ra,  10*8+12*REGBYTES(a0)
-  STORE t0,  10*8+13*REGBYTES(a0)
+  STORE a2,  10*8+13*REGBYTES(a0)
 
   li v0, 0
   ret
@@ -58,7 +58,7 @@ longjmp:
   fld   fs8, 8*8(a0)
   fld   fs9, 9*8(a0)
 
-  LOAD  t0,  10*8+13*REGBYTES(a0)
+  LOAD  a2,  10*8+13*REGBYTES(a0)
   LOAD  s0,  10*8+ 0*REGBYTES(a0)
   LOAD  s1,  10*8+ 1*REGBYTES(a0)
   LOAD  s2,  10*8+ 2*REGBYTES(a0)
@@ -73,7 +73,7 @@ longjmp:
   LOAD  tp,  10*8+11*REGBYTES(a0)
   LOAD  ra,  10*8+12*REGBYTES(a0)
 
-  mtfsr t0
+  mtfsr a2
 
   sltiu v0, a1, 1    # v0 = (a1 == 0)
   add   v0, v0, a1   # v0 = (a1 == 0) ? 1 : a1

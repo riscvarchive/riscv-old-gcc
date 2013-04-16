@@ -118,11 +118,11 @@ LEAF (__swapcontext)
 	REG_L	s9, (29 * SZREG + MCONTEXT_GREGS)(v0)
 	REG_L	sp, (30 * SZREG + MCONTEXT_GREGS)(v0)
 	REG_L	tp, (31 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	t7, MCONTEXT_PC(v0)
+	REG_L	v1, MCONTEXT_PC(v0)
 	addi    sp, sp, SZREG
 
 	move	v0, zero
-	jr	t7
+	jr	v1
 
 99:	PIC_J(__syscall_error)
 

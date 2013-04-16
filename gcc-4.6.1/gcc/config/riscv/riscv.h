@@ -807,7 +807,7 @@ struct mips_cpu_info {
 #define HARD_FRAME_POINTER_IS_ARG_POINTER 0
 
 /* Register in which static-chain is passed to a function.  */
-#define STATIC_CHAIN_REGNUM (GP_REG_FIRST + 15)
+#define STATIC_CHAIN_REGNUM GP_RETURN
 
 /* Registers used as temporaries in prologue/epilogue code:
 
@@ -826,7 +826,7 @@ struct mips_cpu_info {
    If we're generating interrupt handlers, we use K0 as a temporary register
    in prologue/epilogue code.  */
 
-#define MIPS_PROLOGUE_TEMP_REGNUM (GP_REG_FIRST + 3)
+#define MIPS_PROLOGUE_TEMP_REGNUM (GP_RETURN + 1)
 #define MIPS_EPILOGUE_TEMP_REGNUM (GP_REG_FIRST + 8)
 
 #define MIPS_PROLOGUE_TEMP(MODE) gen_rtx_REG (MODE, MIPS_PROLOGUE_TEMP_REGNUM)

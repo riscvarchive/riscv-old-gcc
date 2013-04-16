@@ -36,7 +36,7 @@ ENTRY (__longjmp)
 	REG_L s9, 12*SZREG(a0)
 
 #ifdef __riscv_hard_float
-	REG_L t0, 13*SZREG(a0)
+	REG_L a3, 13*SZREG(a0)
 
 	fld  fs0, 8*0 + 14*SZREG(a0)
 	fld  fs1, 8*1 + 14*SZREG(a0)
@@ -49,11 +49,11 @@ ENTRY (__longjmp)
 	fld  fs8, 8*8 + 14*SZREG(a0)
 	fld  fs9, 8*9 + 14*SZREG(a0)
 
-	mtfsr t0
+	mtfsr a3
 #endif
 
-	sltu t0, a1, 1    # t0 = (a1 == 0)
-	add  v0, t0, a1   # v0 = (a1 == 0 ? 1 : a1)
+	sltu a3, a1, 1    # a3 = (a1 == 0)
+	add  v0, a3, a1   # v0 = (a1 == 0 ? 1 : a1)
 	ret
 
 END(__longjmp)

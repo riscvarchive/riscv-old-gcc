@@ -5637,10 +5637,10 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 #define OP(X) gen_int_mode (X, SImode)
 #define MATCH_LREG ((Pmode) == DImode ? MATCH_LD : MATCH_LW)
 
-  /* luipc   t6, 0x0
-     l[wd]   v0, target_function_offset(t6)
-     l[wd]   $static_chain, static_chain_offset(t6)
-     jr      v0
+  /* luipc   v0, 0x0
+     l[wd]   v1, target_function_offset(v0)
+     l[wd]   $static_chain, static_chain_offset(v0)
+     jr      v1
   */
   i = 0;
 

@@ -89,11 +89,11 @@ LEAF (__setcontext)
 	REG_L	s9, (29 * SZREG + MCONTEXT_GREGS)(v0)
 	REG_L	sp, (30 * SZREG + MCONTEXT_GREGS)(v0)
 	REG_L	tp, (31 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	t7, MCONTEXT_PC(v0)
+	REG_L	v1, MCONTEXT_PC(v0)
 	addi    sp, sp, SZREG
 
 	move	v0, zero
-	jr	t7
+	jr	v1
 
 98:
 	/* This is a context obtained from a signal handler.
@@ -105,15 +105,15 @@ LEAF (__setcontext)
 
 	/* Only ucontext is referred to from rt_sigreturn,
 	   copy it.  */
-	addi    t1, sp, RT_SIGFRAME_UCONTEXT
-	li	t3, ((UCONTEXT_SIZE + SZREG - 1) / SZREG) - 1
+	addi    a1, sp, RT_SIGFRAME_UCONTEXT
+	li	v1, ((UCONTEXT_SIZE + SZREG - 1) / SZREG) - 1
 0:
-	REG_L	t2, (a0)
-	addi	t3, t3, -1
-	addi    t1, t1, SZREG
+	REG_L	v0, (a0)
+	addi	v1, v1, -1
+	addi    a1, a1, SZREG
 	addi    a0, a0, SZREG
-	REG_S	t2, -SZREG(t1)
-	bgez	t3, 0b
+	REG_S	v0, -SZREG(a1)
+	bgez	v1, 0b
 
 /* rt_sigreturn () -- no arguments, sp points to struct rt_sigframe.  */
 	li	v0, SYS_ify (rt_sigreturn)
