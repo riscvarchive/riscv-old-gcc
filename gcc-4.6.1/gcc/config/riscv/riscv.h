@@ -670,8 +670,8 @@ struct mips_cpu_info {
 
 #define FIXED_REGISTERS							\
 { /* General registers.  */                                             \
-  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1,			\
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   /* Floating-point registers.  */                                      \
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
@@ -699,11 +699,11 @@ struct mips_cpu_info {
 
 #define CALL_USED_REGISTERS						\
 { /* General registers.  */                                             \
-  1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1,			\
-  /* Floating-point registers.  */                                      \
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
+  /* Floating-point registers.  */                                      \
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   /* Vector General registers.  */                                      \
   1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
@@ -716,11 +716,11 @@ struct mips_cpu_info {
 
 #define CALL_REALLY_USED_REGISTERS                                      \
 { /* General registers.  */                                             \
-  1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,                       \
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,                       \
-  /* Floating-point registers.  */                                      \
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
+  /* Floating-point registers.  */                                      \
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   /* Vector General registers.  */                                      \
   1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,                       \
   1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,                       \
@@ -745,11 +745,11 @@ struct mips_cpu_info {
 #define FP_REG_NUM   (FP_REG_LAST - FP_REG_FIRST + 1)
 #define FP_DBX_FIRST ((write_symbols == DBX_DEBUG) ? 38 : 32)
 
-#define CALLEE_SAVED_GP_REG_FIRST 20
-#define CALLEE_SAVED_GP_REG_LAST (CALLEE_SAVED_GP_REG_FIRST + 10 - 1)
+#define CALLEE_SAVED_GP_REG_FIRST (GP_REG_FIRST + 2)
+#define CALLEE_SAVED_GP_REG_LAST (CALLEE_SAVED_GP_REG_FIRST + 12 - 1)
 
-#define CALLEE_SAVED_FP_REG_FIRST 52
-#define CALLEE_SAVED_FP_REG_LAST (CALLEE_SAVED_FP_REG_FIRST + 12 - 1)
+#define CALLEE_SAVED_FP_REG_FIRST (FP_REG_FIRST + 0)
+#define CALLEE_SAVED_FP_REG_LAST (CALLEE_SAVED_FP_REG_FIRST + 16 - 1)
 
 #define VEC_GP_REG_FIRST 64
 #define VEC_GP_REG_LAST  95
@@ -791,12 +791,10 @@ struct mips_cpu_info {
 #define MODES_TIEABLE_P mips_modes_tieable_p
 
 /* Register to use for pushing function arguments.  */
-#define STACK_POINTER_REGNUM (GP_REG_FIRST + 30)
-#define HARD_FRAME_POINTER_REGNUM (GP_REG_FIRST + 29)
+#define STACK_POINTER_REGNUM (GP_REG_FIRST + 14)
+#define HARD_FRAME_POINTER_REGNUM (GP_REG_FIRST + 3)
 
-#define THREAD_POINTER_REGNUM (GP_REG_FIRST + 31)
-
-#define LINK_REGNUM (GP_REG_FIRST + 1) /* Return address, $ra */
+#define THREAD_POINTER_REGNUM (GP_REG_FIRST + 15)
 
 /* These two registers don't really exist: they get eliminated to either
    the stack or hard frame pointer.  */
@@ -864,9 +862,6 @@ struct mips_cpu_info {
 enum reg_class
 {
   NO_REGS,			/* no registers in set */
-  PIC_FN_ADDR_REG,		/* SVR4 PIC function address register */
-  V1_REG,			/* Register $v1 ($3) used for TLS access.  */
-  LEA_REGS,			/* Every GPR except $25 */
   GR_REGS,			/* integer registers */
   FP_REGS,			/* floating point registers */
   VEC_GR_REGS,			/* vector integer registers */
@@ -887,9 +882,6 @@ enum reg_class
 #define REG_CLASS_NAMES							\
 {									\
   "NO_REGS",								\
-  "PIC_FN_ADDR_REG",							\
-  "V1_REG",								\
-  "LEA_REGS",								\
   "GR_REGS",								\
   "FP_REGS",								\
   "VEC_GR_REGS",							\
@@ -912,9 +904,6 @@ enum reg_class
 #define REG_CLASS_CONTENTS									\
 {												\
   { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* NO_REGS */		\
-  { 0x00080000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* PIC_FN_ADDR_REG */	\
-  { 0x00000008, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* V1_REG */		\
-  { 0xfff7ffff, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* LEA_REGS */		\
   { 0xffffffff, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* GR_REGS */		\
   { 0x00000000, 0xffffffff, 0x00000000, 0x00000000, 0x00000000 },	/* FP_REGS */		\
   { 0x00000000, 0x00000000, 0xffffffff, 0x00000000, 0x00000000 },	/* VEC_GR_REGS */	\
@@ -950,27 +939,15 @@ enum reg_class
 #define REG_ALLOC_ORDER							\
 { \
   /* Call-clobbered GPRs.  */						\
-  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,		\
-  16, 17, 18, 19, 1,							\
+  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1,	\
   /* Call-saved GPRs.  */						\
-  20, 21, 22, 23, 24, 25, 26, 27, 29,	        			\
-  /* The global pointer.  This is call-clobbered for o32 and o64	\
-     abicalls, call-saved for n32 and n64 abicalls, and a program	\
-     invariant otherwise.  Putting it between the call-clobbered	\
-     and call-saved registers should cope with all eventualities.  */	\
-  28,									\
+  2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,	       			\
   /* GPRs that can never be exposed to the register allocator.  */	\
-  0,  30, 31,								\
+  0,  14, 15,								\
   /* Call-clobbered FPRs.  */						\
-  34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,	\
-  50, 51, 32, 33,							\
-  /* FPRs that are usually call-saved.  The odd ones are actually	\
-     call-clobbered for n32, but listing them ahead of the even		\
-     registers might encourage the register allocator to fragment	\
-     the available FPR pairs.  We need paired FPRs to store long	\
-     doubles, so it isn't clear that using a different order		\
-     for n32 would be a win.  */					\
-  52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,			\
+  48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,	\
+  /* Call-saved FPRs.  */						\
+  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,	\
   /* Vector GPRs  */							\
   64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,	\
   80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,	\
@@ -1064,16 +1041,16 @@ enum reg_class
 /* Symbolic macros for the registers used to return integer and floating
    point values.  */
 
-#define GP_RETURN (GP_REG_FIRST + 2)
-#define FP_RETURN ((TARGET_SOFT_FLOAT) ? GP_RETURN : (FP_REG_FIRST + 2))
+#define GP_RETURN (GP_REG_FIRST + 16)
+#define FP_RETURN ((TARGET_SOFT_FLOAT) ? GP_RETURN : (FP_REG_FIRST + 16))
 
-#define MAX_ARGS_IN_REGISTERS 8
+#define MAX_ARGS_IN_REGISTERS 14
 
 /* Symbolic macros for the first/last argument registers.  */
 
-#define GP_ARG_FIRST (GP_REG_FIRST + 4)
+#define GP_ARG_FIRST (GP_REG_FIRST + 18)
 #define GP_ARG_LAST  (GP_ARG_FIRST + MAX_ARGS_IN_REGISTERS - 1)
-#define FP_ARG_FIRST (FP_REG_FIRST + 12)
+#define FP_ARG_FIRST (FP_REG_FIRST + 18)
 #define FP_ARG_LAST  (FP_ARG_FIRST + MAX_ARGS_IN_REGISTERS - 1)
 
 #define LIBCALL_VALUE(MODE) \
@@ -1088,7 +1065,7 @@ enum reg_class
 
 #define FUNCTION_VALUE_REGNO_P(N) ((N) == GP_RETURN || (N) == FP_RETURN \
   || (LONG_DOUBLE_TYPE_SIZE == 128 && FP_RETURN != GP_RETURN \
-      && (N) == FP_RETURN + 2))
+      && (N) == FP_RETURN + 1))
 
 /* 1 if N is a possible register number for function argument passing.
    We have no FP argument registers when soft-float.  When FP registers
@@ -1351,38 +1328,68 @@ typedef struct mips_args {
 {									\
   { "zero",	 0 + GP_REG_FIRST },					\
   { "ra",	 1 + GP_REG_FIRST },					\
-  { "v0",	 2 + GP_REG_FIRST },					\
-  { "v1",	 3 + GP_REG_FIRST },					\
-  { "a0",	 4 + GP_REG_FIRST },					\
-  { "a1",	 5 + GP_REG_FIRST },					\
-  { "a2",	 6 + GP_REG_FIRST },					\
-  { "a3",	 7 + GP_REG_FIRST },					\
-  { "a4",	 8 + GP_REG_FIRST },					\
-  { "a5",	 9 + GP_REG_FIRST },					\
-  { "a6",	10 + GP_REG_FIRST },					\
-  { "a7",	11 + GP_REG_FIRST },					\
-  { "t0",	12 + GP_REG_FIRST },					\
-  { "t1",	13 + GP_REG_FIRST },					\
-  { "t2",	14 + GP_REG_FIRST },					\
-  { "t3",	15 + GP_REG_FIRST },					\
-  { "t4",	16 + GP_REG_FIRST },					\
-  { "t5",	17 + GP_REG_FIRST },					\
-  { "t6",	18 + GP_REG_FIRST },					\
-  { "t7",	19 + GP_REG_FIRST },					\
-  { "s0",	20 + GP_REG_FIRST },					\
-  { "s1",	21 + GP_REG_FIRST },					\
-  { "s2",	22 + GP_REG_FIRST },					\
-  { "s3",	23 + GP_REG_FIRST },					\
-  { "s4",	24 + GP_REG_FIRST },					\
-  { "s5",	25 + GP_REG_FIRST },					\
-  { "s6",	26 + GP_REG_FIRST },					\
-  { "s7",	27 + GP_REG_FIRST },					\
-  { "gp",	28 + GP_REG_FIRST },					\
-  { "s8",	28 + GP_REG_FIRST },					\
-  { "fp",	29 + GP_REG_FIRST },					\
-  { "s9",	29 + GP_REG_FIRST },					\
-  { "sp",	30 + GP_REG_FIRST },					\
-  { "tp",	31 + GP_REG_FIRST },					\
+  { "s0",	 2 + GP_REG_FIRST },					\
+  { "s1",	 3 + GP_REG_FIRST },					\
+  { "s2",	 4 + GP_REG_FIRST },					\
+  { "s3",	 5 + GP_REG_FIRST },					\
+  { "s4",	 6 + GP_REG_FIRST },					\
+  { "s5",	 7 + GP_REG_FIRST },					\
+  { "s6",	 8 + GP_REG_FIRST },					\
+  { "s7",	 9 + GP_REG_FIRST },					\
+  { "s8",	10 + GP_REG_FIRST },					\
+  { "s9",	11 + GP_REG_FIRST },					\
+  { "s10",	12 + GP_REG_FIRST },					\
+  { "s11",	13 + GP_REG_FIRST },					\
+  { "sp",	14 + GP_REG_FIRST },					\
+  { "tp",	15 + GP_REG_FIRST },					\
+  { "v0",	16 + GP_REG_FIRST },					\
+  { "v1",	17 + GP_REG_FIRST },					\
+  { "a0",	18 + GP_REG_FIRST },					\
+  { "a1",	19 + GP_REG_FIRST },					\
+  { "a2",	20 + GP_REG_FIRST },					\
+  { "a3",	21 + GP_REG_FIRST },					\
+  { "a4",	22 + GP_REG_FIRST },					\
+  { "a5",	23 + GP_REG_FIRST },					\
+  { "a6",	24 + GP_REG_FIRST },					\
+  { "a7",	25 + GP_REG_FIRST },					\
+  { "a8",	26 + GP_REG_FIRST },					\
+  { "a9",	27 + GP_REG_FIRST },					\
+  { "a10",	28 + GP_REG_FIRST },					\
+  { "a11",	29 + GP_REG_FIRST },					\
+  { "a12",	30 + GP_REG_FIRST },					\
+  { "a13",	31 + GP_REG_FIRST },					\
+  { "fs0",	 0 + FP_REG_FIRST },					\
+  { "fs1",	 1 + FP_REG_FIRST },					\
+  { "fs2",	 2 + FP_REG_FIRST },					\
+  { "fs3",	 3 + FP_REG_FIRST },					\
+  { "fs4",	 4 + FP_REG_FIRST },					\
+  { "fs5",	 5 + FP_REG_FIRST },					\
+  { "fs6",	 6 + FP_REG_FIRST },					\
+  { "fs7",	 7 + FP_REG_FIRST },					\
+  { "fs8",	 8 + FP_REG_FIRST },					\
+  { "fs9",	 9 + FP_REG_FIRST },					\
+  { "fs10",	10 + FP_REG_FIRST },					\
+  { "fs11",	11 + FP_REG_FIRST },					\
+  { "fs12",	12 + FP_REG_FIRST },					\
+  { "fs13",	13 + FP_REG_FIRST },					\
+  { "fs14",	14 + FP_REG_FIRST },					\
+  { "fs15",	15 + FP_REG_FIRST },					\
+  { "fv0",	16 + FP_REG_FIRST },					\
+  { "fv1",	17 + FP_REG_FIRST },					\
+  { "fa0",	18 + FP_REG_FIRST },					\
+  { "fa1",	19 + FP_REG_FIRST },					\
+  { "fa2",	20 + FP_REG_FIRST },					\
+  { "fa3",	21 + FP_REG_FIRST },					\
+  { "fa4",	22 + FP_REG_FIRST },					\
+  { "fa5",	23 + FP_REG_FIRST },					\
+  { "fa6",	24 + FP_REG_FIRST },					\
+  { "fa7",	25 + FP_REG_FIRST },					\
+  { "fa8",	26 + FP_REG_FIRST },					\
+  { "fa9",	27 + FP_REG_FIRST },					\
+  { "fa10",	28 + FP_REG_FIRST },					\
+  { "fa11",	29 + FP_REG_FIRST },					\
+  { "fa12",	30 + FP_REG_FIRST },					\
+  { "fa13",	31 + FP_REG_FIRST },					\
 }
 
 /* This is meant to be redefined in the host dependent files.  It is a

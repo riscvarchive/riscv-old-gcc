@@ -350,25 +350,14 @@ struct target_globals *mips16_globals;
 
 /* Index R is the smallest register class that contains register R.  */
 const enum reg_class mips_regno_to_class[FIRST_PSEUDO_REGISTER] = {
-/*
-yunsup: new register mapping
-x0, ra, v0, v1,
-a0, a1, a2, a3,
-a4, a5, a6, a7,
-t0, t1, t2, t3,
-t4, t5, t6, t7,
-s0, s1, s2, s3,
-s4, s5, s6, s7,
-s8, s9, sp, tp
-*/
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	V1_REG,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	PIC_FN_ADDR_REG,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
@@ -4001,31 +3990,22 @@ mips_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset,
   HOST_WIDE_INT offset;
   int regno;
 
-  /* Save the return address at the top of the frame. */
+  /* Save the link register and s-registers. */
   offset = cfun->machine->frame.gp_sp_offset - sp_offset;
-  if (BITSET_P (cfun->machine->frame.mask, LINK_REG))
-    {
-      mips_save_restore_reg (word_mode, LINK_REG + GP_REG_FIRST, offset, fn);
-      offset -= UNITS_PER_WORD;
-    }
-
-  /* Save the s-registers in reverse order. */
-  for (regno = GP_REG_NUM-1; regno >= 0; regno--, regno -= (regno == LINK_REG))
-    {
-      if (BITSET_P (cfun->machine->frame.mask, regno))
-        {
-          mips_save_restore_reg (word_mode, regno + GP_REG_FIRST, offset, fn);
-          offset -= UNITS_PER_WORD;
-        }
-    }
+  for (regno = GP_REG_FIRST; regno <= GP_REG_LAST-1; regno++)
+    if (BITSET_P (cfun->machine->frame.mask, regno - GP_REG_FIRST))
+      {
+        mips_save_restore_reg (word_mode, regno, offset, fn);
+        offset -= UNITS_PER_WORD;
+      }
 
   /* This loop must iterate over the same space as its companion in
      mips_compute_frame_info.  */
   offset = cfun->machine->frame.fp_sp_offset - sp_offset;
-  for (regno = FP_REG_NUM-1; regno >= 0; regno--)
-    if (BITSET_P (cfun->machine->frame.fmask, regno))
+  for (regno = FP_REG_FIRST; regno <= FP_REG_LAST; regno++)
+    if (BITSET_P (cfun->machine->frame.fmask, regno - FP_REG_FIRST))
       {
-	mips_save_restore_reg (DFmode, regno + FP_REG_FIRST, offset, fn);
+	mips_save_restore_reg (DFmode, regno, offset, fn);
 	offset -= GET_MODE_SIZE (DFmode);
       }
 }
@@ -5539,8 +5519,8 @@ mips_conditional_register_usage (void)
       call_really_used_regs[regno] = 1;
     }
 
-    call_used_regs[GP_REG_FIRST + LINK_REG] = 1;
-    call_really_used_regs[GP_REG_FIRST + LINK_REG] = 1;
+    call_used_regs[RETURN_ADDR_REGNUM] = 1;
+    call_really_used_regs[RETURN_ADDR_REGNUM] = 1;
 
     for (regno = CALLEE_SAVED_FP_REG_FIRST;
          regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
@@ -5560,8 +5540,8 @@ mips_conditional_register_usage (void)
 
     call_used_regs[GP_REG_FIRST + 28] = 1;
 
-    call_used_regs[GP_REG_FIRST + LINK_REG] = 0;
-    call_really_used_regs[GP_REG_FIRST + LINK_REG] = 0;
+    call_used_regs[RETURN_ADDR_REGNUM] = 0;
+    call_really_used_regs[RETURN_ADDR_REGNUM] = 0;
 
     for (regno = CALLEE_SAVED_FP_REG_FIRST;
          regno <= CALLEE_SAVED_FP_REG_LAST; regno++)

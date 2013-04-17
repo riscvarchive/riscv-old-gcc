@@ -939,72 +939,72 @@ struct regname {
 
 /* Remaining symbolic register names */
 #define SYMBOLIC_REGISTER_NAMES \
-    {"zero",	RTYPE_GP | 0},  \
-    {"ra",	RTYPE_GP | 1},  \
-    {"v0",	RTYPE_GP | 2},  \
-    {"v1",	RTYPE_GP | 3},  \
-    {"a0",	RTYPE_GP | 4},  \
-    {"a1",	RTYPE_GP | 5},  \
-    {"a2",	RTYPE_GP | 6},  \
-    {"a3",	RTYPE_GP | 7},  \
-    {"a4",	RTYPE_GP | 8},  \
-    {"a5",	RTYPE_GP | 9},  \
-    {"a6",	RTYPE_GP | 10},  \
-    {"a7",	RTYPE_GP | 11}, \
-    {"t0",	RTYPE_GP | 12}, \
-    {"t1",	RTYPE_GP | 13}, \
-    {"t2",	RTYPE_GP | 14}, \
-    {"t3",	RTYPE_GP | 15}, \
-    {"t4",	RTYPE_GP | 16}, \
-    {"t5",	RTYPE_GP | 17}, \
-    {"t6",	RTYPE_GP | 18}, \
-    {"t7",	RTYPE_GP | 19}, \
-    {"s0",	RTYPE_GP | 20}, \
-    {"s1",	RTYPE_GP | 21}, \
-    {"s2",	RTYPE_GP | 22}, \
-    {"s3",	RTYPE_GP | 23}, \
-    {"s4",	RTYPE_GP | 24}, \
-    {"s5",	RTYPE_GP | 25}, \
-    {"s6",	RTYPE_GP | 26}, \
-    {"s7",	RTYPE_GP | 27}, \
-    {"s8",	RTYPE_GP | 28}, \
-    {"s9",	RTYPE_GP | 29}, \
-    {"sp",	RTYPE_GP | 30}, \
-    {"tp",	RTYPE_GP | 31}
+  { "zero",	 0 | RTYPE_GP }, \
+  { "ra",	 1 | RTYPE_GP }, \
+  { "s0",	 2 | RTYPE_GP }, \
+  { "s1",	 3 | RTYPE_GP }, \
+  { "s2",	 4 | RTYPE_GP }, \
+  { "s3",	 5 | RTYPE_GP }, \
+  { "s4",	 6 | RTYPE_GP }, \
+  { "s5",	 7 | RTYPE_GP }, \
+  { "s6",	 8 | RTYPE_GP }, \
+  { "s7",	 9 | RTYPE_GP }, \
+  { "s8",	10 | RTYPE_GP }, \
+  { "s9",	11 | RTYPE_GP }, \
+  { "s10",	12 | RTYPE_GP }, \
+  { "s11",	13 | RTYPE_GP }, \
+  { "sp",	14 | RTYPE_GP }, \
+  { "tp",	15 | RTYPE_GP }, \
+  { "v0",	16 | RTYPE_GP }, \
+  { "v1",	17 | RTYPE_GP }, \
+  { "a0",	18 | RTYPE_GP }, \
+  { "a1",	19 | RTYPE_GP }, \
+  { "a2",	20 | RTYPE_GP }, \
+  { "a3",	21 | RTYPE_GP }, \
+  { "a4",	22 | RTYPE_GP }, \
+  { "a5",	23 | RTYPE_GP }, \
+  { "a6",	24 | RTYPE_GP }, \
+  { "a7",	25 | RTYPE_GP }, \
+  { "a8",	26 | RTYPE_GP }, \
+  { "a9",	27 | RTYPE_GP }, \
+  { "a10",	28 | RTYPE_GP }, \
+  { "a11",	29 | RTYPE_GP }, \
+  { "a12",	30 | RTYPE_GP }, \
+  { "a13",	31 | RTYPE_GP }
 
-#define FP_SYMBOLIC_REGISTER_NAMES \
-    {"ft0",	RTYPE_FPU | 0},  \
-    {"ft1",	RTYPE_FPU | 1},  \
-    {"fv0",	RTYPE_FPU | 2},  \
-    {"fv1",	RTYPE_FPU | 3},  \
-    {"fa0",	RTYPE_FPU | 4},  \
-    {"fa1",	RTYPE_FPU | 5},  \
-    {"fa2",	RTYPE_FPU | 6},  \
-    {"fa3",	RTYPE_FPU | 7},  \
-    {"fa4",	RTYPE_FPU | 8},  \
-    {"fa5",	RTYPE_FPU | 9},  \
-    {"fa6",	RTYPE_FPU | 10},  \
-    {"fa7",	RTYPE_FPU | 11}, \
-    {"ft2",	RTYPE_FPU | 12}, \
-    {"ft3",	RTYPE_FPU | 13}, \
-    {"ft4",	RTYPE_FPU | 14}, \
-    {"ft5",	RTYPE_FPU | 15}, \
-    {"ft6",	RTYPE_FPU | 16}, \
-    {"ft7",	RTYPE_FPU | 17}, \
-    {"ft8",	RTYPE_FPU | 18}, \
-    {"ft9",	RTYPE_FPU | 19}, \
-    {"fs0",	RTYPE_FPU | 20}, \
-    {"fs1",	RTYPE_FPU | 21}, \
-    {"fs2",	RTYPE_FPU | 22}, \
-    {"fs3",	RTYPE_FPU | 23}, \
-    {"fs4",	RTYPE_FPU | 24}, \
-    {"fs5",	RTYPE_FPU | 25}, \
-    {"fs6",	RTYPE_FPU | 26}, \
-    {"fs7",	RTYPE_FPU | 27}, \
-    {"fs8",	RTYPE_FPU | 28}, \
-    {"fs9",	RTYPE_FPU | 29}, \
-    {"ft10",	RTYPE_FPU | 30}, \
-    {"ft11",	RTYPE_FPU | 31}
+#define FP_SYMBOLIC_REGISTER_NAMES  \
+  { "fs0",	 0 | RTYPE_FPU }, \
+  { "fs1",	 1 | RTYPE_FPU }, \
+  { "fs2",	 2 | RTYPE_FPU }, \
+  { "fs3",	 3 | RTYPE_FPU }, \
+  { "fs4",	 4 | RTYPE_FPU }, \
+  { "fs5",	 5 | RTYPE_FPU }, \
+  { "fs6",	 6 | RTYPE_FPU }, \
+  { "fs7",	 7 | RTYPE_FPU }, \
+  { "fs8",	 8 | RTYPE_FPU }, \
+  { "fs9",	 9 | RTYPE_FPU }, \
+  { "fs10",	10 | RTYPE_FPU }, \
+  { "fs11",	11 | RTYPE_FPU }, \
+  { "fs12",	12 | RTYPE_FPU }, \
+  { "fs13",	13 | RTYPE_FPU }, \
+  { "fs14",	14 | RTYPE_FPU }, \
+  { "fs15",	15 | RTYPE_FPU }, \
+  { "fv0",	16 | RTYPE_FPU }, \
+  { "fv1",	17 | RTYPE_FPU }, \
+  { "fa0",	18 | RTYPE_FPU }, \
+  { "fa1",	19 | RTYPE_FPU }, \
+  { "fa2",	20 | RTYPE_FPU }, \
+  { "fa3",	21 | RTYPE_FPU }, \
+  { "fa4",	22 | RTYPE_FPU }, \
+  { "fa5",	23 | RTYPE_FPU }, \
+  { "fa6",	24 | RTYPE_FPU }, \
+  { "fa7",	25 | RTYPE_FPU }, \
+  { "fa8",	26 | RTYPE_FPU }, \
+  { "fa9",	27 | RTYPE_FPU }, \
+  { "fa10",	28 | RTYPE_FPU }, \
+  { "fa11",	29 | RTYPE_FPU }, \
+  { "fa12",	30 | RTYPE_FPU }, \
+  { "fa13",	31 | RTYPE_FPU }
 
 #define RISCV_VEC_GR_REGISTER_NAMES \
     {"vx0",	RTYPE_VGR_REG | 0}, \
@@ -1079,10 +1079,6 @@ static const struct regname reg_names[] = {
   FP_REGISTER_NAMES,
   CR_REGISTER_NUMBERS,
 
-  /* The $txx registers depends on the abi,
-     these will be added later into the symbol table from
-     one of the tables below once mips_abi is set after 
-     parsing of arguments from the command line. */
   SYMBOLIC_REGISTER_NAMES,
   FP_SYMBOLIC_REGISTER_NAMES,
 

@@ -543,60 +543,42 @@ static bfd *reldyn_sorting_bfd;
 
 /* The format of the first PLT entry.  */
 
-#define RISCV_PLT0_ENTRY_INSNS 32
+#define RISCV_PLT0_ENTRY_INSNS 44
 static void
 riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value,
                       bfd_vma entry[RISCV_PLT0_ENTRY_INSNS])
 {
-  /* addi   sp, sp, -72
-     sd     ra, 64(sp)
-     sd     a7, 56(sp)
-     sd     a6, 48(sp)
-     sd     a5, 40(sp)
-     sd     a4, 32(sp)
-     sd     a3, 24(sp)
-     sd     a2, 16(sp)
-     sd     a1,  8(sp)
-     sd     a0,  0(sp)
+  /* save ra and arg registers to stack
      lui    v0, %hi(GOTPLT)
      sub    a1, v1, v0
-     ld     a0, %lo(GOTPLT)+8(v0)  # assumes .got.plt is 16B aligned
+     ld     a0, %lo(GOTPLT)+PTRSIZE(v0)  # assumes .got.plt is 16B aligned
      sub    a1, a1, %lo(GOTPLT)
      ld     v0, %lo(GOTPLT)(v0)
      slli   a1, a1, 1
-     addi   a1, a1, -32
+     addi   a1, a1, -4*PTRSIZE
      jalr   v0
-     ld     ra, 64(sp)
-     ld     a7, 56(sp)
-     ld     a6, 48(sp)
-     ld     a5, 40(sp)
-     ld     a4, 32(sp)
-     ld     a3, 24(sp)
-     ld     a2, 16(sp)
-     ld     a1,  8(sp)
-     ld     a0,  0(sp)
-     addi   sp, sp, 72
+     restore ra and arg registers from stack
      jr     v0
   */
 
   int i = 0, j, regbytes = ABI_64_P(abfd) ? 8 : 4;
-  entry[i++] = RISCV_ITYPE(ADDI, 30, 30, -10*regbytes);
-  entry[i++] = RISCV_BTYPE(SREG(abfd), 30, LINK_REG, 9*regbytes);
-  for (j = 0; j < 8; j++)
-    entry[i++] = RISCV_BTYPE(SREG(abfd), 30, 4+j, j*regbytes);
-  entry[i++] = RISCV_LTYPE(LUI, 2, RISCV_LUI_HIGH_PART(gotplt_value));
-  entry[i++] = RISCV_RTYPE(SUB, 5, 3, 2);
-  entry[i++] = RISCV_ITYPE(LREG(abfd), 4, 2, RISCV_CONST_LOW_PART(regbytes+gotplt_value));
-  entry[i++] = RISCV_ITYPE(ADDI, 5, 5, RISCV_CONST_LOW_PART(-gotplt_value));
-  entry[i++] = RISCV_ITYPE(LREG(abfd), 2, 2, RISCV_CONST_LOW_PART(gotplt_value));
-  entry[i++] = RISCV_ITYPE(SLLI, 5, 5, 1);
-  entry[i++] = RISCV_ITYPE(ADDI, 5, 5, -4*regbytes);
-  entry[i++] = RISCV_ITYPE(JALR_C, LINK_REG, 2, 0);
-  entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, 30, 9*regbytes);
-  for (j = 0; j < 8; j++)
-    entry[i++] = RISCV_ITYPE(LREG(abfd), 4+j, 30, j*regbytes);
-  entry[i++] = RISCV_ITYPE(ADDI, 30, 30, 10*regbytes);
-  entry[i++] = RISCV_ITYPE(JALR_J, 0, 2, 0);
+  entry[i++] = RISCV_ITYPE(ADDI, 14, 14, -16*regbytes);
+  entry[i++] = RISCV_BTYPE(SREG(abfd), 14, LINK_REG, 0);
+  for (j = 0; j < 14; j++)
+    entry[i++] = RISCV_BTYPE(SREG(abfd), 14, 4+j, (j+1)*regbytes);
+  entry[i++] = RISCV_LTYPE(LUI, 16, RISCV_LUI_HIGH_PART(gotplt_value));
+  entry[i++] = RISCV_RTYPE(SUB, 19, 17, 16);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), 18, 16, RISCV_CONST_LOW_PART(regbytes+gotplt_value));
+  entry[i++] = RISCV_ITYPE(ADDI, 19, 19, RISCV_CONST_LOW_PART(-gotplt_value));
+  entry[i++] = RISCV_ITYPE(LREG(abfd), 16, 16, RISCV_CONST_LOW_PART(gotplt_value));
+  entry[i++] = RISCV_ITYPE(SLLI, 19, 19, 1);
+  entry[i++] = RISCV_ITYPE(ADDI, 19, 19, -4*regbytes);
+  entry[i++] = RISCV_ITYPE(JALR_C, LINK_REG, 16, 0);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, 14, 0);
+  for (j = 0; j < 14; j++)
+    entry[i++] = RISCV_ITYPE(LREG(abfd), 4+j, 14, (j+1)*regbytes);
+  entry[i++] = RISCV_ITYPE(ADDI, 14, 14, 16*regbytes);
+  entry[i++] = RISCV_ITYPE(JALR_J, 0, 16, 0);
 
   BFD_ASSERT(i <= RISCV_PLT0_ENTRY_INSNS);
   while (i < RISCV_PLT0_ENTRY_INSNS)
@@ -616,10 +598,10 @@ riscv_make_plt_entry(bfd* abfd, bfd_vma got_address,
      jr     v0
   */
 
-  entry[0] = RISCV_LTYPE(LUI, 3, RISCV_LUI_HIGH_PART(got_address));
-  entry[1] = RISCV_ITYPE(LREG(abfd),  2, 3, RISCV_CONST_LOW_PART(got_address));
-  entry[2] = RISCV_ITYPE(ADDI, 3, 3, RISCV_CONST_LOW_PART(got_address));
-  entry[3] = RISCV_ITYPE(JALR_J, 0, 2, 0);
+  entry[0] = RISCV_LTYPE(LUI, 17, RISCV_LUI_HIGH_PART(got_address));
+  entry[1] = RISCV_ITYPE(LREG(abfd),  16, 17, RISCV_CONST_LOW_PART(got_address));
+  entry[2] = RISCV_ITYPE(ADDI, 17, 17, RISCV_CONST_LOW_PART(got_address));
+  entry[3] = RISCV_ITYPE(JALR_J, 0, 16, 0);
 }
 
 /* Look up an entry in a MIPS ELF linker hash table.  */

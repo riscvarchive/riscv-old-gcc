@@ -125,6 +125,9 @@ struct itimerspec {
 typedef	long	daddr_t;
 typedef	char *	caddr_t;
 
+#ifdef __ino_t_defined
+typedef __ino_t ino_t;
+#else
 #ifndef __CYGWIN__
 #if defined(__MS_types__) || defined(__rtems__) || \
     defined(__sparc__) || defined(__SPU__)
@@ -133,6 +136,7 @@ typedef	unsigned long	ino_t;
 typedef	unsigned short	ino_t;
 #endif
 #endif /*__CYGWIN__*/
+#endif /*__ino_t_defined*/
 
 #ifdef __MS_types__
 typedef unsigned long vm_offset_t;
@@ -176,6 +180,9 @@ typedef	long key_t;
 #endif
 typedef _ssize_t ssize_t;
 
+#ifdef __mode_t_defined
+typedef __mode_t mode_t;
+#else
 #ifndef __CYGWIN__
 #ifdef __MS_types__
 typedef	char *	addr_t;
@@ -192,8 +199,13 @@ typedef unsigned int mode_t _ST_INT32;
 #endif
 #endif /* ! __MS_types__ */
 #endif /*__CYGWIN__*/
+#endif /*__mode_t_defined*/
 
+#ifdef __nlink_t_defined
+typedef __nlink_t nlink_t;
+#else
 typedef unsigned short nlink_t;
+#endif /*__nlink_t_defined*/
 
 /* We don't define fd_set and friends if we are compiling POSIX
    source, or if we have included (or may include as indicated
