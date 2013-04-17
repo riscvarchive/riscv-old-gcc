@@ -25,7 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 #define DRIVER_SELF_SPECS \
   LINUX_DRIVER_SELF_SPECS \
   " %{!EB:%{!EL:%(endian_spec)}}" \
-  " %{!mabi=*: -mabi=64}"
+  " %{" OPT_ARCH32 ": -m32} %{" OPT_ARCH64 ": -m64}" \
 
 #undef LIB_SPEC
 #define LIB_SPEC "\
@@ -45,11 +45,11 @@ along with GCC; see the file COPYING3.  If not see
   %{!shared: \
     %{!static: \
       %{rdynamic:-export-dynamic} \
-      %{mabi=64: -dynamic-linker " LINUX_DYNAMIC_LINKER64 "} \
-      %{mabi=32: -dynamic-linker " LINUX_DYNAMIC_LINKER32 "}} \
+      %{" OPT_ARCH64 ": -dynamic-linker " LINUX_DYNAMIC_LINKER64 "} \
+      %{" OPT_ARCH32 ": -dynamic-linker " LINUX_DYNAMIC_LINKER32 "}} \
     %{static:-static}} \
-%{mabi=64:-melf64%{EB:b}%{EL:l}riscv} \
-%{mabi=32:-melf32%{EB:b}%{EL:l}riscv}"
+%{" OPT_ARCH64 ":-melf64%{EB:b}%{EL:l}riscv} \
+%{" OPT_ARCH32 ":-melf32%{EB:b}%{EL:l}riscv}"
 
 /* GNU/Linux doesn't use the same floating-point format that IRIX uses
    for long double.  There's no need to override this here, since

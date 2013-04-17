@@ -57,13 +57,11 @@
 # define PIC_J(target)			\
   la   v0, target;			\
   jr   v0
-# define PIC_ASM_DECL .pic
 
 #else
 
 # define PIC_JAL(target) jal target
 # define PIC_J(target) j target
-# define PIC_ASM_DECL
 
 #endif
 
@@ -77,7 +75,6 @@
  * LEAF - declare leaf routine
  */
 #define	LEAF(symbol)	\
-		PIC_ASM_DECL;				\
 		.globl	symbol;                         \
 		.align	2;                              \
 		.type	symbol,@function;               \

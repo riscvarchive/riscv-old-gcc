@@ -93,21 +93,16 @@ struct mips_cpu_info {
       builtin_define ("_riscv");					\
 									\
       if (TARGET_64BIT)							\
-	builtin_define ("__riscv64");					\
+	{								\
+	  builtin_define ("__riscv64");					\
+	  builtin_define ("_RISCV_SIM=_ABI64");			        \
+	}								\
+      else						        	\
+	builtin_define ("_RISCV_SIM=_ABI32");			        \
 									\
       builtin_define ("_ABI32=1");					\
       builtin_define ("_ABI64=2");					\
 									\
-      switch (mips_abi)							\
-	{								\
-	case ABI_32:							\
-	  builtin_define ("_RISCV_SIM=_ABI32");			        \
-	  break;							\
-									\
-	case ABI_64:							\
-	  builtin_define ("_RISCV_SIM=_ABI64");				\
-	  break;							\
-	}								\
 									\
       builtin_define_with_int_value ("_RISCV_SZINT", INT_TYPE_SIZE);	\
       builtin_define_with_int_value ("_RISCV_SZLONG", LONG_TYPE_SIZE);	\
@@ -186,23 +181,23 @@ struct mips_cpu_info {
 #endif
 #endif
 
-#ifndef MIPS_ABI_DEFAULT
-#define MIPS_ABI_DEFAULT ABI_64
+#ifndef TARGET_64BIT_DEFAULT
+#define TARGET_64BIT_DEFAULT 1
 #endif
 
-#if MIPS_ABI_DEFAULT == ABI_32
-#define MULTILIB_ABI_DEFAULT "mabi=32"
-#define MULTILIB_ISA_DEFAULT "rv32"
-#endif
-
-#if MIPS_ABI_DEFAULT == ABI_64
-#define MULTILIB_ABI_DEFAULT "mabi=64"
-#define MULTILIB_ISA_DEFAULT "rv64"
+#if TARGET_64BIT_DEFAULT
+# define MULTILIB_ARCH_DEFAULT "m64"
+# define OPT_ARCH64 "!m32"
+# define OPT_ARCH32 "m32"
+#else
+# define MULTILIB_ARCH_DEFAULT "m32"
+# define OPT_ARCH64 "m64"
+# define OPT_ARCH32 "!m64"
 #endif
 
 #ifndef MULTILIB_DEFAULTS
 #define MULTILIB_DEFAULTS \
-    { MULTILIB_ENDIAN_DEFAULT, MULTILIB_ISA_DEFAULT, MULTILIB_ABI_DEFAULT }
+    { MULTILIB_ENDIAN_DEFAULT, MULTILIB_ARCH_DEFAULT }
 #endif
 
 /* We must pass -EL to the linker by default for little endian embedded
@@ -228,24 +223,6 @@ struct mips_cpu_info {
 #define MIPS_ARCH_OPTION_SPEC \
   MIPS_ISA_LEVEL_OPTION_SPEC "|march=*"
 
-/* A spec that infers a -mips argument from an -march argument,
-   or injects the default if no architecture is specified.  */
-
-#define MIPS_ISA_LEVEL_SPEC \
-  "%{" MIPS_ISA_LEVEL_OPTION_SPEC ":;: \
-     %{march=mips1|march=r2000|march=r3000|march=r3900:-mips1} \
-     %{march=mips2|march=r6000:-mips2} \
-     %{march=mips3|march=r4*|march=vr4*|march=orion|march=loongson2*:-mips3} \
-     %{march=mips4|march=r8000|march=vr5*|march=rm7000|march=rm9000 \
-       |march=r10000|march=r12000|march=r14000|march=r16000:-mips4} \
-     %{march=mips32|march=4kc|march=4km|march=4kp|march=4ksc:-mips32} \
-     %{march=mips32r2|march=m4k|march=4ke*|march=4ksd|march=24k* \
-       |march=34k*|march=74k*|march=1004k*: -mips32r2} \
-     %{march=mips64|march=5k*|march=20k*|march=sb1*|march=sr71000 \
-       |march=xlr|march=loongson3a: -mips64} \
-     %{march=mips64r2|march=octeon: -mips64r2} \
-     %{!march=*: -" MULTILIB_ISA_DEFAULT "}}"
-
 /* A spec that infers a -mhard-float or -msoft-float setting from an
    -march argument.  Note that soft-float and hard-float code are not
    link-compatible.  */
@@ -257,32 +234,25 @@ struct mips_cpu_info {
      |march=octeon|march=xlr: -msoft-float;		  \
      march=*: -mhard-float}"
 
-#define OPT_ARCH64 "mabi=32:;"
-#define OPT_ARCH32 "mabi=32"
-
 /* Support for a compile-time default CPU, et cetera.  The rules are:
    --with-arch is ignored if -march is specified or a -mips is specified
      (other than -mips16); likewise --with-arch-32 and --with-arch-64.
    --with-tune is ignored if -mtune is specified; likewise
      --with-tune-32 and --with-tune-64.
-   --with-abi is ignored if -mabi is specified.
    --with-float is ignored if -mhard-float or -msoft-float are
      specified.
    --with-divide is ignored if -mdivide-traps or -mdivide-breaks are
      specified. */
 #define OPTION_DEFAULT_SPECS \
   {"arch", "%{" MIPS_ARCH_OPTION_SPEC ":;: -march=%(VALUE)}" }, \
-  {"arch_32", "%{" OPT_ARCH32 ":%{" MIPS_ARCH_OPTION_SPEC ":;: -march=%(VALUE)}}" }, \
-  {"arch_64", "%{" OPT_ARCH64 ":%{" MIPS_ARCH_OPTION_SPEC ":;: -march=%(VALUE)}}" }, \
+  {"arch_32", "%{" OPT_ARCH32 ":%{m32}}" }, \
+  {"arch_64", "%{" OPT_ARCH64 ":%{m64}}" }, \
   {"tune", "%{!mtune=*:-mtune=%(VALUE)}" }, \
   {"tune_32", "%{" OPT_ARCH32 ":%{!mtune=*:-mtune=%(VALUE)}}" }, \
   {"tune_64", "%{" OPT_ARCH64 ":%{!mtune=*:-mtune=%(VALUE)}}" }, \
-  {"abi", "%{!mabi=*:-mabi=%(VALUE)}" }, \
   {"float", "%{!msoft-float:%{!mhard-float:-m%(VALUE)-float}}" }, \
 
 #define DRIVER_SELF_SPECS ""
-
-#define TARGET_64BIT	(mips_abi == ABI_64)
 
 #ifdef IN_LIBGCC2
 #undef TARGET_64BIT
@@ -324,7 +294,7 @@ struct mips_cpu_info {
 #define ASM_SPEC "\
 %{G*} %(endian_spec) \
 %(subtarget_asm_debugging_spec) \
-%{mabi=*} %{!mabi=*: %(asm_abi_default_spec)} \
+%{m32} %{m64} %{!m32:%{!m64: %(asm_abi_default_spec)}} \
 %{fPIC|fpic:-fpic} \
 %{march=*} \
 %(subtarget_asm_spec)"
@@ -335,8 +305,8 @@ struct mips_cpu_info {
 #define LINK_SPEC "\
 %{!T:-dT riscv.ld} \
 %(endian_spec) \
-%{mabi=64:-melf64%{EB:b}%{!EB:l}riscv} \
-%{mabi=32:-melf32%{EB:b}%{!EB:l}riscv} \
+%{m64:-melf64%{EB:b}%{!EB:l}riscv} \
+%{m32:-melf32%{EB:b}%{!EB:l}riscv} \
 %{G*} %{mips1} %{mips2} %{mips3} %{mips4} %{mips32*} %{mips64*} \
 %{shared}"
 #endif  /* LINK_SPEC defined */
@@ -382,7 +352,7 @@ struct mips_cpu_info {
   { "subtarget_cpp_spec", SUBTARGET_CPP_SPEC },				\
   { "subtarget_asm_debugging_spec", SUBTARGET_ASM_DEBUGGING_SPEC },	\
   { "subtarget_asm_spec", SUBTARGET_ASM_SPEC },				\
-  { "asm_abi_default_spec", "-" MULTILIB_ABI_DEFAULT },			\
+  { "asm_abi_default_spec", "-" MULTILIB_ARCH_DEFAULT },		\
   { "endian_spec", ENDIAN_SPEC },					\
   SUBTARGET_EXTRA_SPECS
 
@@ -1659,7 +1629,6 @@ extern int mips_dwarf_regno[];
 extern bool mips_split_p[];
 extern enum processor mips_arch;        /* which cpu to codegen for */
 extern enum processor mips_tune;        /* which cpu to schedule for */
-extern int mips_abi;			/* which ABI to use */
 extern GTY(()) struct target_globals *mips16_globals;
 #endif
 

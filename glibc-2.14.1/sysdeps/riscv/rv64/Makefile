@@ -1,3 +1,3 @@
-ifeq ($(filter -mabi=64,$(CC)),)
-CC += -mabi=64
+ifeq ($(filter -m64,$(CC)),)
+CC += -m64
 endif

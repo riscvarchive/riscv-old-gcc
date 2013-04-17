@@ -98,20 +98,11 @@ along with GCC; see the file COPYING3.  If not see
 
 #define MD_UNWIND_SUPPORT "config/riscv/linux-unwind.h"
 
-#ifdef HAVE_AS_NO_SHARED
-/* Default to -mno-shared for non-PIC.  */
-# define NO_SHARED_SPECS \
-  "%{mshared|mno-shared|fpic|fPIC|fpie|fPIE:;:-mno-shared}"
-#else
-# define NO_SHARED_SPECS ""
-#endif
-
 /* -march=native handling only makes sense with compiler running on
    a RISC-V machine.  */
 #define MARCH_MTUNE_NATIVE_SPECS ""
 
 #define LINUX_DRIVER_SELF_SPECS \
-  NO_SHARED_SPECS		\
   MARCH_MTUNE_NATIVE_SPECS
 
 #undef DRIVER_SELF_SPECS

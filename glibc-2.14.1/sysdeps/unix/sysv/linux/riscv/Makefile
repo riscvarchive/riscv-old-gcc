@@ -11,7 +11,7 @@ no_syscall_list_h = 1
 # macro of the form __NR$(3)_FOO, filtering out ABI-specific __NR macros
 # that have a prefix other than $(3).
 mips_list_syscalls =	$(filter-out -m%,$(CC)) -E -x c $(+includes) \
-			    $(sysincludes) -D_LIBC -dM -mabi=$(2) $(1) | \
+			    $(sysincludes) -D_LIBC -dM -m$(2) $(1) | \
 			sed -n 's@^\#define __NR$(3)_\([^ ]*\) .*@\1@p' | \
 			sed -e '/^[ON]32_/d' -e '/^N64_/d' -e '/^64_/d' | \
 			LC_ALL=C sort

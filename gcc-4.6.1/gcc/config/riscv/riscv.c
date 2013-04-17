@@ -322,9 +322,6 @@ int mips_dwarf_regno[FIRST_PSEUDO_REGISTER];
 /* The processor that we should tune the code for.  */
 enum processor mips_tune;
 
-/* Which ABI to use.  */
-int mips_abi = MIPS_ABI_DEFAULT;
-
 /* Which cost information to use.  */
 static const struct mips_rtx_cost_data *mips_cost;
 
@@ -3719,18 +3716,6 @@ mips_finish_declare_object (FILE *stream, tree decl, int top_level, int at_end)
 }
 #endif
 
-/* Implement TARGET_ASM_FILE_START.  */
-
-static void
-mips_file_start (void)
-{
-  default_file_start ();
-
-  /* If TARGET_ABICALLS, tell GAS to generate -KPIC code.  */
-  if (TARGET_ABICALLS && flag_pic)
-    fprintf (asm_out_file, "\t.pic\n");
-}
-
 /* Make the last instruction frame-related and note that it performs
    the operation described by FRAME_PATTERN.  */
 
@@ -5391,15 +5376,6 @@ mips_handle_option (size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
 {
   switch (code)
     {
-    case OPT_mabi_:
-      if (strcmp (arg, "32") == 0)
-	mips_abi = ABI_32;
-      else if (strcmp (arg, "64") == 0)
-	mips_abi = ABI_64;
-      else
-	return false;
-      return true;
-
     case OPT_mtune_:
       return mips_parse_cpu (arg) != 0;
 
@@ -5770,6 +5746,7 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 #define TARGET_DEFAULT_TARGET_FLAGS		\
   (TARGET_DEFAULT				\
    | TARGET_CPU_DEFAULT				\
+   | (TARGET_64BIT_DEFAULT ? 0 : MASK_32BIT)	\
    | TARGET_ENDIAN_DEFAULT)
 #undef TARGET_HANDLE_OPTION
 #define TARGET_HANDLE_OPTION mips_handle_option
@@ -5797,8 +5774,6 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 #undef  TARGET_PREFERRED_RELOAD_CLASS
 #define TARGET_PREFERRED_RELOAD_CLASS mips_preferred_reload_class
 
-#undef TARGET_ASM_FILE_START
-#define TARGET_ASM_FILE_START mips_file_start
 #undef TARGET_ASM_FILE_START_FILE_DIRECTIVE
 #define TARGET_ASM_FILE_START_FILE_DIRECTIVE true
 
