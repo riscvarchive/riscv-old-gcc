@@ -40,12 +40,6 @@
 (define_register_constraint "b" "ALL_REGS"
   "@internal")
 
-;; MIPS16 code always calls through a MIPS16 register; see mips_emit_call_insn
-;; for details.
-(define_register_constraint "c" "TARGET_ABICALLS ? PIC_FN_ADDR_REG : GR_REGS"
-  "A register suitable for use in an indirect jump.  This will always be
-   @code{$25} for @option{-mabicalls}.")
-
 (define_register_constraint "j" "PIC_FN_ADDR_REG"
   "@internal")
 
@@ -57,10 +51,6 @@
 
 (define_register_constraint "z" "GR_REGS"
   "A floating-point condition code register.")
-
-(define_constraint "kf"
-  "@internal"
-  (match_operand 0 "force_to_mem_operand"))
 
 ;; This is a normal rather than a register constraint because we can
 ;; never use the stack pointer as a reload register.

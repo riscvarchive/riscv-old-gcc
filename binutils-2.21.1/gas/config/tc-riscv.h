@@ -73,19 +73,6 @@ struct mips_segment_info {
 #define TARGET_FORMAT mips_target_format()
 extern const char *mips_target_format (void);
 
-/* MIPS PIC level.  */
-
-enum mips_pic_level
-{
-  /* Do not generate PIC code.  */
-  NO_PIC,
-
-  /* Generate PIC code as in the SVR4 MIPS ABI.  */
-  SVR4_PIC
-};
-
-extern enum mips_pic_level mips_pic;
-
 #define md_after_parse_args() mips_after_parse_args()
 extern void mips_after_parse_args (void);
 

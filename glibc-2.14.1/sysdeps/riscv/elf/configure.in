@@ -14,9 +14,9 @@ foo:	.long	1
 bar:	.skip	4
 	.text
 
-	lw	t7, %call16(__tls_get_addr)(gp)
-	add	a0, gp, %tlsgd(x) 
-	jalr	t7
+	la		v0, __tls_get_addr
+	la.tls.gd	a0, x
+	jalr		v0
 EOF
 dnl
 if AC_TRY_COMMAND(${CC-cc} -c $CFLAGS conftest.s 1>&AS_MESSAGE_LOG_FD); then

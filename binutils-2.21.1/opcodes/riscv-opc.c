@@ -56,6 +56,7 @@
 #define MASK_RT (OP_MASK_RT << OP_SH_RT)
 #define MASK_RD (OP_MASK_RD << OP_SH_RD)
 #define MASK_IMM (OP_MASK_IMMEDIATE << OP_SH_IMMEDIATE)
+#define MASK_BIGIMM (OP_MASK_BIGIMMEDIATE << OP_SH_BIGIMMEDIATE)
 #define MASK_RM (OP_MASK_RM << OP_SH_RM)
 
 const struct riscv_opcode riscv_builtin_opcodes[] =
@@ -185,6 +186,8 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"divu",    "d,s,t",	MATCH_DIVU, MASK_DIVU,  WR_xd|RD_xs1|RD_xs2 },
 {"divuw",    "d,s,t",	MATCH_DIVUW, MASK_DIVUW,  WR_xd|RD_xs1|RD_xs2 },
 {"la",     "d,A(b)",	0,    (int) M_LA_AB,	INSN_MACRO },
+{"la.tls.gd", "d,A",	0,    (int) M_LA_TLS_GD,	INSN_MACRO },
+{"la.tls.ie", "d,A",	0,    (int) M_LA_TLS_IE,	INSN_MACRO },
 {"mffsr",   "d",	MATCH_MFFSR, MASK_MFFSR,  WR_xd },
 {"mtfsr",   "s",	MATCH_MTFSR, MASK_MTFSR | MASK_RD,  RD_xs1 },
 {"mtfsr",   "d,s",	MATCH_MTFSR, MASK_MTFSR,  WR_xd|RD_xs1 },
@@ -261,7 +264,8 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"or",     "d,s,j",	MATCH_ORI, MASK_ORI,	 WR_xd|RD_xs1 },
 {"ori",     "d,s,j",	MATCH_ORI, MASK_ORI,	 WR_xd|RD_xs1 },
   /* pref and prefx are at the start of the table.  */
-{"rdnpc",   "d",	MATCH_RDNPC, MASK_RDNPC,  WR_xd },
+{"luipc",   "d,u",	MATCH_LUIPC, MASK_LUIPC,  WR_xd },
+{"rdpc",   "d",		MATCH_LUIPC, MASK_LUIPC | MASK_BIGIMM,  WR_xd },
 {"rem",    "d,s,t",	MATCH_REM, MASK_REM,  WR_xd|RD_xs1|RD_xs2 },
 {"remw",    "d,s,t",	MATCH_REMW, MASK_REMW,  WR_xd|RD_xs1|RD_xs2 },
 {"remu",    "d,s,t",	MATCH_REMU, MASK_REMU,  WR_xd|RD_xs1|RD_xs2 },

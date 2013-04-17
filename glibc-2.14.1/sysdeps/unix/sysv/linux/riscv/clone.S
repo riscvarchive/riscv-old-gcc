@@ -99,8 +99,7 @@ L(donepid):
 
 	/* Call _exit rather than doing it inline for breakpoint purposes.  */
 	move		a0,v0
-	SETUP_GPX64(t6, t7)
-	PIC_JAL(t6, _exit)
+	PIC_JAL(_exit)
 
 #ifdef RESET_PID
 L(restore_pid):

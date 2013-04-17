@@ -47,10 +47,6 @@
   UNSPEC_SET_HILO
 
   ;; GP manipulation.
-  UNSPEC_LOADGP
-  UNSPEC_COPYGP
-  UNSPEC_MOVE_GP
-  UNSPEC_RESTORE_GP
   UNSPEC_EH_RETURN
   UNSPEC_SET_GOT_VERSION
   UNSPEC_UPDATE_GOT_VERSION
@@ -58,7 +54,8 @@
   ;; Symbolic accesses.
   UNSPEC_LOAD_CALL
   UNSPEC_LOAD_GOT
-  UNSPEC_TLS_LDM
+  UNSPEC_TLS_GD
+  UNSPEC_TLS_IE
 
   ;; MIPS16 constant pools.
   UNSPEC_ALIGN
@@ -334,10 +331,7 @@
 	  (eq_attr "type" "ghost")
 	  (const_int 0)
 
-	  (eq_attr "got" "load")
-		(const_int 4)
-	  (eq_attr "got" "xgot_high")
-	  (const_int 8)
+	  (eq_attr "got" "load") (const_int 8)
 
 	  ;; SHIFT_SHIFTs are decomposed into two separate instructions.
 	  ;; They are extended instructions on MIPS16 targets.
@@ -1821,65 +1815,30 @@
 ;;
 ;;  ....................
 
-;; Insns to fetch a symbol from a big GOT.
-
-(define_insn_and_split "*xgot_hi<mode>"
+(define_insn "got_load<mode>"
   [(set (match_operand:P 0 "register_operand" "=d")
-	(high:P (match_operand:P 1 "got_disp_operand" "")))]
-  ""
-  "#"
-  "&& reload_completed"
-  [(set (match_dup 0) (high:P (match_dup 2)))
-   (set (match_dup 0) (plus:P (match_dup 0) (match_dup 3)))]
-{
-  operands[2] = mips_unspec_address (operands[1], SYMBOL_GOTOFF_DISP);
-  operands[3] = pic_offset_table_rtx;
-}
-  [(set_attr "got" "xgot_high")
-   (set_attr "mode" "<MODE>")])
-
-(define_insn_and_split "*xgot_lo<mode>"
-  [(set (match_operand:P 0 "register_operand" "=d")
-	(lo_sum:P (match_operand:P 1 "register_operand" "d")
-		  (match_operand:P 2 "got_disp_operand" "")))]
-  ""
-  "#"
-  "&& reload_completed"
-  [(set (match_dup 0)
-	(unspec:P [(match_dup 1) (match_dup 3)] UNSPEC_LOAD_GOT))]
-  { operands[3] = mips_unspec_address (operands[2], SYMBOL_GOTOFF_DISP); }
+       (unspec:P [(match_operand:P 1 "symbolic_operand" "")]
+                 UNSPEC_LOAD_GOT))]
+  "TARGET_USE_GOT"
+  "la\t%0,%1"
   [(set_attr "got" "load")
    (set_attr "mode" "<MODE>")])
 
-;; Insns to fetch a symbol from a normal GOT.
-
-(define_insn_and_split "*got_disp<mode>"
+(define_insn "got_load_tls_gd<mode>"
   [(set (match_operand:P 0 "register_operand" "=d")
-	(match_operand:P 1 "got_disp_operand" ""))]
-  "!mips_split_p[SYMBOL_GOT_DISP]"
-  "#"
-  "&& reload_completed"
-  [(set (match_dup 0) (match_dup 2))]
-  { operands[2] = mips_got_load (NULL, operands[1], SYMBOL_GOTOFF_DISP); }
+       (unspec:P [(match_operand:P 1 "symbolic_operand" "")]
+                 UNSPEC_TLS_GD))]
+  "TARGET_USE_GOT"
+  "la.tls.gd\t%0,%1"
   [(set_attr "got" "load")
    (set_attr "mode" "<MODE>")])
 
-;; Convenience expander that generates the rhs of a load_got<mode> insn.
-(define_expand "unspec_got<mode>"
-  [(unspec:P [(match_operand:P 0)
-	      (match_operand:P 1)] UNSPEC_LOAD_GOT)])
-
-;; Lower-level instructions for loading an address from the GOT.
-;; We could use MEMs, but an unspec gives more optimization
-;; opportunities.
-
-(define_insn "load_got<mode>"
+(define_insn "got_load_tls_ie<mode>"
   [(set (match_operand:P 0 "register_operand" "=d")
-	(unspec:P [(match_operand:P 1 "register_operand" "d")
-		   (match_operand:P 2 "immediate_operand" "")]
-		  UNSPEC_LOAD_GOT))]
-  ""
-  "<load>\t%0,%R2(%1)"
+       (unspec:P [(match_operand:P 1 "symbolic_operand" "")]
+                 UNSPEC_TLS_IE))]
+  "TARGET_USE_GOT"
+  "la.tls.ie\t%0,%1"
   [(set_attr "got" "load")
    (set_attr "mode" "<MODE>")])
 
@@ -2188,50 +2147,6 @@
 }
   [(set_attr "move_type" "mfc,fpstore")
    (set_attr "mode" "<HALFMODE>")])
-
-;; Insn to initialize $gp for n32/n64 abicalls.  Operand 0 is the offset
-;; of _gp from the start of this function.  Operand 1 is the incoming
-;; function address.
-(define_insn_and_split "loadgp_newabi_<mode>"
-  [(set (match_operand:P 0 "register_operand" "=d")
-	(unspec:P [(match_operand:P 1)
-		   (match_operand:P 2 "register_operand" "d")]
-		  UNSPEC_LOADGP))]
-  "mips_current_loadgp_style () == LOADGP_NEWABI"
-  { return mips_must_initialize_gp_p () ? "#" : ""; }
-  "&& mips_must_initialize_gp_p ()"
-  [(set (match_dup 0) (match_dup 3))
-   (set (match_dup 0) (match_dup 4))
-   (set (match_dup 0) (match_dup 5))]
-{
-  operands[3] = gen_rtx_HIGH (Pmode, operands[1]);
-  operands[4] = gen_rtx_PLUS (Pmode, operands[0], operands[2]);
-  operands[5] = gen_rtx_LO_SUM (Pmode, operands[0], operands[1]);
-}
-  [(set_attr "type" "ghost")])
-
-;; Likewise, for -mno-shared code.  Operand 0 is the __gnu_local_gp symbol.
-(define_insn_and_split "loadgp_absolute_<mode>"
-  [(set (match_operand:P 0 "register_operand" "=d")
-	(unspec:P [(match_operand:P 1)] UNSPEC_LOADGP))]
-  "mips_current_loadgp_style () == LOADGP_ABSOLUTE"
-  { return mips_must_initialize_gp_p () ? "#" : ""; }
-  "&& mips_must_initialize_gp_p ()"
-  [(const_int 0)]
-{
-  mips_emit_move (operands[0], operands[1]);
-  DONE;
-}
-  [(set_attr "type" "ghost")])
-
-;; This blockage instruction prevents the gp load from being
-;; scheduled after an implicit use of gp.  It also prevents
-;; the load from being deleted as dead.
-(define_insn "loadgp_blockage"
-  [(unspec_volatile [(reg:SI 28)] UNSPEC_BLOCKAGE)]
-  ""
-  ""
-  [(set_attr "type" "ghost")])
 
 ;; Expand in-line code to clear the instruction cache between operand[0] and
 ;; operand[1].
@@ -2571,10 +2486,6 @@
    (use (label_ref (match_operand 1 "")))]
   ""
 {
-  if (TARGET_GPWORD)
-    operands[0] = expand_binop (Pmode, add_optab, operands[0],
-				pic_offset_table_rtx, 0, 0, OPTAB_WIDEN);
-
   if (Pmode == SImode)
     emit_jump_insn (gen_tablejumpsi (operands[0], operands[1]));
   else
@@ -2591,55 +2502,6 @@
   [(set_attr "type" "jump")
    (set_attr "mode" "none")])
 
-;; For TARGET_USE_GOT, we save the gp in the jmp_buf as well.
-;; While it is possible to either pull it off the stack (in the
-;; o32 case) or recalculate it given t9 and our target label,
-;; it takes 3 or 4 insns to do so.
-
-(define_expand "builtin_setjmp_setup"
-  [(use (match_operand 0 "register_operand"))]
-  "TARGET_USE_GOT"
-{
-  rtx addr;
-
-  addr = plus_constant (operands[0], GET_MODE_SIZE (Pmode) * 3);
-  mips_emit_move (gen_rtx_MEM (Pmode, addr), pic_offset_table_rtx);
-  DONE;
-})
-
-;; Restore the gp that we saved above.  Despite the earlier comment, it seems
-;; that older code did recalculate the gp from $25.  Continue to jump through
-;; $25 for compatibility (we lose nothing by doing so).
-
-(define_expand "builtin_longjmp"
-  [(use (match_operand 0 "register_operand"))]
-  "TARGET_USE_GOT"
-{
-  /* The elements of the buffer are, in order:  */
-  int W = GET_MODE_SIZE (Pmode);
-  rtx fp = gen_rtx_MEM (Pmode, operands[0]);
-  rtx lab = gen_rtx_MEM (Pmode, plus_constant (operands[0], 1*W));
-  rtx stack = gen_rtx_MEM (Pmode, plus_constant (operands[0], 2*W));
-  rtx gpv = gen_rtx_MEM (Pmode, plus_constant (operands[0], 3*W));
-  rtx pv = gen_rtx_REG (Pmode, PIC_FUNCTION_ADDR_REGNUM);
-  /* Use gen_raw_REG to avoid being given pic_offset_table_rtx.
-     The target is bound to be using $28 as the global pointer
-     but the current function might not be.  */
-  rtx gp = gen_raw_REG (Pmode, GLOBAL_POINTER_REGNUM);
-
-  /* This bit is similar to expand_builtin_longjmp except that it
-     restores $gp as well.  */
-  mips_emit_move (hard_frame_pointer_rtx, fp);
-  mips_emit_move (pv, lab);
-  emit_stack_restore (SAVE_NONLOCAL, stack);
-  mips_emit_move (gp, gpv);
-  emit_use (hard_frame_pointer_rtx);
-  emit_use (stack_pointer_rtx);
-  emit_use (gp);
-  emit_indirect_jump (pv);
-  DONE;
-})
-
 ;;
 ;;  ....................
 ;;
@@ -2760,21 +2622,6 @@
   DONE;
 })
 
-;; Move between $gp and its register save slot.
-(define_insn_and_split "move_gp<mode>"
-  [(set (match_operand:GPR 0 "nonimmediate_operand" "=d,m")
-  	(unspec:GPR [(match_operand:GPR 1 "move_operand" "m,d")]
-		    UNSPEC_MOVE_GP))]
-  ""
-  { return mips_must_initialize_gp_p () ? "#" : ""; }
-  "mips_must_initialize_gp_p ()"
-  [(const_int 0)]
-{
-  mips_emit_move (operands[0], operands[1]);
-  DONE;
-}
-  [(set_attr "type" "ghost")])
-
 ;;
 ;;  ....................
 ;;
@@ -2870,7 +2717,7 @@
   ""
 {
   mips_expand_call (MIPS_CALL_SIBCALL, NULL_RTX, XEXP (operands[0], 0),
-		    operands[1], operands[2], false);
+		    operands[1]);
   DONE;
 })
 
@@ -2889,7 +2736,7 @@
   ""
 {
   mips_expand_call (MIPS_CALL_SIBCALL, operands[0], XEXP (operands[1], 0),
-		    operands[2], operands[3], false);
+		    operands[2]);
   DONE;
 })
 
@@ -2920,12 +2767,12 @@
   ""
 {
   mips_expand_call (MIPS_CALL_NORMAL, NULL_RTX, XEXP (operands[0], 0),
-		    operands[1], operands[2], false);
+		    operands[1]);
   DONE;
 })
 
 (define_insn "call_internal"
-  [(call (mem:SI (match_operand 0 "call_insn_operand" "c,S"))
+  [(call (mem:SI (match_operand 0 "call_insn_operand" "r,S"))
 	 (match_operand 1 "" ""))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
@@ -2953,14 +2800,14 @@
   ""
 {
   mips_expand_call (MIPS_CALL_NORMAL, operands[0], XEXP (operands[1], 0),
-		    operands[2], operands[3], false);
+		    operands[2]);
   DONE;
 })
 
 ;; See comment for call_internal.
 (define_insn "call_value_internal"
   [(set (match_operand 0 "register_operand" "")
-        (call (mem:SI (match_operand 1 "call_insn_operand" "c,S"))
+        (call (mem:SI (match_operand 1 "call_insn_operand" "r,S"))
               (match_operand 2 "" "")))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
@@ -2981,7 +2828,7 @@
 ;; See comment for call_internal.
 (define_insn "call_value_multiple_internal"
   [(set (match_operand 0 "register_operand" "")
-        (call (mem:SI (match_operand 1 "call_insn_operand" "c,S"))
+        (call (mem:SI (match_operand 1 "call_insn_operand" "r,S"))
               (match_operand 2 "" "")))
    (set (match_operand 3 "register_operand" "")
 	(call (mem:SI (match_dup 1))

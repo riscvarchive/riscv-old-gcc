@@ -25,15 +25,14 @@
 
 	.text
 LEAF (__start_context)
-	SETUP_GP64(s8, __start_context)
 	move	a0, zero
 	beqz	s0, 1f
 
 	/* setcontext (ucp) */
 	move	a0, s0
-	PIC_JAL(s8, __setcontext)
+	PIC_JAL(__setcontext)
 	move	a0, v0
 
-1:	PIC_JAL(s8, HIDDEN_JUMPTARGET (exit))
+1:	PIC_JAL(HIDDEN_JUMPTARGET (exit))
 
 PSEUDO_END (__start_context)

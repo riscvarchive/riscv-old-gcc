@@ -87,14 +87,13 @@ elf_mips_got_from_gpreg (ElfW(Addr) gpreg)
 static inline ElfW(Addr)
 elf_machine_dynamic (void)
 {
-  ElfW(Addr) tmp, gp;
-  asm ("   rdnpc %0\n"
-       "1: lui   %1, %%hi(%%neg(%%gp_rel(1b)))\n"
-       "   add   %1, %1, %0\n"
-       "   addi  %1, %1, %%lo(%%neg(%%gp_rel(1b)))\n"
-       : "=r"(tmp), "=r"(gp));
+  ElfW(Addr) load, link, got;
+  asm ("   la   %0, 1f\n"
+       "   la   %1, _GLOBAL_OFFSET_TABLE_\n"
+       "1: rdpc %2"
+       : "=r"(link), "=r"(got), "=r"(load));
 
-  return *elf_mips_got_from_gpreg (gp);
+  return *elf_mips_got_from_gpreg(load - link + got);
 }
 
 #define STRINGXP(X) __STRING(X)
@@ -105,15 +104,10 @@ elf_machine_dynamic (void)
 static inline ElfW(Addr)
 elf_machine_load_address (void)
 {
-  ElfW(Addr) load, link, tmp;
-  asm ("   rdnpc %0\n"
-       "1: lui   %1, %%hi(%%neg(%%gp_rel(1b)))\n"
-       "   add   %1, %1, %0\n"
-       "   addi  %1, %1, %%lo(%%neg(%%gp_rel(1b)))\n"
-       "   lui   %2, %%got_hi(1b)\n"
-       "   add   %2, %2, %1\n"
-       STRINGXP(REG_L) " %1, %%got_lo(1b)(%2)"
-       : "=r"(load), "=r"(link), "=r"(tmp));
+  ElfW(Addr) load, link;
+  asm ("   la   %0, 1f\n"
+       "1: rdpc %1\n"
+       : "=r"(link), "=r"(load));
 
   return load - link;
 }
@@ -189,31 +183,26 @@ do {									\
 #define RTLD_START asm (\
 	".text\n\
 	" _RTLD_PROLOGUE(ENTRY_POINT) "\
-	" STRINGXV(SETUP_GPX64(gp, t7)) "\n\
-	# i386 ABI book says that the first entry of GOT holds\n\
-	# the address of the dynamic structure. Though MIPS ABI\n\
-	# doesn't say nothing about this, I emulate this here.\n\
-	" STRINGXV(PIC_LA(a0, gp, _DYNAMIC)) "\n\
-	" STRINGXP(REG_S) " a0, 0(gp)\n\
+	# Store &_DYNAMIC in the first entry of the GOT.\n\
+	la a1, 1f\n\
+	la a2, _GLOBAL_OFFSET_TABLE_\n\
+	la a3, _DYNAMIC\n\
+	1: rdpc a0\n\
+	sub a0, a0, a1\n\
+	add a0, a0, a2\n\
+	" STRINGXP(REG_S) " a3, 0(a0)\n\
 	move a0, sp\n\
-	rdnpc t0\n\
-.Lcoff: \n\
-	" STRINGXV(PIC_LA(t1, gp, .Lcoff)) "\n\
-	" STRINGXV(PIC_LA(t7, gp, _dl_start)) "\n\
-	sub  t0, t0, t1\n\
-	add  t7, t7, t0\n\
-	jalr t7\n\
+	jal _dl_start\n\
 	# Fall through to _dl_start_user \
 	" _RTLD_EPILOGUE(ENTRY_POINT) "\
 	\n\
 	\n\
 	" _RTLD_PROLOGUE(_dl_start_user) "\
-	" STRINGXV(SETUP_GPX64(gp, t7)) "\n\
-	# Save the user entry point address in a saved register.\n\
+	# Stash user entry point in s0.\n\
 	move s0, v0\n\
 	# See if we were run as a command with the executable file\n\
 	# name as an extra leading argument.\n\
-	" STRINGXV(PIC_LA(v0, gp, _dl_skip_args)) "\n\
+	la v0, _dl_skip_args\n\
 	lw v0, 0(v0)\n\
 	beqz v0, 1f\n\
 	# Load the original argument count.\n\
@@ -226,27 +215,19 @@ do {									\
 	# Save back the modified argument count.\n\
 	" STRINGXP(REG_S) " a0, 0(sp)\n\
 1:	# Call _dl_init (struct link_map *main_map, int argc, char **argv, char **env) \n\
-	" STRINGXV(PIC_LA(a0, gp, _rtld_local)) "\n\
+	la a0, _rtld_local\n\
 	" STRINGXP(REG_L) " a0, 0(a0)\n\
 	" STRINGXP(REG_L) " a1, 0(sp)\n\
 	add a2, sp, " STRINGXP (PTRSIZE) "\n\
 	sll a3, a1, " STRINGXP (PTRLOG) "\n\
 	add a3, a3, a2\n\
 	add a3, a3, " STRINGXP (PTRSIZE) "\n\
-	# Make sure the stack pointer is aligned for _dl_init_internal.\n\
-	and v0, sp, -2 * " STRINGXP(SZREG) "\n\
-	move s3, sp\n\
-	add sp, v0, -32\n\
 	# Call the function to run the initializers.\n\
-	" STRINGXV(PIC_LA(t7, gp, _dl_init_internal)) "\n\
-	jalr t7\n\
-	# Restore the stack pointer for _start.\n\
-	move sp, s3\n\
+	jal _dl_init_internal\n\
 	# Pass our finalizer function to the user in v0 as per ELF ABI.\n\
-	" STRINGXV(PIC_LA(v0, gp, _dl_fini)) "\n\
+	la v0, _dl_fini\n\
 	# Jump to the user entry point.\n\
-	move t7, s0\n\
-	jr t7\n\t"\
+	jr s0\n\t"\
 	_RTLD_EPILOGUE(_dl_start_user)\
 	".previous"\
 );
@@ -685,7 +666,7 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
 # ifndef RTLD_BOOTSTRAP
   ElfW(Addr) *got;
   extern void _dl_runtime_resolve (ElfW(Word));
-  extern void _dl_runtime_pltresolve (void);
+  extern void _dl_fixup (void);
   extern int _dl_mips_gnu_objects;
 
   if (lazy)
@@ -722,7 +703,7 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
 	 The prelinker saved the address of .plt for us here.  */
       if (gotplt[1])
 	l->l_mach.plt = gotplt[1] + l->l_addr;
-      gotplt[0] = (ElfW(Addr)) &_dl_runtime_pltresolve;
+      gotplt[0] = (ElfW(Addr)) &_dl_fixup;
       gotplt[1] = (ElfW(Addr)) l;
     }
 

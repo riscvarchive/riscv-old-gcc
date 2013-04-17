@@ -129,9 +129,6 @@ extern void _bfd_riscv_elf_merge_symbol_attribute
 extern char *_bfd_riscv_elf_get_target_dtag (bfd_vma);
 extern void _bfd_riscv_elf_use_plts_and_copy_relocs
   (struct bfd_link_info *);
-extern bfd_boolean _bfd_riscv_elf_init_stubs
-  (struct bfd_link_info *,
-   asection *(*) (const char *, asection *, asection *));
 extern bfd_vma _bfd_riscv_elf_plt_sym_val
   (bfd_vma, const asection *, const arelent *rel);
 extern void _bfd_riscv_post_process_headers

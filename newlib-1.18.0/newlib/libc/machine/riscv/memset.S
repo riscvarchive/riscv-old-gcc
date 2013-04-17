@@ -65,11 +65,11 @@ tail:
 small:
   sub t0, t3, a2
   sll t0, t0, 2
-  rdnpc t1
 .set push
 .set norvc
+  rdpc t1
   add t0, t0, t1
-  jalr.j x0, t0, 8
+  jalr.j x0, t0, 12
 
   sb a1, 6(a0)
   sb a1, 5(a0)
@@ -83,11 +83,11 @@ small:
 
 misaligned:
   sll t0, t2, 2
-  rdnpc t1
 .set push
 .set norvc
+  rdpc t1
   add t0, t0, t1
-  jalr.j x0, t0, 4
+  jalr.j x0, t0, 8
 
   sb a1, 6(a0)
   sb a1, 5(a0)

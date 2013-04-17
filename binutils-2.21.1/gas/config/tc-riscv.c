@@ -126,9 +126,6 @@ enum mips_abi_level
 /* MIPS ABI we are using for this output file.  */
 static enum mips_abi_level mips_abi = ABI_64;
 
-/* Whether or not we have code that can call pic code.  */
-int mips_abicalls = FALSE;
-
 /* This is the set of options which may be modified by the .set
    pseudo-op.  We use a struct so that .set push and .set pop are more
    reliable.  */
@@ -155,25 +152,23 @@ unsigned long mips_fprmask;
 
 /* Likewise 64-bit registers.  */
 #define ABI_NEEDS_64BIT_REGS(ABI) ((ABI) == ABI_64)
-
 #define HAVE_32BIT_GPRS ABI_NEEDS_32BIT_REGS (mips_abi)
-
 #define HAVE_64BIT_GPRS (!HAVE_32BIT_GPRS)
-
 #define HAVE_64BIT_OBJECTS ABI_NEEDS_64BIT_REGS (mips_abi)
+
+#define ADD32_INSN (HAVE_64BIT_GPRS ? "addiw" : "addi")
+#define LOAD_ADDRESS_INSN (HAVE_64BIT_GPRS ? "ld" : "lw")
 
 /* The ABI-derived address size.  */
 #define HAVE_64BIT_ADDRESSES HAVE_64BIT_GPRS
 #define HAVE_32BIT_ADDRESSES (!HAVE_64BIT_ADDRESSES)
-
 /* The size of symbolic constants (i.e., expressions of the form
    "SYMBOL" or "SYMBOL + OFFSET").  */
 #define HAVE_32BIT_SYMBOLS 1
 #define HAVE_64BIT_SYMBOLS (!HAVE_32BIT_SYMBOLS)
 
-/* MIPS PIC level.  */
-
-enum mips_pic_level mips_pic;
+/* Whether or not we're generating position-independent code.  */
+static bfd_boolean is_pic = FALSE;
 
 /* handle of the OPCODE hash table */
 static struct hash_control *op_hash = NULL;
@@ -327,15 +322,11 @@ static void s_change_section (int);
 static void s_cons (int);
 static void s_float_cons (int);
 static void s_mips_globl (int);
-static void s_option (int);
 static void s_mipsset (int);
-static void s_abicalls (int);
+static void s_pic (int);
+static void s_nopic (int);
 static void s_dtprelword (int);
 static void s_dtpreldword (int);
-static void s_gpword (int);
-static void s_gpdword (int);
-static void s_insn (int);
-static void s_mips_stab (int);
 static void s_mips_weakext (int);
 static void s_mips_file (int);
 static void s_mips_loc (int);
@@ -362,17 +353,12 @@ static int relaxed_branch_length (fragS *fragp, asection *sec, int update);
 static const pseudo_typeS mips_pseudo_table[] =
 {
   /* MIPS specific pseudo-ops.  */
-  {"option", s_option, 0},
   {"set", s_mipsset, 0},
   {"rdata", s_change_sec, 'r'},
-  {"sdata", s_change_sec, 's'},
-  {"livereg", s_ignore, 0},
-  {"abicalls", s_abicalls, 0},
+  {"pic", s_pic, 0},
+  {"nopic", s_nopic, 0},
   {"dtprelword", s_dtprelword, 0},
   {"dtpreldword", s_dtpreldword, 0},
-  {"gpword", s_gpword, 0},
-  {"gpdword", s_gpdword, 0},
-  {"insn", s_insn, 0},
 
   /* Relatively generic pseudo-ops that happen to be used on MIPS
      chips.  */
@@ -402,7 +388,6 @@ static const pseudo_typeS mips_pseudo_table[] =
   {"section", s_change_section, 0},
   {"short", s_cons, 1},
   {"single", s_float_cons, 'f'},
-  {"stabn", s_mips_stab, 'n'},
   {"text", s_change_sec, 't'},
   {"word", s_cons, 2},
 
@@ -983,7 +968,6 @@ struct regname {
     {"s6",	RTYPE_GP | 26}, \
     {"s7",	RTYPE_GP | 27}, \
     {"s8",	RTYPE_GP | 28}, \
-    {"gp",	RTYPE_GP | 28}, \
     {"s9",	RTYPE_GP | 29}, \
     {"sp",	RTYPE_GP | 30}, \
     {"tp",	RTYPE_GP | 31}
@@ -1477,6 +1461,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	    default:
 	      internalError ();
 	    }
+	    *reloc_type = BFD_RELOC_UNUSED;
 	}
       else if (*reloc_type < BFD_RELOC_UNUSED)
 	{
@@ -1611,19 +1596,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
   gas_assert (mo);
   gas_assert (strcmp (name, mo->name) == 0);
 
-  while (1)
-    {
-      /* Search until we get a match for NAME.  It is assumed here that
-	 macros will never generate MDMX, MIPS-3D, or MT instructions.  */
-      if (strcmp (fmt, mo->args) == 0
-	  && mo->pinfo != INSN_MACRO)
-	break;
-
-      ++mo;
-      gas_assert (mo->name);
-      gas_assert (strcmp (name, mo->name) == 0);
-    }
-
   create_insn (&insn, mo);
   for (;;)
     {
@@ -1731,8 +1703,15 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  INSERT_OPERAND (RM, insn, va_arg (args, int));
 	  continue;
 
+	case 'O': /* An off-by-4 PC-relative address for PIC. */
+	  INSERT_OPERAND (IMMEDIATE, insn, 4);
+	  macro_read_relocs (&args, r);
+	  gas_assert (*r == BFD_RELOC_RISCV_TLS_GD_LO16
+		  || *r == BFD_RELOC_RISCV_TLS_GOT_LO16
+		  || *r == BFD_RELOC_MIPS_GOT_LO16);
+	  continue;
+
 	case 'j':
-	case 'o':
 	  macro_read_relocs (&args, r);
 	  gas_assert (*r == BFD_RELOC_GPREL16
 		  || *r == BFD_RELOC_MIPS_LITERAL
@@ -1842,45 +1821,39 @@ normalize_address_expr (expressionS *ex)
  * Generate a "lui" instruction.
  */
 static void
-macro_build_lui (expressionS *ep, int regnum)
+macro_build_lui (const char* name, expressionS *ep, int regnum, bfd_reloc_code_real_type reloc)
 {
-  expressionS high_expr;
   const struct riscv_opcode *mo;
   struct mips_cl_insn insn;
-  bfd_reloc_code_real_type r[3]
-    = {BFD_RELOC_UNUSED, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
-  const char *name = "lui";
-  const char *fmt = "d,u";
+  bfd_reloc_code_real_type r[3] = {reloc, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
 
-  high_expr = *ep;
-
-  if (high_expr.X_op == O_constant)
-    {
-      /* We can compute the instruction now without a relocation entry.  */
-      high_expr.X_add_number = ((high_expr.X_add_number + RISCV_IMM_REACH/2)
-				>> RISCV_IMM_BITS) & (RISCV_IMM_REACH-1);
-      *r = BFD_RELOC_UNUSED;
-    }
-  else
-    {
-      gas_assert (ep->X_op == O_symbol);
-      *r = BFD_RELOC_HI16_S;
-    }
+  gas_assert (ep->X_op == O_symbol);
 
   mo = hash_find (op_hash, name);
-  gas_assert (strcmp (name, mo->name) == 0);
-  gas_assert (strcmp (fmt, mo->args) == 0);
+  gas_assert (mo);
   create_insn (&insn, mo);
 
   insn.insn_opcode = insn.insn_mo->match;
   INSERT_OPERAND (RD, insn, regnum);
-  if (*r == BFD_RELOC_UNUSED)
-    {
-      insn.insn_opcode |= high_expr.X_add_number;
-      append_insn (&insn, NULL, r);
-    }
-  else
-    append_insn (&insn, &high_expr, r);
+  append_insn (&insn, ep, r);
+}
+
+/* Load an entry from the GOT. */
+static void
+load_static_addr (int destreg, expressionS *ep)
+{
+  macro_build_lui ("lui", ep, destreg, BFD_RELOC_HI16_S);
+  macro_build (ep, "addi", "d,s,j", destreg, destreg, BFD_RELOC_LO16);
+}
+
+/* Load an entry from the GOT. */
+static void
+load_got_addr (int destreg, expressionS *ep, const char* lo_insn,
+               bfd_reloc_code_real_type hi_reloc,
+	       bfd_reloc_code_real_type lo_reloc)
+{
+  macro_build_lui ("luipc", ep, destreg, hi_reloc);
+  macro_build (ep, lo_insn, "d,O(b)", destreg, lo_reloc, destreg);
 }
 
 /* Warn if an expression is not a constant.  */
@@ -1898,10 +1871,10 @@ check_absolute_expr (struct mips_cl_insn *ip, expressionS *ex)
     normalize_constant_expr (ex);
 }
 
-/* load_register generates an unoptimized instruction sequence to load
+/* load_const generates an unoptimized instruction sequence to load
  * an absolute expression into a register. */
 static void
-load_register (int reg, expressionS *ep)
+load_const (int reg, expressionS *ep)
 {
   gas_assert (ep->X_op == O_constant);
   gas_assert (reg != ZERO);
@@ -1912,7 +1885,7 @@ load_register (int reg, expressionS *ep)
   {
     expressionS upper = *ep, lower = *ep;
     upper.X_add_number = (int64_t)ep->X_add_number >> (RISCV_IMM_BITS-1);
-    load_register(reg, &upper);
+    load_const(reg, &upper);
 
     macro_build (NULL, "sll", "d,s,>", reg, reg, RISCV_IMM_BITS-1);
 
@@ -1934,10 +1907,7 @@ load_register (int reg, expressionS *ep)
     }
 
     if((ep->X_add_number & (RISCV_IMM_REACH-1)) || hi_reg == ZERO)
-    {
-      macro_build (ep, (HAVE_64BIT_GPRS ? "addiw" : "addi"), "d,s,j",
-                   reg, hi_reg, BFD_RELOC_LO16);
-    }
+      macro_build (ep, ADD32_INSN, "d,s,j", reg, hi_reg, BFD_RELOC_LO16);
   }
 }
 
@@ -1973,44 +1943,31 @@ macro (struct mips_cl_insn *ip)
     {
     case M_LA_AB:
       /* Load the address of a symbol into a register. */
-
-      if(offset_expr.X_op == O_constant
-         && offset_expr.X_add_number >= -(signed)RISCV_IMM_REACH/2
-         && offset_expr.X_add_number < (signed)RISCV_IMM_REACH/2)
-      {
-        macro_build (&offset_expr, "addi",
-                     "d,s,j", dreg, breg, BFD_RELOC_LO16);
-        break;
-      }
-
-      if(!IS_SEXT_32BIT_NUM (offset_expr.X_add_number))
+      if (!IS_SEXT_32BIT_NUM (offset_expr.X_add_number))
         as_bad(_("offset too large"));
+      if (breg == dreg && breg != ZERO)
+        as_bad(_("expression too complex: dest and base regs must differ"));
 
-      if(breg == dreg && breg != ZERO)
-        as_bad(_("expression too complex"));
-
-      if(offset_expr.X_op == O_constant)
-      {
-        load_register(dreg, &offset_expr);
-        if(breg != ZERO)
-           macro_build (NULL, "add", "d,s,t", dreg, dreg, breg);
-
-        break;
-      }
-
-      /* We're loading a symbol, not an absolute address. */
-      if(mips_pic != NO_PIC)
-        as_bad("can't use la with PIC");
-
-      if(HAVE_64BIT_SYMBOLS)
-        as_bad("la is unimplemented for 64-bit symbols");
-
-      macro_build_lui (&offset_expr, dreg);
-      macro_build (&offset_expr, "addi", "d,s,j",
-                   dreg, dreg, BFD_RELOC_LO16);
+      if (offset_expr.X_op == O_constant)
+        load_const (dreg, &offset_expr);
+      else if (is_pic) /* O_symbol */
+	load_got_addr (dreg, &offset_expr, LOAD_ADDRESS_INSN,
+	               BFD_RELOC_MIPS_GOT_HI16, BFD_RELOC_MIPS_GOT_LO16);
+      else /* non-PIC O_symbol */
+	load_static_addr (dreg, &offset_expr);
 
       if (breg != ZERO)
         macro_build (NULL, "add", "d,s,t", dreg, dreg, breg);
+      break;
+
+    case M_LA_TLS_GD: 
+      load_got_addr(dreg, &offset_expr, "addi",
+                    BFD_RELOC_RISCV_TLS_GD_HI16, BFD_RELOC_RISCV_TLS_GD_LO16);
+      break;
+
+    case M_LA_TLS_IE: 
+      load_got_addr(dreg, &offset_expr, LOAD_ADDRESS_INSN,
+                    BFD_RELOC_RISCV_TLS_GOT_HI16, BFD_RELOC_RISCV_TLS_GOT_LO16);
       break;
 
     case M_J: /* replace "j $rs" with "ret" if rs=ra, else with "jr $rs" */
@@ -2021,7 +1978,7 @@ macro (struct mips_cl_insn *ip)
       break;
 
     case M_LI:
-      load_register (dreg, &imm_expr);
+      load_const (dreg, &imm_expr);
       break;
 
     default:
@@ -2615,28 +2572,8 @@ static const struct percent_op_match mips_percent_op[] =
 {
   {"%lo", BFD_RELOC_LO16},
 #ifdef OBJ_ELF
-  {"%call_hi", BFD_RELOC_MIPS_CALL_HI16},
-  {"%call_lo", BFD_RELOC_MIPS_CALL_LO16},
-  {"%call16", BFD_RELOC_MIPS_CALL16},
-  {"%got_disp", BFD_RELOC_MIPS_GOT_DISP},
-  {"%got_hi", BFD_RELOC_MIPS_GOT_HI16},
-  {"%got_lo", BFD_RELOC_MIPS_GOT_LO16},
-  {"%got", BFD_RELOC_MIPS_GOT16},
-  {"%gp_rel", BFD_RELOC_GPREL16},
-  {"%neg", BFD_RELOC_MIPS_SUB},
-  {"%tlsgd", BFD_RELOC_MIPS_TLS_GD},
-  {"%tlsgd_hi", BFD_RELOC_RISCV_TLS_GD_HI16},
-  {"%tlsgd_lo", BFD_RELOC_RISCV_TLS_GD_LO16},
-  {"%tlsldm", BFD_RELOC_MIPS_TLS_LDM},
-  {"%tlsldm_hi", BFD_RELOC_RISCV_TLS_LDM_HI16},
-  {"%tlsldm_lo", BFD_RELOC_RISCV_TLS_LDM_LO16},
-  {"%dtprel_hi", BFD_RELOC_MIPS_TLS_DTPREL_HI16},
-  {"%dtprel_lo", BFD_RELOC_MIPS_TLS_DTPREL_LO16},
   {"%tprel_hi", BFD_RELOC_MIPS_TLS_TPREL_HI16},
   {"%tprel_lo", BFD_RELOC_MIPS_TLS_TPREL_LO16},
-  {"%gottprel", BFD_RELOC_MIPS_TLS_GOTTPREL},
-  {"%gottp_hi", BFD_RELOC_RISCV_TLS_GOT_HI16},
-  {"%gottp_lo", BFD_RELOC_RISCV_TLS_GOT_LO16},
 #endif
   {"%hi", BFD_RELOC_HI16_S}
 };
@@ -2772,6 +2709,8 @@ enum options
   {
     OPTION_MARCH = OPTION_MD_BASE,
     OPTION_MABI,
+    OPTION_PIC,
+    OPTION_NO_PIC,
     OPTION_EB,
     OPTION_EL,
     OPTION_MRVC,
@@ -2781,10 +2720,10 @@ enum options
   
 struct option md_longopts[] =
 {
-  /* Options which specify architecture.  */
   {"mabi", required_argument, NULL, OPTION_MABI},
-
-  /* Miscellaneous options.  */
+  {"fPIC", no_argument, NULL, OPTION_PIC},
+  {"fpic", no_argument, NULL, OPTION_PIC},
+  {"fno-pic", no_argument, NULL, OPTION_NO_PIC},
   {"EB", no_argument, NULL, OPTION_EB},
   {"EL", no_argument, NULL, OPTION_EL},
   {"mrvc", no_argument, NULL, OPTION_MRVC},
@@ -2832,6 +2771,14 @@ md_parse_option (int c, char *arg)
 	  as_fatal (_("invalid abi -mabi=%s"), arg);
 	  return 0;
 	}
+      break;
+
+    case OPTION_NO_PIC:
+      is_pic = FALSE;
+      break;
+
+    case OPTION_PIC:
+      is_pic = TRUE;
       break;
 
     default:
@@ -3219,18 +3166,6 @@ s_change_sec (int sec)
 	}
       demand_empty_rest_of_line ();
       break;
-
-    case 's':
-      seg = subseg_new (".sdata", (subsegT) get_absolute_expression ());
-      if (IS_ELF)
-	{
-	  bfd_set_section_flags (stdoutput, seg,
-				 SEC_ALLOC | SEC_LOAD | SEC_RELOC | SEC_DATA);
-	  if (strncmp (TARGET_OS, "elf", 3) != 0)
-	    record_alignment (seg, 4);
-	}
-      demand_empty_rest_of_line ();
-      break;
     }
 
   auto_align = 1;
@@ -3412,37 +3347,6 @@ s_mips_globl (int x ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
-static void
-s_option (int x ATTRIBUTE_UNUSED)
-{
-  char *opt;
-  char c;
-
-  opt = input_line_pointer;
-  c = get_symbol_end ();
-
-  if (strncmp (opt, "pic", 3) == 0)
-    {
-      int i;
-
-      i = atoi (opt + 3);
-      if (i == 0)
-	mips_pic = NO_PIC;
-      else if (i == 2)
-	{
-	mips_pic = SVR4_PIC;
-	  mips_abicalls = TRUE;
-	}
-      else
-	as_bad (_(".option pic%d not supported"), i);
-    }
-  else
-    as_warn (_("Unrecognized option \"%s\""), opt);
-
-  *input_line_pointer = c;
-  demand_empty_rest_of_line ();
-}
-
 /* This structure is used to hold a stack of .set values.  */
 
 struct mips_option_stack
@@ -3508,15 +3412,17 @@ s_mipsset (int x ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
-/* Handle the .abicalls pseudo-op.  I believe this is equivalent to
-   .option pic2.  It means to generate SVR4 PIC calls.  */
+static void
+s_pic (int ignore ATTRIBUTE_UNUSED)
+{
+  is_pic = TRUE;
+  demand_empty_rest_of_line ();
+}
 
 static void
-s_abicalls (int ignore ATTRIBUTE_UNUSED)
+s_nopic (int ignore ATTRIBUTE_UNUSED)
 {
-  mips_pic = SVR4_PIC;
-  mips_abicalls = TRUE;
-
+  is_pic = FALSE;
   demand_empty_rest_of_line ();
 }
 
@@ -3564,120 +3470,6 @@ static void
 s_dtpreldword (int ignore ATTRIBUTE_UNUSED)
 {
   s_dtprel_internal (8);
-}
-
-/* Handle the .gpword pseudo-op.  This is used when generating PIC
-   code.  It generates a 32 bit GP relative reloc.  */
-
-static void
-s_gpword (int ignore ATTRIBUTE_UNUSED)
-{
-  segment_info_type *si;
-  struct insn_label_list *l;
-  symbolS *label;
-  expressionS ex;
-  char *p;
-
-  /* When not generating PIC code, this is treated as .word.  */
-  if (mips_pic != SVR4_PIC)
-    {
-      s_cons (2);
-      return;
-    }
-
-  si = seg_info (now_seg);
-  l = si->label_list;
-  label = l != NULL ? l->label : NULL;
-  mips_clear_insn_labels ();
-  if (auto_align)
-    mips_align (2, 0, label);
-  mips_clear_insn_labels ();
-
-  expression (&ex);
-
-  if (ex.X_op != O_symbol || ex.X_add_number != 0)
-    {
-      as_bad (_("Unsupported use of .gpword"));
-      ignore_rest_of_line ();
-    }
-
-  p = frag_more (4);
-  md_number_to_chars (p, 0, 4);
-  fix_new_exp (frag_now, p - frag_now->fr_literal, 4, &ex, FALSE,
-	       BFD_RELOC_GPREL32);
-
-  demand_empty_rest_of_line ();
-}
-
-static void
-s_gpdword (int ignore ATTRIBUTE_UNUSED)
-{
-  segment_info_type *si;
-  struct insn_label_list *l;
-  symbolS *label;
-  expressionS ex;
-  char *p;
-
-  /* When not generating PIC code, this is treated as .dword.  */
-  if (mips_pic != SVR4_PIC)
-    {
-      s_cons (3);
-      return;
-    }
-
-  si = seg_info (now_seg);
-  l = si->label_list;
-  label = l != NULL ? l->label : NULL;
-  mips_clear_insn_labels ();
-  if (auto_align)
-    mips_align (3, 0, label);
-  mips_clear_insn_labels ();
-
-  expression (&ex);
-
-  if (ex.X_op != O_symbol || ex.X_add_number != 0)
-    {
-      as_bad (_("Unsupported use of .gpdword"));
-      ignore_rest_of_line ();
-    }
-
-  p = frag_more (8);
-  md_number_to_chars (p, 0, 8);
-  fix_new_exp (frag_now, p - frag_now->fr_literal, 4, &ex, FALSE,
-	       BFD_RELOC_GPREL32)->fx_tcbit = 1;
-
-  /* GPREL32 composed with 64 gives a 64-bit GP offset.  */
-  fix_new (frag_now, p - frag_now->fr_literal, 8, NULL, 0,
-	   FALSE, BFD_RELOC_64)->fx_tcbit = 1;
-
-  demand_empty_rest_of_line ();
-}
-
-/* Handle the .insn pseudo-op.  This marks instruction labels in
-   mips16 mode.  This permits the linker to handle them specially,
-   such as generating jalx instructions when needed.  We also make
-   them odd for the duration of the assembly, in order to generate the
-   right sort of code.  We will make them even in the adjust_symtab
-   routine, while leaving them marked.  This is convenient for the
-   debugger and the disassembler.  The linker knows to make them odd
-   again.  */
-
-static void
-s_insn (int ignore ATTRIBUTE_UNUSED)
-{
-  demand_empty_rest_of_line ();
-}
-
-/* Handle a .stabn directive.  We need these in order to mark a label
-   as being a mips16 text label correctly.  Sometimes the compiler
-   will emit a label, followed by a .stabn, and then switch sections.
-   If the label and .stabn are in mips16 mode, then the label is
-   really a mips16 text label.  */
-
-static void
-s_mips_stab (int type)
-{
-  s_stab (type);
 }
 
 /* Handle the .weakext pseudo-op as defined in Kane and Heinrich.  */
@@ -4023,13 +3815,11 @@ mips_elf_final_processing (void)
 
   /* Set the MIPS ELF flag bits.  FIXME: There should probably be some
      sort of BFD interface for this.  */
-  if (mips_pic != NO_PIC)
+  if (is_pic)
     {
       elf_elfheader (stdoutput)->e_flags |= EF_MIPS_PIC;
       elf_elfheader (stdoutput)->e_flags |= EF_MIPS_CPIC;
     }
-  if (mips_abicalls)
-    elf_elfheader (stdoutput)->e_flags |= EF_MIPS_CPIC;
 
   /* Set the MIPS ELF ABI flags.  */
   if (mips_abi == ABI_64)

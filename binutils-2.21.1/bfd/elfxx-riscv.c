@@ -227,35 +227,6 @@ struct _mips_elf_section_data
 #define GGA_RELOC_ONLY 1
 #define GGA_NONE 2
 
-/* Information about a non-PIC interface to a PIC function.  There are
-   two ways of creating these interfaces.  The first is to add:
-
-	lui	t7,%hi(func)
-	addi	t7,t7,%lo(func)
-
-   immediately before a PIC function "func".  The second is to add:
-
-	lui	t7,%hi(func)
-	addi	t7,t7,%lo(func)
-	j	func
-
-   to a separate trampoline section.
-
-   Stubs of the first kind go in a new section immediately before the
-   target function.  Stubs of the second kind go in a single section
-   pointed to by the hash table's "strampoline" field.  */
-struct mips_elf_la25_stub {
-  /* The generated section that contains this stub.  */
-  asection *stub_section;
-
-  /* The offset of the stub from the start of STUB_SECTION.  */
-  bfd_vma offset;
-
-  /* One symbol for the original function.  Its location is available
-     in H->root.root.u.def.  */
-  struct mips_elf_link_hash_entry *h;
-};
-
 /* This structure is passed to mips_elf_sort_hash_table_f when sorting
    the dynamic symbols.  */
 
@@ -286,9 +257,6 @@ struct mips_elf_link_hash_entry
   /* External symbol information.  */
   EXTR esym;
 
-  /* The la25 stub we have created for ths symbol, if any.  */
-  struct mips_elf_la25_stub *la25_stub;
-
   /* Number of R_RISCV_32, R_RISCV_REL32, or R_RISCV_64 relocs against
      this symbol.  */
   unsigned int possibly_dynamic_relocs;
@@ -312,11 +280,6 @@ struct mips_elf_link_hash_entry
   /* The highest GGA_* value that satisfies all references to this symbol.  */
   unsigned int global_got_area : 2;
 
-  /* True if all GOT relocations against this symbol are for calls.  This is
-     a looser condition than no_fn_stub below, because there may be other
-     non-call non-GOT relocations against the symbol.  */
-  unsigned int got_only_for_calls : 1;
-
   /* True if one of the relocations described by possibly_dynamic_relocs
      is against a readonly section.  */
   unsigned int readonly_reloc : 1;
@@ -325,21 +288,6 @@ struct mips_elf_link_hash_entry
      resolved by the static linker (in other words, if the relocation
      cannot possibly be made dynamic).  */
   unsigned int has_static_relocs : 1;
-
-  /* True if we must not create a .MIPS.stubs entry for this symbol.
-     This is set, for example, if there are relocations related to
-     taking the function's address, i.e. any but R_RISCV_CALL*16 ones.
-     See "MIPS ABI Supplement, 3rd Edition", p. 4-20.  */
-  unsigned int no_fn_stub : 1;
-
-  /* True if this symbol is referenced by branch relocations from
-     any non-PIC input file.  This is used to determine whether an
-     la25 stub is required.  */
-  unsigned int has_nonpic_branches : 1;
-
-  /* Does this symbol need a traditional MIPS lazy-binding stub
-     (as opposed to a PLT entry)?  */
-  unsigned int needs_lazy_stub : 1;
 };
 
 /* MIPS ELF linker hash table.  */
@@ -353,16 +301,6 @@ struct mips_elf_link_hash_table
   bfd_size_type dynsym_sec_strindex[SIZEOF_MIPS_DYNSYM_SECNAMES];
 #endif
 
-  /* The number of .rtproc entries.  */
-  bfd_size_type procedure_count;
-
-  /* This flag indicates that the value of DT_MIPS_RLD_MAP dynamic
-     entry is set to the address of __rld_obj_head as in IRIX5.  */
-  bfd_boolean use_rld_obj_head;
-
-  /* This is the value of the __rld_map or __rld_obj_head symbol.  */
-  bfd_vma rld_value;
-
   /* True if we can generate copy relocs and PLTs.  */
   bfd_boolean use_plts_and_copy_relocs;
 
@@ -374,7 +312,6 @@ struct mips_elf_link_hash_table
   asection *srelplt2;
   asection *sgotplt;
   asection *splt;
-  asection *sstubs;
   asection *sgot;
 
   /* The master GOT information.  */
@@ -386,31 +323,8 @@ struct mips_elf_link_hash_table
   /* The size of a PLT entry in bytes.  */
   bfd_vma plt_entry_size;
 
-  /* The number of functions that need a lazy-binding stub.  */
-  bfd_vma lazy_stub_count;
-
-  /* The size of a function stub entry in bytes.  */
-  bfd_vma function_stub_size;
-
   /* The number of reserved entries at the beginning of the GOT.  */
   unsigned int reserved_gotno;
-
-  /* The section used for mips_elf_la25_stub trampolines.
-     See the comment above that structure for details.  */
-  asection *strampoline;
-
-  /* A table of mips_elf_la25_stubs, indexed by (input_section, offset)
-     pairs.  */
-  htab_t la25_stubs;
-
-  /* A function FN (NAME, IS, OS) that creates a new input section
-     called NAME and links it to output section OS.  If IS is nonnull,
-     the new section should go immediately before it, otherwise it
-     should go at the (current) beginning of OS.
-
-     The function returns the new section on success, otherwise it
-     returns null.  */
-  asection *(*add_stub_section) (const char *, asection *, asection *);
 };
 
 /* Get the MIPS ELF linker hash table from a link_info structure.  */
@@ -530,9 +444,6 @@ static bfd *reldyn_sorting_bfd;
   ((sec->flags & (SEC_ALLOC | SEC_LOAD | SEC_READONLY))		\
    == (SEC_ALLOC | SEC_LOAD | SEC_READONLY))
 
-/* The name of the stub section.  */
-#define MIPS_ELF_STUB_SECTION_NAME(abfd) ".MIPS.stubs"
-
 /* The size of an external REL relocation.  */
 #define MIPS_ELF_REL_SIZE(abfd) \
   (get_elf_backend_data (abfd)->s->sizeof_rel)
@@ -620,6 +531,7 @@ static bfd *reldyn_sorting_bfd;
    && OPCODE_IS_STORE(opcode))
 
 #define MATCH_LREG(abfd) (ABI_64_P(abfd) ? MATCH_LD : MATCH_LW)
+#define MATCH_SREG(abfd) (ABI_64_P(abfd) ? MATCH_SD : MATCH_SW)
 
 #define OPCODE_MATCHES(OPCODE, OP) \
   (((OPCODE) & MASK_##OP) == MATCH_##OP)
@@ -631,29 +543,64 @@ static bfd *reldyn_sorting_bfd;
 
 /* The format of the first PLT entry.  */
 
-#define RISCV_PLT0_ENTRY_INSNS 8
+#define RISCV_PLT0_ENTRY_INSNS 32
 static void
 riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value,
                       bfd_vma entry[RISCV_PLT0_ENTRY_INSNS])
 {
-  /* lui    t2, %hi(GOTPLT)
-     l[w|d] t7, %lo(GOTPLT)(t2)
-     addi   t2, t2, %lo(GOTPLT)
-     sub    t6, t6, t2
-     move   t5, ra
-     srli   t6, t6, (RV32 ? 2 : 3)
-     addi   t6, t6, -2
-     jalr   t7
+  /* addi   sp, sp, -72
+     sd     ra, 64(sp)
+     sd     a7, 56(sp)
+     sd     a6, 48(sp)
+     sd     a5, 40(sp)
+     sd     a4, 32(sp)
+     sd     a3, 24(sp)
+     sd     a2, 16(sp)
+     sd     a1,  8(sp)
+     sd     a0,  0(sp)
+     lui    v0, %hi(GOTPLT)
+     sub    a1, v1, v0
+     ld     a0, %lo(GOTPLT)+8(v0)  # assumes .got.plt is 16B aligned
+     sub    a1, a1, %lo(GOTPLT)
+     ld     v0, %lo(GOTPLT)(v0)
+     slli   a1, a1, 1
+     addi   a1, a1, -32
+     jalr   v0
+     ld     ra, 64(sp)
+     ld     a7, 56(sp)
+     ld     a6, 48(sp)
+     ld     a5, 40(sp)
+     ld     a4, 32(sp)
+     ld     a3, 24(sp)
+     ld     a2, 16(sp)
+     ld     a1,  8(sp)
+     ld     a0,  0(sp)
+     addi   sp, sp, 72
+     jr     v0
   */
 
-  entry[0] = RISCV_LTYPE(LUI, 14, RISCV_LUI_HIGH_PART(gotplt_value));
-  entry[1] = RISCV_ITYPE(LREG(abfd),  19, 14, RISCV_CONST_LOW_PART(gotplt_value));
-  entry[2] = RISCV_ITYPE(ADDI, 14, 14, RISCV_CONST_LOW_PART(gotplt_value));
-  entry[3] = RISCV_RTYPE(SUB, 18, 18, 14);
-  entry[4] = RISCV_ITYPE(ADDI, 17, LINK_REG, 0);
-  entry[5] = RISCV_ITYPE(SRLI, 18, 18, ABI_64_P(abfd) ? 3 : 2);
-  entry[6] = RISCV_ITYPE(ADDI, 18, 18, -2);
-  entry[7] = RISCV_ITYPE(JALR_C, LINK_REG, 19, 0);
+  int i = 0, j, regbytes = ABI_64_P(abfd) ? 8 : 4;
+  entry[i++] = RISCV_ITYPE(ADDI, 30, 30, -10*regbytes);
+  entry[i++] = RISCV_BTYPE(SREG(abfd), 30, LINK_REG, 9*regbytes);
+  for (j = 0; j < 8; j++)
+    entry[i++] = RISCV_BTYPE(SREG(abfd), 30, 4+j, j*regbytes);
+  entry[i++] = RISCV_LTYPE(LUI, 2, RISCV_LUI_HIGH_PART(gotplt_value));
+  entry[i++] = RISCV_RTYPE(SUB, 5, 3, 2);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), 4, 2, RISCV_CONST_LOW_PART(regbytes+gotplt_value));
+  entry[i++] = RISCV_ITYPE(ADDI, 5, 5, RISCV_CONST_LOW_PART(-gotplt_value));
+  entry[i++] = RISCV_ITYPE(LREG(abfd), 2, 2, RISCV_CONST_LOW_PART(gotplt_value));
+  entry[i++] = RISCV_ITYPE(SLLI, 5, 5, 1);
+  entry[i++] = RISCV_ITYPE(ADDI, 5, 5, -4*regbytes);
+  entry[i++] = RISCV_ITYPE(JALR_C, LINK_REG, 2, 0);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, 30, 9*regbytes);
+  for (j = 0; j < 8; j++)
+    entry[i++] = RISCV_ITYPE(LREG(abfd), 4+j, 30, j*regbytes);
+  entry[i++] = RISCV_ITYPE(ADDI, 30, 30, 10*regbytes);
+  entry[i++] = RISCV_ITYPE(JALR_J, 0, 2, 0);
+
+  BFD_ASSERT(i <= RISCV_PLT0_ENTRY_INSNS);
+  while (i < RISCV_PLT0_ENTRY_INSNS)
+    entry[i++] = RISCV_ITYPE(ADDI, 0, 0, 0);
 }
 
 /* The format of subsequent PLT entries.  */
@@ -663,16 +610,16 @@ static void
 riscv_make_plt_entry(bfd* abfd, bfd_vma got_address,
                      bfd_vma entry[RISCV_PLT_ENTRY_INSNS])
 {
-  /* lui    t6, %hi(.got.plt entry)
-     l[w|d] t7, %lo(.got.plt entry)(t6)
-     addi   t6, t6, %lo(.got.plt entry)
-     jr     t7
+  /* lui    v1, %hi(.got.plt entry)
+     l[w|d] v0, %lo(.got.plt entry)(t6)
+     addi   v1, v1, %lo(.got.plt entry)
+     jr     v0
   */
 
-  entry[0] = RISCV_LTYPE(LUI, 18, RISCV_LUI_HIGH_PART(got_address));
-  entry[1] = RISCV_ITYPE(LREG(abfd),  19, 18, RISCV_CONST_LOW_PART(got_address));
-  entry[2] = RISCV_ITYPE(ADDI, 18, 18, RISCV_CONST_LOW_PART(got_address));
-  entry[3] = RISCV_ITYPE(JALR_J, 0, 19, 0);
+  entry[0] = RISCV_LTYPE(LUI, 3, RISCV_LUI_HIGH_PART(got_address));
+  entry[1] = RISCV_ITYPE(LREG(abfd),  2, 3, RISCV_CONST_LOW_PART(got_address));
+  entry[2] = RISCV_ITYPE(ADDI, 3, 3, RISCV_CONST_LOW_PART(got_address));
+  entry[3] = RISCV_ITYPE(JALR_J, 0, 2, 0);
 }
 
 /* Look up an entry in a MIPS ELF linker hash table.  */
@@ -741,16 +688,11 @@ mips_elf_link_hash_newfunc (struct bfd_hash_entry *entry,
       /* We use -2 as a marker to indicate that the information has
 	 not been set.  -1 means there is no associated ifd.  */
       ret->esym.ifd = -2;
-      ret->la25_stub = 0;
       ret->possibly_dynamic_relocs = 0;
       ret->tls_type = GOT_NORMAL;
       ret->global_got_area = GGA_NONE;
-      ret->got_only_for_calls = TRUE;
       ret->readonly_reloc = FALSE;
       ret->has_static_relocs = FALSE;
-      ret->no_fn_stub = FALSE;
-      ret->has_nonpic_branches = FALSE;
-      ret->needs_lazy_stub = FALSE;
     }
 
   return (struct bfd_hash_entry *) ret;
@@ -859,274 +801,6 @@ _bfd_riscv_elf_read_ecoff_info (bfd *abfd, asection *section,
     free (debug->external_ext);
   return FALSE;
 }
-
-/* We're going to create a stub for H.  Create a symbol for the stub's
-   value and size, to help make the disassembly easier to read.  */
-
-static bfd_boolean
-mips_elf_create_stub_symbol (struct bfd_link_info *info,
-			     struct mips_elf_link_hash_entry *h,
-			     const char *prefix, asection *s, bfd_vma value,
-			     bfd_vma size)
-{
-  struct bfd_link_hash_entry *bh;
-  struct elf_link_hash_entry *elfh;
-  const char *name;
-
-  /* Create a new symbol.  */
-  name = ACONCAT ((prefix, h->root.root.root.string, NULL));
-  bh = NULL;
-  if (!_bfd_generic_link_add_one_symbol (info, s->owner, name,
-					 BSF_LOCAL, s, value, NULL,
-					 TRUE, FALSE, &bh))
-    return FALSE;
-
-  /* Make it a local function.  */
-  elfh = (struct elf_link_hash_entry *) bh;
-  elfh->type = ELF_ST_INFO (STB_LOCAL, STT_FUNC);
-  elfh->size = size;
-  elfh->forced_local = 1;
-  return TRUE;
-}
-
-/* Hashtable callbacks for mips_elf_la25_stubs.  */
-
-static hashval_t
-mips_elf_la25_stub_hash (const void *entry_)
-{
-  const struct mips_elf_la25_stub *entry;
-
-  entry = (struct mips_elf_la25_stub *) entry_;
-  return entry->h->root.root.u.def.section->id
-    + entry->h->root.root.u.def.value;
-}
-
-static int
-mips_elf_la25_stub_eq (const void *entry1_, const void *entry2_)
-{
-  const struct mips_elf_la25_stub *entry1, *entry2;
-
-  entry1 = (struct mips_elf_la25_stub *) entry1_;
-  entry2 = (struct mips_elf_la25_stub *) entry2_;
-  return ((entry1->h->root.root.u.def.section
-	   == entry2->h->root.root.u.def.section)
-	  && (entry1->h->root.root.u.def.value
-	      == entry2->h->root.root.u.def.value));
-}
-
-/* Called by the linker to set up the la25 stub-creation code.  FN is
-   the linker's implementation of add_stub_function.  Return true on
-   success.  */
-
-bfd_boolean
-_bfd_riscv_elf_init_stubs (struct bfd_link_info *info,
-			  asection *(*fn) (const char *, asection *,
-					   asection *))
-{
-  struct mips_elf_link_hash_table *htab;
-
-  htab = mips_elf_hash_table (info);
-  if (htab == NULL)
-    return FALSE;
-
-  htab->add_stub_section = fn;
-  htab->la25_stubs = htab_try_create (1, mips_elf_la25_stub_hash,
-				      mips_elf_la25_stub_eq, NULL);
-  if (htab->la25_stubs == NULL)
-    return FALSE;
-
-  return TRUE;
-}
-
-/* Return true if H is a locally-defined PIC function, in the sense
-   that it might need $25 to be valid on entry.  Note that MIPS16
-   functions never need $25 to be valid on entry; they set up $gp
-   using PC-relative instructions instead.  */
-
-static bfd_boolean
-mips_elf_local_pic_function_p (struct mips_elf_link_hash_entry *h)
-{
-  return ((h->root.root.type == bfd_link_hash_defined
-	   || h->root.root.type == bfd_link_hash_defweak)
-	  && h->root.def_regular
-	  && !bfd_is_abs_section (h->root.root.u.def.section)
-	  && !ELF_ST_IS_MIPS16 (h->root.other)
-	  && (PIC_OBJECT_P (h->root.root.u.def.section->owner)
-	      || ELF_ST_IS_MIPS_PIC (h->root.other)));
-}
-
-/* STUB describes an la25 stub that we have decided to implement
-   by inserting RDNPC before the target function.
-   Create the section and redirect the function symbol to it.  */
-
-static bfd_boolean
-mips_elf_add_la25_intro (struct mips_elf_la25_stub *stub,
-			 struct bfd_link_info *info)
-{
-  struct mips_elf_link_hash_table *htab;
-  char *name;
-  asection *s, *input_section;
-  unsigned int align;
-
-  htab = mips_elf_hash_table (info);
-  if (htab == NULL)
-    return FALSE;
-
-  /* Create a unique name for the new section.  */
-  name = bfd_malloc (11 + sizeof (".text.stub."));
-  if (name == NULL)
-    return FALSE;
-  sprintf (name, ".text.stub.%d", (int) htab_elements (htab->la25_stubs));
-
-  /* Create the section.  */
-  input_section = stub->h->root.root.u.def.section;
-  s = htab->add_stub_section (name, input_section,
-			      input_section->output_section);
-  if (s == NULL)
-    return FALSE;
-
-  /* Make sure that any padding goes before the stub.  */
-  align = input_section->alignment_power;
-  if (!bfd_set_section_alignment (s->owner, s, align))
-    return FALSE;
-  if (align > 2)
-    s->size = (1 << align) - 4;
-
-  /* Create a symbol for the stub.  */
-  mips_elf_create_stub_symbol (info, stub->h, ".pic.", s, s->size, 8);
-  stub->stub_section = s;
-  stub->offset = s->size;
-
-  /* Allocate room for it.  */
-  s->size += 4;
-  return TRUE;
-}
-
-/* STUB describes an la25 stub that we have decided to implement
-   with a separate trampoline.  Allocate room for it and redirect
-   the function symbol to it.  */
-
-static bfd_boolean
-mips_elf_add_la25_trampoline (struct mips_elf_la25_stub *stub,
-			      struct bfd_link_info *info)
-{
-  struct mips_elf_link_hash_table *htab;
-  asection *s;
-
-  htab = mips_elf_hash_table (info);
-  if (htab == NULL)
-    return FALSE;
-
-  /* Create a trampoline section, if we haven't already.  */
-  s = htab->strampoline;
-  if (s == NULL)
-    {
-      asection *input_section = stub->h->root.root.u.def.section;
-      s = htab->add_stub_section (".text", NULL,
-				  input_section->output_section);
-      if (s == NULL || !bfd_set_section_alignment (s->owner, s, 4))
-	return FALSE;
-      htab->strampoline = s;
-    }
-
-  /* Create a symbol for the stub.  */
-  mips_elf_create_stub_symbol (info, stub->h, ".pic.", s, s->size, 16);
-  stub->stub_section = s;
-  stub->offset = s->size;
-
-  /* Allocate room for it.  */
-  s->size += 16;
-  return TRUE;
-}
-
-/* H describes a symbol that needs an la25 stub.  Make sure that an
-   appropriate stub exists and point H at it.  */
-
-static bfd_boolean
-mips_elf_add_la25_stub (struct bfd_link_info *info,
-			struct mips_elf_link_hash_entry *h)
-{
-  struct mips_elf_link_hash_table *htab;
-  struct mips_elf_la25_stub search, *stub;
-  bfd_boolean use_trampoline_p;
-  asection *s;
-  bfd_vma value;
-  void **slot;
-
-  /* Prefer to use LUI/ADDIU stubs if the function is at the beginning
-     of the section and if we would need no more than 2 nops.  */
-  s = h->root.root.u.def.section;
-  value = h->root.root.u.def.value;
-  use_trampoline_p = (value != 0 || s->alignment_power > 4);
-
-  /* Describe the stub we want.  */
-  search.stub_section = NULL;
-  search.offset = 0;
-  search.h = h;
-
-  /* See if we've already created an equivalent stub.  */
-  htab = mips_elf_hash_table (info);
-  if (htab == NULL)
-    return FALSE;
-
-  slot = htab_find_slot (htab->la25_stubs, &search, INSERT);
-  if (slot == NULL)
-    return FALSE;
-
-  stub = (struct mips_elf_la25_stub *) *slot;
-  if (stub != NULL)
-    {
-      /* We can reuse the existing stub.  */
-      h->la25_stub = stub;
-      return TRUE;
-    }
-
-  /* Create a permanent copy of ENTRY and add it to the hash table.  */
-  stub = bfd_malloc (sizeof (search));
-  if (stub == NULL)
-    return FALSE;
-  *stub = search;
-  *slot = stub;
-
-  h->la25_stub = stub;
-  return (use_trampoline_p
-	  ? mips_elf_add_la25_trampoline (stub, info)
-	  : mips_elf_add_la25_intro (stub, info));
-}
-
-/* A mips_elf_link_hash_traverse callback that is called before sizing
-   sections.  DATA points to a mips_htab_traverse_info structure.  */
-
-static bfd_boolean
-mips_elf_check_symbols (struct mips_elf_link_hash_entry *h, void *data)
-{
-  struct mips_htab_traverse_info *hti;
-
-  hti = (struct mips_htab_traverse_info *) data;
-  if (h->root.root.type == bfd_link_hash_warning)
-    h = (struct mips_elf_link_hash_entry *) h->root.root.u.i.link;
-
-  if (mips_elf_local_pic_function_p (h))
-    {
-      /* H is a function that might need $25 to be valid on entry.
-	 If we're creating a non-PIC relocatable object, mark H as
-	 being PIC.  If we're creating a non-relocatable object with
-	 non-PIC branches and jumps to H, make sure that H has an la25
-	 stub.  */
-      if (hti->info->relocatable)
-	{
-	  if (!PIC_OBJECT_P (hti->output_bfd))
-	    h->root.other = ELF_ST_SET_MIPS_PIC (h->root.other);
-	}
-      else if (h->has_nonpic_branches && !mips_elf_add_la25_stub (hti->info, h))
-	{
-	  hti->error = TRUE;
-	  return FALSE;
-	}
-    }
-  return TRUE;
-}
-
 
 static inline bfd_boolean
 got16_reloc_p (int r_type)
@@ -1631,15 +1305,11 @@ mips_elf_output_extsym (struct mips_elf_link_hash_entry *h, void *data)
 		h->esym.asym.sc = scText;
 	      else if (strcmp (name, ".data") == 0)
 		h->esym.asym.sc = scData;
-	      else if (strcmp (name, ".sdata") == 0)
-		h->esym.asym.sc = scSData;
 	      else if (strcmp (name, ".rodata") == 0
 		       || strcmp (name, ".rdata") == 0)
 		h->esym.asym.sc = scRData;
 	      else if (strcmp (name, ".bss") == 0)
 		h->esym.asym.sc = scBss;
-	      else if (strcmp (name, ".sbss") == 0)
-		h->esym.asym.sc = scSBss;
 	      else if (strcmp (name, ".init") == 0)
 		h->esym.asym.sc = scInit;
 	      else if (strcmp (name, ".fini") == 0)
@@ -1658,10 +1328,8 @@ mips_elf_output_extsym (struct mips_elf_link_hash_entry *h, void *data)
   else if (h->root.root.type == bfd_link_hash_defined
 	   || h->root.root.type == bfd_link_hash_defweak)
     {
-      if (h->esym.asym.sc == scCommon)
+      if (h->esym.asym.sc == scCommon || h->esym.asym.sc == scSCommon)
 	h->esym.asym.sc = scBss;
-      else if (h->esym.asym.sc == scSCommon)
-	h->esym.asym.sc = scSBss;
 
       sec = h->root.root.u.def.section;
       output_section = sec->output_section;
@@ -1671,32 +1339,6 @@ mips_elf_output_extsym (struct mips_elf_link_hash_entry *h, void *data)
 			      + output_section->vma);
       else
 	h->esym.asym.value = 0;
-    }
-  else
-    {
-      struct mips_elf_link_hash_entry *hd = h;
-
-      while (hd->root.root.type == bfd_link_hash_indirect)
-	hd = (struct mips_elf_link_hash_entry *)h->root.root.u.i.link;
-
-      if (hd->needs_lazy_stub)
-	{
-	  /* Set type and value for a symbol with a function stub.  */
-	  h->esym.asym.st = stProc;
-	  sec = hd->root.root.u.def.section;
-	  if (sec == NULL)
-	    h->esym.asym.value = 0;
-	  else
-	    {
-	      output_section = sec->output_section;
-	      if (output_section != NULL)
-		h->esym.asym.value = (hd->root.plt.offset
-				      + sec->output_offset
-				      + output_section->vma);
-	      else
-		h->esym.asym.value = 0;
-	    }
-	}
     }
 
   if (! bfd_ecoff_debug_one_external (einfo->abfd, einfo->debug, einfo->swap,
@@ -2436,7 +2078,6 @@ mips_elf_sort_hash_table_f (struct mips_elf_link_hash_entry *h, void *data)
 static bfd_boolean
 mips_elf_record_global_got_symbol (struct elf_link_hash_entry *h,
 				   bfd *abfd, struct bfd_link_info *info,
-				   bfd_boolean for_call,
 				   unsigned char tls_flag)
 {
   struct mips_elf_link_hash_table *htab;
@@ -2448,8 +2089,6 @@ mips_elf_record_global_got_symbol (struct elf_link_hash_entry *h,
   BFD_ASSERT (htab != NULL);
 
   hmips = (struct mips_elf_link_hash_entry *) h;
-  if (!for_call)
-    hmips->got_only_for_calls = FALSE;
 
   /* A global symbol in the GOT must also be in the dynamic symbol
      table.  */
@@ -2825,10 +2464,7 @@ mips_elf_count_got_symbols (struct mips_elf_link_hash_entry *h, void *data)
 	 Note that the former condition does not always imply the
 	 latter: symbols do not bind locally if they are completely
 	 undefined.  We'll report undefined symbols later if appropriate.  */
-      if (h->root.dynindx == -1
-	  || (h->got_only_for_calls
-	      ? SYMBOL_CALLS_LOCAL (info, &h->root)
-	      : SYMBOL_REFERENCES_LOCAL (info, &h->root)))
+      if (h->root.dynindx == -1 || SYMBOL_REFERENCES_LOCAL (info, &h->root))
 	{
 	  /* The symbol belongs in the local GOT.  We no longer need this
 	     entry if it was only used for relocations; those relocations
@@ -3050,8 +2686,7 @@ mips_elf_create_got_section (bfd *abfd, struct bfd_link_info *info)
   if (g->got_page_entries == NULL)
     return FALSE;
   htab->got_info = g;
-  mips_elf_section_data (s)->elf.this_hdr.sh_flags
-    |= SHF_ALLOC | SHF_WRITE | SHF_MIPS_GPREL;
+  mips_elf_section_data (s)->elf.this_hdr.sh_flags |= SHF_ALLOC | SHF_WRITE;
 
   /* We also need a .got.plt section when generating PLTs.  */
   s = bfd_make_section_with_flags (abfd, ".got.plt",
@@ -3064,34 +2699,6 @@ mips_elf_create_got_section (bfd *abfd, struct bfd_link_info *info)
   return TRUE;
 }
 
-/* Return TRUE if a relocation of type R_TYPE from INPUT_BFD might
-   require an la25 stub.  See also mips_elf_local_pic_function_p,
-   which determines whether the destination function ever requires a
-   stub.  */
-
-static bfd_boolean
-mips_elf_relocation_needs_la25_stub (bfd *input_bfd, int r_type)
-{
-  /* We specifically ignore branches and jumps from EF_PIC objects,
-     where the onus is on the compiler or programmer to perform any
-     necessary initialization of $25.  Sometimes such initialization
-     is unnecessary; for example, -mno-shared functions do not use
-     the incoming value of $25, and may therefore be called directly.  */
-  if (PIC_OBJECT_P (input_bfd))
-    return FALSE;
-
-  switch (r_type)
-    {
-    case R_RISCV_26:
-    case R_RISCV_PC16:
-    case R_MIPS16_26:
-      return TRUE;
-
-    default:
-      return FALSE;
-    }
-}
-
 /* Calculate the value produced by the RELOCATION (which comes from
    the INPUT_BFD).  The ADDEND is the addend to use for this
    RELOCATION; RELOCATION->R_ADDEND is ignored.
@@ -3140,9 +2747,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
   /* TRUE if the symbol referred to by this relocation is a local
      symbol.  */
   bfd_boolean local_p, was_local_p;
-  /* TRUE if the symbol referred to by this relocation is
-     "__gnu_local_gp".  */
-  bfd_boolean gnu_local_gp_p = FALSE;
   Elf_Internal_Shdr *symtab_hdr;
   size_t extsymoff;
   unsigned long r_symndx;
@@ -3203,10 +2807,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	  addend += sec->output_section->vma + sec->output_offset;
 	}
 
-      /* MIPS16 text labels should be treated as odd.  */
-      if (ELF_ST_IS_MIPS16 (sym->st_other))
-	++symbol;
-
       /* Record the name of this symbol, for our caller.  */
       *namep = bfd_elf_string_from_elf_section (input_bfd,
 						symtab_hdr->sh_link,
@@ -3229,17 +2829,11 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       /* Record the name of this symbol, for our caller.  */
       *namep = h->root.root.root.string;
 
-      /* See if this is the special _gp symbol.  Note that such a
-	 symbol must always be a global symbol.  */
-      if (strcmp (*namep, "__gnu_local_gp") == 0)
-	gnu_local_gp_p = TRUE;
-
-
       /* If this symbol is defined, calculate its address.  Note that
 	 _gp_disp is a magic symbol, always implicitly defined by the
 	 linker, so it's inappropriate to check to see whether or not
 	 its defined.  */
-      else if ((h->root.root.type == bfd_link_hash_defined
+      if ((h->root.root.type == bfd_link_hash_defined
 		|| h->root.root.type == bfd_link_hash_defweak)
 	       && h->root.root.u.def.section)
 	{
@@ -3286,21 +2880,10 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	}
     }
 
-  /* If this is a direct call to a PIC function, redirect to the
-     non-PIC stub.  */
-  if (h != NULL && h->la25_stub
-	   && mips_elf_relocation_needs_la25_stub (input_bfd, r_type))
-    symbol = (h->la25_stub->stub_section->output_section->vma
-	      + h->la25_stub->stub_section->output_offset
-	      + h->la25_stub->offset);
-
   local_p = h == NULL || SYMBOL_REFERENCES_LOCAL (info, &h->root);
 
   gp0 = _bfd_get_gp_value (input_bfd);
   gp = _bfd_get_gp_value (abfd);
-
-  if (gnu_local_gp_p)
-    symbol = gp;
 
   /* If we haven't already determined the GOT offset, and we're going
      to need it, get it now.  */
@@ -3533,7 +3116,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       /* We're allowed to handle these two relocations identically.
 	 The dynamic linker is allowed to handle the CALL relocations
 	 differently by creating a lazy evaluation stub.  */
-      value = mips_elf_high (g) << OP_SH_BIGIMMEDIATE;
+      value = (mips_elf_high (g - p + gp) << OP_SH_BIGIMMEDIATE);
       break;
 
     case R_RISCV_TLS_GOT_LO16:
@@ -3541,7 +3124,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_LDM_LO16:
     case R_RISCV_GOT_LO16:
     case R_RISCV_CALL_LO16:
-      value = (g << OP_SH_IMMEDIATE) & howto->dst_mask;
+      value = ((g - p + gp) << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
 
     case R_RISCV_SUB:
@@ -3630,11 +3213,8 @@ mips_elf_perform_relocation (struct bfd_link_info *info ATTRIBUTE_UNUSED,
       dst_mask = (OP_MASK_IMMHI << OP_SH_IMMHI) | (OP_MASK_IMMLO << OP_SH_IMMLO);
     }
 
-  /* Clear the field we are setting.  */
-  x &= ~dst_mask;
-
-  /* Set the field.  */
-  x |= (value & dst_mask);
+  /* Update the field, adding in any nonzero bits in the original. */
+  x = (x &~ dst_mask) | (((x & dst_mask) + value) & dst_mask);
 
   /* Put the value into the output.  */
   bfd_put (8 * bfd_get_reloc_size (howto), input_bfd, x, location);
@@ -4076,31 +3656,7 @@ _bfd_riscv_elf_section_processing (bfd *abfd, Elf_Internal_Shdr *hdr)
     {
       const char *name = bfd_get_section_name (abfd, hdr->bfd_section);
 
-      /* .sbss is not handled specially here because the GNU/Linux
-	 prelinker can convert .sbss from NOBITS to PROGBITS and
-	 changing it back to NOBITS breaks the binary.  The entry in
-	 _bfd_riscv_elf_special_sections will ensure the correct flags
-	 are set on .sbss if BFD creates it without reading it from an
-	 input file, and without special handling here the flags set
-	 on it in an input file will be followed.  */
-      if (strcmp (name, ".sdata") == 0
-	  || strcmp (name, ".lit8") == 0
-	  || strcmp (name, ".lit4") == 0)
-	{
-	  hdr->sh_flags |= SHF_ALLOC | SHF_WRITE | SHF_MIPS_GPREL;
-	  hdr->sh_type = SHT_PROGBITS;
-	}
-      else if (strcmp (name, ".srdata") == 0)
-	{
-	  hdr->sh_flags |= SHF_ALLOC | SHF_MIPS_GPREL;
-	  hdr->sh_type = SHT_PROGBITS;
-	}
-      else if (strcmp (name, ".compact_rel") == 0)
-	{
-	  hdr->sh_flags = 0;
-	  hdr->sh_type = SHT_PROGBITS;
-	}
-      else if (strcmp (name, ".rtproc") == 0)
+      if (strcmp (name, ".rtproc") == 0)
 	{
 	  if (hdr->sh_addralign != 0 && hdr->sh_entsize == 0)
 	    {
@@ -4530,9 +4086,6 @@ _bfd_riscv_elf_link_output_symbol_hook
       && strcmp (input_sec->name, ".scommon") == 0)
     sym->st_shndx = SHN_MIPS_SCOMMON;
 
-  if (ELF_ST_IS_MIPS16 (sym->st_other))
-    sym->st_value &= ~1;
-
   return 1;
 }
 
@@ -4570,26 +4123,6 @@ _bfd_riscv_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
   if (! mips_elf_rel_dyn_section (info, TRUE))
     return FALSE;
 
-  /* Create .stub section.  */
-  s = bfd_make_section_with_flags (abfd,
-				   MIPS_ELF_STUB_SECTION_NAME (abfd),
-				   flags | SEC_CODE);
-  if (s == NULL
-      || ! bfd_set_section_alignment (abfd, s,
-				      MIPS_ELF_LOG_FILE_ALIGN (abfd)))
-    return FALSE;
-  htab->sstubs = s;
-
-  if (!info->shared && bfd_get_section_by_name (abfd, ".rld_map") == NULL)
-    {
-      s = bfd_make_section_with_flags (abfd, ".rld_map",
-				       flags &~ (flagword) SEC_READONLY);
-      if (s == NULL
-	  || ! bfd_set_section_alignment (abfd, s,
-					  MIPS_ELF_LOG_FILE_ALIGN (abfd)))
-	return FALSE;
-    }
-
   if (!info->shared)
     {
       const char *name;
@@ -4608,31 +4141,6 @@ _bfd_riscv_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
 
       if (! bfd_elf_link_record_dynamic_symbol (info, h))
 	return FALSE;
-
-      if (! mips_elf_hash_table (info)->use_rld_obj_head)
-	{
-	  /* __rld_map is a four byte word located in the .data section
-	     and is filled in by the rtld to contain a pointer to
-	     the _r_debug structure. Its symbol value will be set in
-	     _bfd_riscv_elf_finish_dynamic_symbol.  */
-	  s = bfd_get_section_by_name (abfd, ".rld_map");
-	  BFD_ASSERT (s != NULL);
-
-	  name = "__RLD_MAP";
-	  bh = NULL;
-	  if (!(_bfd_generic_link_add_one_symbol
-		(info, abfd, name, BSF_GLOBAL, s, 0, NULL, FALSE,
-		 get_elf_backend_data (abfd)->collect, &bh)))
-	    return FALSE;
-
-	  h = (struct elf_link_hash_entry *) bh;
-	  h->non_elf = 0;
-	  h->def_regular = 1;
-	  h->type = STT_OBJECT;
-
-	  if (! bfd_elf_link_record_dynamic_symbol (info, h))
-	    return FALSE;
-	}
     }
 
   /* Create the .plt, .rel(a).plt, .dynbss and .rel(a).bss sections.
@@ -4881,7 +4389,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	     against a read-only section.  */
 	  if ((info->shared
 	       || (h != NULL
-		   && strcmp (h->root.root.string, "__gnu_local_gp") != 0
 		   && !(!info->nocopyreloc
 			&& !PIC_OBJECT_P (abfd)
 			&& MIPS_ELF_READONLY_SECTION (sec))))
@@ -4945,9 +4452,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	    return FALSE;
 	}
 
-      if (h != NULL && mips_elf_relocation_needs_la25_stub (abfd, r_type))
-	((struct mips_elf_link_hash_entry *) h)->has_nonpic_branches = TRUE;
-
       switch (r_type)
 	{
 	case R_RISCV_CALL16:
@@ -4961,24 +4465,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	      return FALSE;
 	    }
 	  /* Fall through.  */
-
-	case R_RISCV_CALL_HI16:
-	case R_RISCV_CALL_LO16:
-	  if (h != NULL)
-	    {
-	      /* Make sure there is room in the regular GOT to hold the
-		 function's address.  We may eliminate it in favour of
-		 a .got.plt entry later; see mips_elf_count_got_symbols.  */
-	      if (!mips_elf_record_global_got_symbol (h, abfd, info, TRUE, 0))
-		return FALSE;
-
-	      /* We need a stub, not a plt entry for the undefined
-		 function.  But we record it as if it needs plt.  See
-		 _bfd_elf_adjust_dynamic_symbol.  */
-	      h->needs_plt = 1;
-	      h->type = STT_FUNC;
-	    }
-	  break;
 
 	case R_MIPS16_GOT16:
 	case R_RISCV_GOT16:
@@ -5009,8 +4495,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  /* Fall through.  */
 
 	case R_RISCV_GOT_DISP:
-	  if (h && !mips_elf_record_global_got_symbol (h, abfd, info,
-						       FALSE, 0))
+	  if (h && !mips_elf_record_global_got_symbol (h, abfd, info, 0))
 	    return FALSE;
 	  break;
 
@@ -5048,8 +4533,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		  (struct mips_elf_link_hash_entry *) h;
 		hmips->tls_type |= flag;
 
-		if (h && !mips_elf_record_global_got_symbol (h, abfd, info,
-							     FALSE, flag))
+		if (h && !mips_elf_record_global_got_symbol (h, abfd, info, flag))
 		  return FALSE;
 	      }
 	    else
@@ -5140,22 +4624,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	default:
 	  break;
 	}
-
-      /* We must not create a stub for a symbol that has relocations
-	 related to taking the function's address. */
-      if (h != NULL)
-	switch (r_type)
-	  {
-	  default:
-	    ((struct mips_elf_link_hash_entry *) h)->no_fn_stub = TRUE;
-	    break;
-	  case R_MIPS16_CALL16:
-	  case R_RISCV_CALL16:
-	  case R_RISCV_CALL_HI16:
-	  case R_RISCV_CALL_LO16:
-	  case R_RISCV_JALR:
-	    break;
-	  }
 
       /* Refuse some position-dependent relocations when creating a
 	 shared library.  Do not refuse R_RISCV_32 / R_RISCV_64; they're
@@ -5256,7 +4724,6 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 	     relocations against it. */
 	  if (hmips->global_got_area > GGA_RELOC_ONLY)
 	    hmips->global_got_area = GGA_RELOC_ONLY;
-	  hmips->got_only_for_calls = FALSE;
 
 	  mips_elf_allocate_dynamic_relocations
 	    (dynobj, info, hmips->possibly_dynamic_relocs);
@@ -5300,27 +4767,6 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
 
   hmips = (struct mips_elf_link_hash_entry *) h;
 
-  /* If there are call relocations against an externally-defined symbol,
-     see whether we can create a MIPS lazy-binding stub for it.  We can
-     only do this if all references to the function are through call
-     relocations, and in that case, the traditional lazy-binding stubs
-     are much more efficient than PLT entries. */
-  if (h->needs_plt && !hmips->no_fn_stub)
-    {
-      if (! elf_hash_table (info)->dynamic_sections_created)
-	return TRUE;
-
-      /* If this symbol is not defined in a regular file, then set
-	 the symbol to the stub location.  This is required to make
-	 function pointers compare as equal between the normal
-	 executable and the shared library.  */
-      if (!h->def_regular)
-	{
-	  hmips->needs_lazy_stub = TRUE;
-	  htab->lazy_stub_count++;
-	  return TRUE;
-	}
-    }
   /* As above, VxWorks requires PLT entries for externally-defined
      functions that are only accessed through call relocations.
 
@@ -5331,8 +4777,7 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
      used in practice due to the short ranges involved.  It can occur
      for any relative or absolute relocation in executables; in that
      case, the PLT entry becomes the function's canonical address.  */
-  else if (((h->needs_plt && !hmips->no_fn_stub)
-	    || (h->type == STT_FUNC && hmips->has_static_relocs))
+  if (h->type == STT_FUNC && hmips->has_static_relocs
 	   && htab->use_plts_and_copy_relocs
 	   && !SYMBOL_CALLS_LOCAL (info, h)
 	   && !(ELF_ST_VISIBILITY (h->other) != STV_DEFAULT
@@ -5442,35 +4887,19 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
 
   return _bfd_elf_adjust_dynamic_copy (h, htab->sdynbss);
 }
-
+
 /* This function is called after all the input files have been read,
    and the input sections have been assigned to output sections.  We
    check for any mips16 stub sections that we can discard.  */
 
 bfd_boolean
 _bfd_riscv_elf_always_size_sections (bfd *output_bfd,
-				    struct bfd_link_info *info)
+				    struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
-  asection *ri;
-  struct mips_elf_link_hash_table *htab;
-  struct mips_htab_traverse_info hti;
-
-  htab = mips_elf_hash_table (info);
-  BFD_ASSERT (htab != NULL);
-
   /* The .reginfo section has a fixed size.  */
-  ri = bfd_get_section_by_name (output_bfd, ".reginfo");
+  asection *ri = bfd_get_section_by_name (output_bfd, ".reginfo");
   if (ri != NULL)
     bfd_set_section_size (output_bfd, ri, sizeof (Elf32_External_RegInfo));
-
-  hti.info = info;
-  hti.output_bfd = output_bfd;
-  hti.error = FALSE;
-  mips_elf_link_hash_traverse (mips_elf_hash_table (info),
-			       mips_elf_check_symbols, &hti);
-  if (hti.error)
-    return FALSE;
-
   return TRUE;
 }
 
@@ -5571,80 +5000,6 @@ mips_elf_lay_out_got (bfd *output_bfd, struct bfd_link_info *info)
   return TRUE;
 }
 
-/* Estimate the size of the .MIPS.stubs section.  */
-
-static void
-mips_elf_estimate_stub_size (bfd *output_bfd, struct bfd_link_info *info)
-{
-  struct mips_elf_link_hash_table *htab;
-  bfd_size_type dynsymcount;
-
-  htab = mips_elf_hash_table (info);
-  BFD_ASSERT (htab != NULL);
-
-  if (htab->lazy_stub_count == 0)
-    return;
-
-  /* IRIX rld assumes that a function stub isn't at the end of the .text
-     section, so add a dummy entry to the end.  */
-  htab->lazy_stub_count++;
-
-  /* Get a worst-case estimate of the number of dynamic symbols needed.
-     At this point, dynsymcount does not account for section symbols
-     and count_section_dynsyms may overestimate the number that will
-     be needed.  */
-  dynsymcount = (elf_hash_table (info)->dynsymcount
-		 + count_section_dynsyms (output_bfd, info));
-
-  /* Determine the size of one stub entry.  */
-  htab->function_stub_size = (dynsymcount >= RISCV_IMM_REACH/2
-			      ? MIPS_FUNCTION_STUB_BIG_SIZE
-			      : MIPS_FUNCTION_STUB_NORMAL_SIZE);
-
-  htab->sstubs->size = htab->lazy_stub_count * htab->function_stub_size;
-}
-
-/* A mips_elf_link_hash_traverse callback for which DATA points to the
-   MIPS hash table.  If H needs a traditional MIPS lazy-binding stub,
-   allocate an entry in the stubs section.  */
-
-static bfd_boolean
-mips_elf_allocate_lazy_stub (struct mips_elf_link_hash_entry *h, void **data)
-{
-  struct mips_elf_link_hash_table *htab;
-
-  htab = (struct mips_elf_link_hash_table *) data;
-  if (h->needs_lazy_stub)
-    {
-      h->root.root.u.def.section = htab->sstubs;
-      h->root.root.u.def.value = htab->sstubs->size;
-      h->root.plt.offset = htab->sstubs->size;
-      htab->sstubs->size += htab->function_stub_size;
-    }
-  return TRUE;
-}
-
-/* Allocate offsets in the stubs section to each symbol that needs one.
-   Set the final size of the .MIPS.stub section.  */
-
-static void
-mips_elf_lay_out_lazy_stubs (struct bfd_link_info *info)
-{
-  struct mips_elf_link_hash_table *htab;
-
-  htab = mips_elf_hash_table (info);
-  BFD_ASSERT (htab != NULL);
-
-  if (htab->lazy_stub_count == 0)
-    return;
-
-  htab->sstubs->size = 0;
-  mips_elf_link_hash_traverse (htab, mips_elf_allocate_lazy_stub, htab);
-  htab->sstubs->size += htab->function_stub_size;
-  BFD_ASSERT (htab->sstubs->size
-	      == htab->lazy_stub_count * htab->function_stub_size);
-}
-
 /* Set the sizes of the dynamic sections.  */
 
 bfd_boolean
@@ -5692,12 +5047,8 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
   /* Allocate space for global sym dynamic relocs.  */
   elf_link_hash_traverse (&htab->root, allocate_dynrelocs, (PTR) info);
 
-  mips_elf_estimate_stub_size (output_bfd, info);
-
   if (!mips_elf_lay_out_got (output_bfd, info))
     return FALSE;
-
-  mips_elf_lay_out_lazy_stubs (info);
 
   /* The check_relocs and adjust_dynamic_symbol entry points have
      determined the sizes of the various dynamic sections.  Allocate
@@ -5731,21 +5082,12 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	      info->combreloc = 0;
 	    }
 	}
-      else if (! info->shared
-	       && ! mips_elf_hash_table (info)->use_rld_obj_head
-	       && CONST_STRNEQ (name, ".rld_map"))
-	{
-	  /* We add a room for __rld_map.  It will be filled in by the
-	     rtld to contain a pointer to the _r_debug structure.  */
-	  s->size += 4;
-	}
       else if (s == htab->splt)
 	{
 	}
       else if (! CONST_STRNEQ (name, ".init")
 	       && s != htab->sgot
 	       && s != htab->sgotplt
-	       && s != htab->sstubs
 	       && s != htab->sdynbss)
 	{
 	  /* It's not one of our sections, so don't allocate space.  */
@@ -5776,14 +5118,6 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	 values later, in _bfd_riscv_elf_finish_dynamic_sections, but we
 	 must add the entries now so that we get the correct size for
 	 the .dynamic section.  */
-
-      /* SGI object has the equivalence of DT_DEBUG in the
-	 DT_MIPS_RLD_MAP entry.  This must come first because glibc
-	 only fills in DT_MIPS_RLD_MAP (not DT_DEBUG) and GDB only
-	 looks at the first one it sees.  */
-      if (!info->shared
-	  && !MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_RLD_MAP, 0))
-	return FALSE;
 
       /* The DT_DEBUG entry may be filled in by the dynamic linker and
 	 used by the debugger.  */
@@ -6114,66 +5448,6 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 
   return TRUE;
 }
-
-/* A function that iterates over each entry in la25_stubs and fills
-   in the code for each one.  DATA points to a mips_htab_traverse_info.  */
-
-static int
-mips_elf_create_la25_stub (void **slot, void *data)
-{
-  struct mips_htab_traverse_info *hti;
-  struct mips_elf_link_hash_table *htab;
-  struct mips_elf_la25_stub *stub;
-  asection *s;
-  bfd_byte *loc;
-  bfd_vma offset, target;
-
-  stub = (struct mips_elf_la25_stub *) *slot;
-  hti = (struct mips_htab_traverse_info *) data;
-  htab = mips_elf_hash_table (hti->info);
-  BFD_ASSERT (htab != NULL);
-
-  /* Create the section contents, if we haven't already.  */
-  s = stub->stub_section;
-  loc = s->contents;
-  if (loc == NULL)
-    {
-      loc = bfd_malloc (s->size);
-      if (loc == NULL)
-	{
-	  hti->error = TRUE;
-	  return FALSE;
-	}
-      s->contents = loc;
-    }
-
-  /* Work out where in the section this stub should go.  */
-  offset = stub->offset;
-
-  /* Work out the target address.  */
-  target = (stub->h->root.root.u.def.section->output_section->vma
-	    + stub->h->root.root.u.def.section->output_offset
-	    + stub->h->root.root.u.def.value);
-
-  if (stub->stub_section != htab->strampoline)
-    {
-      /* This is a simple RDNPC stub.  Zero out the beginning
-	 of the section and write the instruction at the end. */
-      memset (loc, 0, offset);
-      loc += offset;
-      bfd_put_32 (hti->output_bfd, RISCV_ITYPE (RDNPC, 19, 0, 0), loc);
-    }
-  else
-    {
-      /* This is trampoline.  */
-      loc += offset;
-      bfd_put_32 (hti->output_bfd, RISCV_LTYPE (LUI, 18, RISCV_LUI_HIGH_PART(target)), loc);
-      bfd_put_32 (hti->output_bfd, RISCV_ITYPE (ADDI, 19, 18, RISCV_CONST_LOW_PART(target)), loc + 4);
-      bfd_put_32 (hti->output_bfd, RISCV_ITYPE (JALR_J, 0, 18, RISCV_CONST_LOW_PART(target)), loc + 8);
-      bfd_put_32 (hti->output_bfd, 0, loc + 12);
-    }
-  return TRUE;
-}
 
 /* Finish up dynamic symbol handling.  We set the contents of various
    dynamic sections here.  */
@@ -6188,7 +5462,6 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
   asection *sgot;
   struct mips_got_info *g;
   const char *name;
-  int idx;
   struct mips_elf_link_hash_table *htab;
   struct mips_elf_link_hash_entry *hmips;
 
@@ -6197,7 +5470,7 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
   dynobj = elf_hash_table (info)->dynobj;
   hmips = (struct mips_elf_link_hash_entry *) h;
 
-  if (h->plt.offset != MINUS_ONE && hmips->no_fn_stub)
+  if (h->plt.offset != MINUS_ONE)
     {
       /* We've decided to create a PLT entry for this symbol.  */
       bfd_byte *loc;
@@ -6255,68 +5528,6 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       else
 	sym->st_value = 0;
     }
-  else if (h->plt.offset != MINUS_ONE)
-    {
-      /* We've decided to create a lazy-binding stub.  */
-      bfd_byte stub[MIPS_FUNCTION_STUB_BIG_SIZE];
-
-      /* This symbol has a stub.  Set it up.  */
-
-      BFD_ASSERT (h->dynindx != -1);
-
-      BFD_ASSERT ((htab->function_stub_size == MIPS_FUNCTION_STUB_BIG_SIZE)
-                  || (h->dynindx < RISCV_IMM_REACH/2));
-
-      /* Values up to 2^31 - 1 are allowed.  Larger values would cause
-	 sign extension at runtime in the stub, resulting in a negative
-	 index value.  */
-      if (h->dynindx & ~0x7fffffff)
-	return FALSE;
-
-      /* Fill the stub.  */
-      /* l[w|d] t7, -GP_OFFSET(gp)
-         move   t5, ra
-         lui    t6, %hi(idx)
-         addi   t6, t6, %lo(idx)
-         jalr   t7
-       */
-      idx = 0;
-      bfd_put_32 (output_bfd, RISCV_ITYPE (LREG(output_bfd), 19, 28, 0), stub + idx);
-      idx += 4;
-      bfd_put_32 (output_bfd, RISCV_ITYPE (ADDI, 17, LINK_REG, 0), stub + idx);
-      idx += 4;
-      if (htab->function_stub_size == MIPS_FUNCTION_STUB_BIG_SIZE)
-        {
-          bfd_put_32 (output_bfd, RISCV_LTYPE (LUI, 18, RISCV_LUI_HIGH_PART(h->dynindx)),
-                      stub + idx);
-          idx += 4;
-
-	  bfd_put_32 (output_bfd, RISCV_ITYPE (ADDI, 18, 18, RISCV_CONST_LOW_PART(h->dynindx)), stub + idx);
-          idx += 4;
-        }
-      else
-        {
-	  bfd_put_32 (output_bfd, RISCV_ITYPE (ADDI, 18, 0, RISCV_CONST_LOW_PART(h->dynindx)), stub + idx);
-          idx += 4;
-        }
-      bfd_put_32 (output_bfd, RISCV_ITYPE (JALR_J, LINK_REG, 19, 0), stub + idx);
-      idx += 4;
-
-      BFD_ASSERT (h->plt.offset <= htab->sstubs->size);
-      memcpy (htab->sstubs->contents + h->plt.offset,
-	      stub, htab->function_stub_size);
-
-      /* Mark the symbol as undefined.  plt.offset != -1 occurs
-	 only for the referenced symbol.  */
-      sym->st_shndx = SHN_UNDEF;
-
-      /* The run-time linker uses the st_value field of the symbol
-	 to reset the global offset table entry for this external
-	 to its stub address when unlinking a shared object.  */
-      sym->st_value = (htab->sstubs->output_section->vma
-		       + htab->sstubs->output_offset
-		       + h->plt.offset);
-    }
 
   BFD_ASSERT (h->dynindx != -1
 	      || h->forced_local);
@@ -6364,35 +5575,6 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
 		+ h->root.u.def.value);
       mips_elf_output_dynamic_relocation (output_bfd, s, s->reloc_count++,
 					  h->dynindx, R_RISCV_COPY, symval);
-    }
-
-  if (! info->shared)
-    {
-      if (! mips_elf_hash_table (info)->use_rld_obj_head
-	  && (strcmp (name, "__rld_map") == 0
-	      || strcmp (name, "__RLD_MAP") == 0))
-	{
-	  asection *s = bfd_get_section_by_name (dynobj, ".rld_map");
-	  BFD_ASSERT (s != NULL);
-	  sym->st_value = s->output_section->vma + s->output_offset;
-	  bfd_put_32 (output_bfd, 0, s->contents);
-	  if (mips_elf_hash_table (info)->rld_value == 0)
-	    mips_elf_hash_table (info)->rld_value = sym->st_value;
-	}
-      else if (mips_elf_hash_table (info)->use_rld_obj_head
-	       && strcmp (name, "__rld_obj_head") == 0)
-	{
-	  BFD_ASSERT (bfd_get_section_by_name (dynobj, ".rld_map") != NULL);
-	  mips_elf_hash_table (info)->rld_value = sym->st_value;
-	}
-    }
-
-  /* Keep dynamic MIPS16 symbols odd.  This allows the dynamic linker to
-     treat MIPS16 symbols like any other.  */
-  if (ELF_ST_IS_MIPS16 (sym->st_other))
-    {
-      BFD_ASSERT (sym->st_value & 1);
-      sym->st_other -= STO_MIPS16;
     }
 
   return TRUE;
@@ -6555,10 +5737,6 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 
 	    case DT_MIPS_HIPAGENO:
 	      dyn.d_un.d_val = g->local_gotno - htab->reserved_gotno;
-	      break;
-
-	    case DT_MIPS_RLD_MAP:
-	      dyn.d_un.d_ptr = mips_elf_hash_table (info)->rld_value;
 	      break;
 
 	    case DT_MIPS_OPTIONS:
@@ -7009,14 +6187,10 @@ _bfd_riscv_elf_copy_indirect_symbol (struct bfd_link_info *info,
   dirmips->possibly_dynamic_relocs += indmips->possibly_dynamic_relocs;
   if (indmips->readonly_reloc)
     dirmips->readonly_reloc = TRUE;
-  if (indmips->no_fn_stub)
-    dirmips->no_fn_stub = TRUE;
   if (indmips->global_got_area < dirmips->global_got_area)
     dirmips->global_got_area = indmips->global_got_area;
   if (indmips->global_got_area < GGA_NONE)
     indmips->global_got_area = GGA_NONE;
-  if (indmips->has_nonpic_branches)
-    dirmips->has_nonpic_branches = TRUE;
 
   if (dirmips->tls_type == 0)
     dirmips->tls_type = indmips->tls_type;
@@ -7450,9 +6624,6 @@ _bfd_riscv_elf_link_hash_table_create (bfd *abfd)
   for (i = 0; i < SIZEOF_MIPS_DYNSYM_SECNAMES; i++)
     ret->dynsym_sec_strindex[i] = (bfd_size_type) -1;
 #endif
-  ret->procedure_count = 0;
-  ret->use_rld_obj_head = FALSE;
-  ret->rld_value = 0;
   ret->use_plts_and_copy_relocs = FALSE;
   ret->srelbss = NULL;
   ret->sdynbss = NULL;
@@ -7460,16 +6631,10 @@ _bfd_riscv_elf_link_hash_table_create (bfd *abfd)
   ret->srelplt2 = NULL;
   ret->sgotplt = NULL;
   ret->splt = NULL;
-  ret->sstubs = NULL;
   ret->sgot = NULL;
   ret->got_info = NULL;
   ret->plt_header_size = 0;
   ret->plt_entry_size = 0;
-  ret->lazy_stub_count = 0;
-  ret->function_stub_size = 0;
-  ret->strampoline = NULL;
-  ret->la25_stubs = NULL;
-  ret->add_stub_section = NULL;
 
   return &ret->root.root;
 }
@@ -7495,7 +6660,6 @@ _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
   asection *reginfo_sec, *mdebug_sec;
   Elf32_RegInfo reginfo;
   struct ecoff_debug_info debug;
-  struct mips_htab_traverse_info hti;
   const struct elf_backend_data *bed = get_elf_backend_data (abfd);
   const struct ecoff_debug_swap *swap = bed->elf_backend_ecoff_debug_swap;
   HDRR *symhdr = &debug.symbolic_header;
@@ -7508,12 +6672,12 @@ _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
   static const char * const secname[] =
   {
     ".text", ".init", ".fini", ".data",
-    ".rodata", ".sdata", ".sbss", ".bss"
+    ".rodata", ".bss"
   };
   static const int sc[] =
   {
     scText, scInit, scFini, scData,
-    scRData, scSData, scSBss, scBss
+    scRData, scBss
   };
 
   /* Sort the dynamic symbols so that those with GOT entries come after
@@ -7522,14 +6686,6 @@ _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
   BFD_ASSERT (htab != NULL);
 
   if (!mips_elf_sort_hash_table (abfd, info))
-    return FALSE;
-
-  /* Create any scheduled LA25 stubs.  */
-  hti.info = info;
-  hti.output_bfd = abfd;
-  hti.error = FALSE;
-  htab_traverse (htab->la25_stubs, mips_elf_create_la25_stub, &hti);
-  if (hti.error)
     return FALSE;
 
   /* Get a value for the GP register.  */
@@ -7992,15 +7148,6 @@ _bfd_riscv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
     return TRUE;
 
   ok = TRUE;
-
-  if (((new_flags & (EF_MIPS_PIC | EF_MIPS_CPIC)) != 0)
-      != ((old_flags & (EF_MIPS_PIC | EF_MIPS_CPIC)) != 0))
-    {
-      (*_bfd_error_handler)
-	(_("%B: warning: linking abicalls files with non-abicalls files"),
-	 ibfd);
-      ok = TRUE;
-    }
 
   if (new_flags & (EF_MIPS_PIC | EF_MIPS_CPIC))
     elf_elfheader (obfd)->e_flags |= EF_MIPS_CPIC;
