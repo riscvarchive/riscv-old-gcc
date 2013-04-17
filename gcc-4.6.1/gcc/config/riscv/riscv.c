@@ -1240,7 +1240,7 @@ mips_call_tls_get_addr (rtx sym, rtx v0)
   start_sequence ();
   
   emit_insn (riscv_got_load_tls_gd(a0, sym));
-  insn = mips_expand_call (MIPS_CALL_NORMAL, v0, mips_tls_symbol, const0_rtx);
+  insn = mips_expand_call (false, v0, mips_tls_symbol, const0_rtx);
   RTL_CONST_CALL_P (insn) = 1;
   use_reg (&CALL_INSN_FUNCTION_USAGE (insn), a0);
   insn = get_insns ();
@@ -3016,25 +3016,28 @@ mips_va_start (tree valist, rtx nextarg)
    Return the call itself.  */
 
 rtx
-mips_expand_call (enum mips_call_type type, rtx result, rtx addr, rtx args_size)
+mips_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
 {
-  rtx orig_addr, pattern, insn;
+  rtx pattern, insn;
 
-  orig_addr = addr;
-  if (!call_insn_operand (addr, VOIDmode))
+  if (sibcall_p && !sibcall_insn_operand (addr, VOIDmode))
     {
-      if (type == MIPS_CALL_EPILOGUE)
-	addr = MIPS_EPILOGUE_TEMP (Pmode);
-      else
-	addr = gen_reg_rtx (Pmode);
-      mips_emit_move(addr, orig_addr);
+      rtx reg = MIPS_EPILOGUE_TEMP (Pmode, sibcall_p);
+      mips_emit_move (reg, addr);
+      addr = reg;
+    }
+  else if (!sibcall_p && !call_insn_operand (addr, VOIDmode))
+    {
+      rtx reg = gen_reg_rtx (Pmode);
+      mips_emit_move (reg, addr);
+      addr = reg;
     }
 
   if (result == 0)
     {
       rtx (*fn) (rtx, rtx);
 
-      if (type == MIPS_CALL_SIBCALL)
+      if (sibcall_p)
 	fn = gen_sibcall_internal;
       else
 	fn = gen_call_internal;
@@ -3047,7 +3050,7 @@ mips_expand_call (enum mips_call_type type, rtx result, rtx addr, rtx args_size)
       rtx (*fn) (rtx, rtx, rtx, rtx);
       rtx reg1, reg2;
 
-      if (type == MIPS_CALL_SIBCALL)
+      if (sibcall_p)
 	fn = gen_sibcall_value_multiple_internal;
       else
 	fn = gen_call_value_multiple_internal;
@@ -3060,7 +3063,7 @@ mips_expand_call (enum mips_call_type type, rtx result, rtx addr, rtx args_size)
     {
       rtx (*fn) (rtx, rtx, rtx);
 
-      if (type == MIPS_CALL_SIBCALL)
+      if (sibcall_p)
 	fn = gen_sibcall_value_internal;
       else
 	fn = gen_call_value_internal;
@@ -4147,7 +4150,13 @@ mips_expand_prologue (void)
 static void
 mips_restore_reg (rtx reg, rtx mem)
 {
-  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg)));
+  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg), false));
+}
+
+static void
+mips_restore_reg_sibcall (rtx reg, rtx mem)
+{
+  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg), true));
 }
 
 /* Expand an "epilogue" or "sibcall_epilogue" pattern; SIBCALL_P
@@ -4185,8 +4194,8 @@ mips_expand_epilogue (bool sibcall_p)
       rtx adjust = GEN_INT (-frame->hard_frame_pointer_offset);
       if (!SMALL_INT (adjust))
 	{
-	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
-	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
+	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode, sibcall_p), adjust);
+	  adjust = MIPS_EPILOGUE_TEMP (Pmode, sibcall_p);
 	}
 
       emit_insn (gen_add3_insn (stack_pointer_rtx, hard_frame_pointer_rtx, adjust));
@@ -4207,15 +4216,16 @@ mips_expand_epilogue (bool sibcall_p)
       rtx adjust = GEN_INT (step1);
       if (!SMALL_OPERAND (step1))
 	{
-	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
-	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
+	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode, sibcall_p), adjust);
+	  adjust = MIPS_EPILOGUE_TEMP (Pmode, sibcall_p);
 	}
 
       emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx, adjust));
     }
 
   /* Restore the registers.  */
-  mips_for_each_saved_gpr_and_fpr (frame->total_size - step2, mips_restore_reg);
+  mips_for_each_saved_gpr_and_fpr (frame->total_size - step2, 
+    sibcall_p ? mips_restore_reg_sibcall : mips_restore_reg);
 
   /* Deallocate the final bit of the frame.  */
   if (step2 > 0)

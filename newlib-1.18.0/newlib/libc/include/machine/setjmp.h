@@ -260,7 +260,7 @@ _BEGIN_STD_C
 
 #ifdef __riscv__
 #define _JBTYPE long
-#define _JBLEN ((14*sizeof(long) + 10*sizeof(double))/sizeof(long))
+#define _JBLEN ((16*sizeof(long) + 16*sizeof(double))/sizeof(long))
 #endif
 
 #ifdef _JBLEN

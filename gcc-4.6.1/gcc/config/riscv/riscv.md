@@ -2716,13 +2716,12 @@
 	      (use (match_operand 3 ""))])]	;; struct_value_size_rtx
   ""
 {
-  mips_expand_call (MIPS_CALL_SIBCALL, NULL_RTX, XEXP (operands[0], 0),
-		    operands[1]);
+  mips_expand_call (true, NULL_RTX, XEXP (operands[0], 0), operands[1]);
   DONE;
 })
 
 (define_insn "sibcall_internal"
-  [(call (mem:SI (match_operand 0 "call_insn_operand" "r,S"))
+  [(call (mem:SI (match_operand 0 "sibcall_insn_operand" "r,S"))
 	 (match_operand 1 "" ""))]
   "SIBLING_CALL_P (insn)"
   { return REG_P (operands[0]) ? "jr\t%0" : "j\t%0"; }
@@ -2735,14 +2734,13 @@
 	      (use (match_operand 3 ""))])]		;; next_arg_reg
   ""
 {
-  mips_expand_call (MIPS_CALL_SIBCALL, operands[0], XEXP (operands[1], 0),
-		    operands[2]);
+  mips_expand_call (true, operands[0], XEXP (operands[1], 0), operands[2]);
   DONE;
 })
 
 (define_insn "sibcall_value_internal"
   [(set (match_operand 0 "register_operand" "")
-        (call (mem:SI (match_operand 1 "call_insn_operand" "r,S"))
+        (call (mem:SI (match_operand 1 "sibcall_insn_operand" "r,S"))
               (match_operand 2 "" "")))]
   "SIBLING_CALL_P (insn)"
   { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1"; }
@@ -2750,7 +2748,7 @@
 
 (define_insn "sibcall_value_multiple_internal"
   [(set (match_operand 0 "register_operand" "")
-        (call (mem:SI (match_operand 1 "call_insn_operand" "r,S"))
+        (call (mem:SI (match_operand 1 "sibcall_insn_operand" "r,S"))
               (match_operand 2 "" "")))
    (set (match_operand 3 "register_operand" "")
 	(call (mem:SI (match_dup 1))
@@ -2766,8 +2764,7 @@
 	      (use (match_operand 3 ""))])]	;; struct_value_size_rtx
   ""
 {
-  mips_expand_call (MIPS_CALL_NORMAL, NULL_RTX, XEXP (operands[0], 0),
-		    operands[1]);
+  mips_expand_call (false, NULL_RTX, XEXP (operands[0], 0), operands[1]);
   DONE;
 })
 
@@ -2799,8 +2796,7 @@
 	      (use (match_operand 3 ""))])]		;; next_arg_reg
   ""
 {
-  mips_expand_call (MIPS_CALL_NORMAL, operands[0], XEXP (operands[1], 0),
-		    operands[2]);
+  mips_expand_call (false, operands[0], XEXP (operands[1], 0), operands[2]);
   DONE;
 })
 

@@ -565,7 +565,7 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value,
   entry[i++] = RISCV_ITYPE(ADDI, 14, 14, -16*regbytes);
   entry[i++] = RISCV_BTYPE(SREG(abfd), 14, LINK_REG, 0);
   for (j = 0; j < 14; j++)
-    entry[i++] = RISCV_BTYPE(SREG(abfd), 14, 4+j, (j+1)*regbytes);
+    entry[i++] = RISCV_BTYPE(SREG(abfd), 14, 18+j, (j+1)*regbytes);
   entry[i++] = RISCV_LTYPE(LUI, 16, RISCV_LUI_HIGH_PART(gotplt_value));
   entry[i++] = RISCV_RTYPE(SUB, 19, 17, 16);
   entry[i++] = RISCV_ITYPE(LREG(abfd), 18, 16, RISCV_CONST_LOW_PART(regbytes+gotplt_value));
@@ -576,7 +576,7 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value,
   entry[i++] = RISCV_ITYPE(JALR_C, LINK_REG, 16, 0);
   entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, 14, 0);
   for (j = 0; j < 14; j++)
-    entry[i++] = RISCV_ITYPE(LREG(abfd), 4+j, 14, (j+1)*regbytes);
+    entry[i++] = RISCV_ITYPE(LREG(abfd), 18+j, 14, (j+1)*regbytes);
   entry[i++] = RISCV_ITYPE(ADDI, 14, 14, 16*regbytes);
   entry[i++] = RISCV_ITYPE(JALR_J, 0, 16, 0);
 

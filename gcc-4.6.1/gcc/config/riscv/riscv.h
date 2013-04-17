@@ -430,7 +430,7 @@ struct mips_cpu_info {
 #define EH_RETURN_DATA_REGNO(N) \
   ((N) < 4 ? (N) + GP_ARG_FIRST : INVALID_REGNUM)
 
-#define EH_RETURN_STACKADJ_RTX  gen_rtx_REG (Pmode, GP_REG_FIRST + 3)
+#define EH_RETURN_STACKADJ_RTX  gen_rtx_REG (Pmode, GP_ARG_FIRST + 4)
 
 /* Offsets recorded in opcodes are a multiple of this alignment factor.
    The default for this in 64-bit mode is 8, which causes problems with
@@ -807,28 +807,20 @@ struct mips_cpu_info {
 /* Register in which static-chain is passed to a function.  */
 #define STATIC_CHAIN_REGNUM GP_RETURN
 
-/* Registers used as temporaries in prologue/epilogue code:
-
-   - The prologue can use MIPS_PROLOGUE_TEMP as a general temporary
-     register.
-
-   - The epilogue can use MIPS_EPILOGUE_TEMP as a general temporary
-     register.
+/* Registers used as temporaries in prologue/epilogue code.
 
    The prologue registers mustn't conflict with any
    incoming arguments, the static chain pointer, or the frame pointer.
    The epilogue temporary mustn't conflict with the return registers,
-   the PIC call register ($25), the frame pointer, the EH stack adjustment,
-   or the EH data registers.
-
-   If we're generating interrupt handlers, we use K0 as a temporary register
-   in prologue/epilogue code.  */
+   the frame pointer, the EH stack adjustment, or the EH data registers. */
 
 #define MIPS_PROLOGUE_TEMP_REGNUM (GP_RETURN + 1)
-#define MIPS_EPILOGUE_TEMP_REGNUM (GP_REG_FIRST + 8)
+#define MIPS_EPILOGUE_TEMP_REGNUM(SIBCALL_P) \
+  ((SIBCALL_P) ? MIPS_PROLOGUE_TEMP_REGNUM : (GP_ARG_FIRST + 5))
 
 #define MIPS_PROLOGUE_TEMP(MODE) gen_rtx_REG (MODE, MIPS_PROLOGUE_TEMP_REGNUM)
-#define MIPS_EPILOGUE_TEMP(MODE) gen_rtx_REG (MODE, MIPS_EPILOGUE_TEMP_REGNUM)
+#define MIPS_EPILOGUE_TEMP(MODE, SIBCALL_P) \
+  gen_rtx_REG (MODE, MIPS_EPILOGUE_TEMP_REGNUM (SIBCALL_P))
 
 #define FUNCTION_PROFILER(STREAM, LABELNO)	\
 {						\
