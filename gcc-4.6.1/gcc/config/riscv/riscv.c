@@ -58,6 +58,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "bitmap.h"
 #include "diagnostic.h"
 #include "target-globals.h"
+#include <stdint.h>
 
 /*----------------------------------------------------------------------*/
 /* RISCV_SYSCFG_VLEN_MAX                                                */
@@ -1340,6 +1341,36 @@ mips_legitimize_address (rtx x, rtx oldx ATTRIBUTE_UNUSED,
   return x;
 }
 
+static int
+riscv_split_integer_cost (HOST_WIDE_INT val)
+{
+  int cost = 0;
+  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
+  int32_t loval = val, hival = (val - (int32_t)val) >> 32;
+
+  cost += riscv_build_integer(codes, loval);
+  if (loval != hival)
+    cost += riscv_build_integer(codes, hival);
+  return cost + 2;
+}
+
+/* Try to split a 64b integer into 32b parts, then reassemble. */
+
+static rtx
+riscv_split_integer (HOST_WIDE_INT val, enum machine_mode mode)
+{
+  int32_t loval = val, hival = (val - (int32_t)val) >> 32;
+  rtx hi = gen_reg_rtx (mode), lo = gen_reg_rtx (mode);
+
+  mips_move_integer (hi, hi, hival);
+  mips_move_integer (lo, lo, loval);
+
+  hi = gen_rtx_fmt_ee (ASHIFT, mode, hi, GEN_INT (32));
+  hi = force_reg (mode, hi);
+
+  return gen_rtx_fmt_ee (PLUS, mode, hi, lo);
+}
+
 /* Load VALUE into DEST.  TEMP is as for mips_force_temporary.  */
 
 void
@@ -1353,21 +1384,8 @@ mips_move_integer (rtx temp, rtx dest, HOST_WIDE_INT value)
   mode = GET_MODE (dest);
   num_ops = riscv_build_integer (codes, value);
 
-  if (can_create_pseudo_p () && num_ops > 4)
-    {
-      /* Split into two 32-bit constants. Account for SExt of lower word. */
-      rtx upper = gen_reg_rtx (mode);
-      HOST_WIDE_INT correction = (value & 0x80000000L) ? 1 : 0;
-      mips_move_integer (upper, upper, (value >> 32) + correction);
-
-      rtx lower = gen_reg_rtx (mode);
-      mips_move_integer (lower, lower, value << 32 >> 32);
-
-      upper = gen_rtx_fmt_ee (ASHIFT, mode, upper, GEN_INT (32));
-      upper = force_reg (mode, upper);
-
-      x = gen_rtx_fmt_ee (PLUS, mode, upper, lower);
-    }
+  if (can_create_pseudo_p () && num_ops >= riscv_split_integer_cost (value))
+    x = riscv_split_integer (value, mode);
   else
     {
       /* Apply each binary operation to X. */
