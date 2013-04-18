@@ -21,25 +21,25 @@
 
 /* Save the PID value.  */
 #define SAVE_PID \
-	lui	t0, %hi(PID_OFFSET);                                   	\
-	add	t0, t0, tp;                                            	\
-	lw	a2, %lo(PID_OFFSET)(t0);/* Load the saved PID.  */	\
+	lui	a3, %hi(PID_OFFSET);                                   	\
+	add	a3, a3, tp;                                            	\
+	lw	a2, %lo(PID_OFFSET)(a3);/* Load the saved PID.  */	\
 	neg	a2, a2;		        /* Negate it.  */		\
 	bnez	a2, 1f;			/* If it was zero... */		\
 	li	a2, 0x80000000;		/* use 0x80000000 instead.  */	\
-1:	sw	a2, %lo(PID_OFFSET)(t0);/* Store the temporary PID.  */
+1:	sw	a2, %lo(PID_OFFSET)(a3);/* Store the temporary PID.  */
 
 /* Restore the old PID value in the parent.  */
 #define RESTORE_PID \
 	beqz	v0, 1f;			/* If we are the parent... */	\
-	lui	t0, %hi(PID_OFFSET);                                   	\
-	add	t0, t0, tp;                                            	\
-	lw	a2, %lo(PID_OFFSET)(t0);/* Load the saved PID.  */	\
+	lui	a3, %hi(PID_OFFSET);                                   	\
+	add	a3, a3, tp;                                            	\
+	lw	a2, %lo(PID_OFFSET)(a3);/* Load the saved PID.  */	\
 	neg	a2, a2;		        /* Re-negate it.  */		\
 	li	a0, 0x80000000;		/* Load 0x80000000... */	\
 	bne	a2, a0, 2f;		/* ... compare against it... */	\
 	li	a2, 0;			/* ... use 0 instead.  */	\
-2:	sw	a2, %lo(PID_OFFSET)(t0);/* Restore the PID.  */		\
+2:	sw	a2, %lo(PID_OFFSET)(a3);/* Restore the PID.  */		\
 1:
 
 #include <sysdeps/unix/sysv/linux/riscv/vfork.S>

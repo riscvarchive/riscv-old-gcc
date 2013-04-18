@@ -67,8 +67,8 @@ LEAF (__socket)
 #endif
 
 #if defined NEED_CANCELLATION && defined CENABLE
-	SINGLE_THREAD_P(t0)
-	bnez  t0, 1f
+	SINGLE_THREAD_P(a0)
+	bnez  a0, 1f
 #endif
 	li    a0, P(SOCKOP_,socket)   /* arg 1: socket subfunction */
 	move  a1, sp			/* arg 2: parameter block */
@@ -82,7 +82,7 @@ LEAF (__socket)
 1:unimp
 #endif
 
-99: PIC_J(__syscall_error)
+99: 	j	__syscall_error
 
 END (__socket)
 

@@ -48,22 +48,6 @@ enum mips_symbol_type {
 };
 #define NUM_SYMBOL_TYPES (SYMBOL_TPREL + 1)
 
-/* Classifies a type of call.
-
-   MIPS_CALL_NORMAL
-	A normal call or call_value pattern.
-
-   MIPS_CALL_SIBCALL
-	A sibcall or sibcall_value pattern.
-
-   MIPS_CALL_EPILOGUE
-	A call inserted in the epilogue.  */
-enum mips_call_type {
-  MIPS_CALL_NORMAL,
-  MIPS_CALL_SIBCALL,
-  MIPS_CALL_EPILOGUE
-};
-
 extern bool mips_symbolic_constant_p (rtx, enum mips_symbol_type *);
 extern int mips_regno_mode_ok_for_base_p (int, enum machine_mode, bool);
 extern int mips_address_insns (rtx, enum machine_mode, bool);
@@ -88,7 +72,7 @@ extern void mips_expand_conditional_branch (rtx *);
 extern void mips_expand_vcondv2sf (rtx, rtx, rtx, enum rtx_code, rtx, rtx);
 extern void mips_expand_conditional_move (rtx *);
 #endif
-extern rtx mips_expand_call (enum mips_call_type, rtx, rtx, rtx);
+extern rtx mips_expand_call (bool, rtx, rtx, rtx);
 extern void mips_expand_fcc_reload (rtx, rtx, rtx);
 extern void mips_set_return_address (rtx, rtx);
 extern bool mips_expand_block_move (rtx, rtx, rtx);
@@ -146,5 +130,6 @@ extern unsigned int current_section_flags (void);
 extern void mips_expand_vector_init (rtx, rtx);
 
 extern bool mips_epilogue_uses (unsigned int);
+extern bool riscv_symbol_binds_local_p (const_rtx x);
 
 #endif /* ! GCC_MIPS_PROTOS_H */

@@ -52,48 +52,62 @@ LEAF (__setcontext)
 #ifdef __riscv_hard_float
 	lw	v1, MCONTEXT_FSR(v0)
 
-	fld	fs0, (20 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs1, (21 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs2, (22 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs3, (23 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs4, (24 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs5, (25 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs6, (26 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs7, (27 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs8, (28 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs9, (29 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs0, ( 0 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs1, ( 1 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs2, ( 2 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs3, ( 3 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs4, ( 4 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs5, ( 5 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs6, ( 6 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs7, ( 7 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs8, ( 8 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs9, ( 9 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs10,(10 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs11,(11 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs12,(12 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs13,(13 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs14,(14 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs15,(15 * 8 + MCONTEXT_FPREGS)(v0)
 
 	mtfsr	v1
 #endif /* __mips_hard_float */
 
 	/* Note the contents of argument registers will be random
 	   unless makecontext() has been called.  */
-	REG_L	ra, (1 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a0, (4 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a1, (5 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a2, (6 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a3, (7 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a4, (8 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a5, (9 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a6, (10 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a7, (11 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s0, (20 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s1, (21 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s2, (22 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s3, (23 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s4, (24 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s5, (25 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s6, (26 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s7, (27 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s8, (28 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s9, (29 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	sp, (30 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	tp, (31 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	t7, MCONTEXT_PC(v0)
+	REG_L	ra, ( 1 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s0, ( 2 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s1, ( 3 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s2, ( 4 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s3, ( 5 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s4, ( 6 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s5, ( 7 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s6, ( 8 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s7, ( 9 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s8, (10 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s9, (11 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s10,(12 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	s11,(13 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	sp, (14 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	tp, (15 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a0, (18 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a1, (19 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a2, (20 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a3, (21 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a4, (22 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a5, (23 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a6, (24 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a7, (25 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a8, (26 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a9, (27 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a10,(28 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a11,(29 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a12,(30 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	a13,(31 * SZREG + MCONTEXT_GREGS)(v0)
+	REG_L	v1, MCONTEXT_PC(v0)
 	addi    sp, sp, SZREG
 
 	move	v0, zero
-	jr	t7
+	jr	v1
 
 98:
 	/* This is a context obtained from a signal handler.
@@ -105,15 +119,15 @@ LEAF (__setcontext)
 
 	/* Only ucontext is referred to from rt_sigreturn,
 	   copy it.  */
-	addi    t1, sp, RT_SIGFRAME_UCONTEXT
-	li	t3, ((UCONTEXT_SIZE + SZREG - 1) / SZREG) - 1
+	addi    a1, sp, RT_SIGFRAME_UCONTEXT
+	li	v1, ((UCONTEXT_SIZE + SZREG - 1) / SZREG) - 1
 0:
-	REG_L	t2, (a0)
-	addi	t3, t3, -1
-	addi    t1, t1, SZREG
+	REG_L	v0, (a0)
+	addi	v1, v1, -1
+	addi    a1, a1, SZREG
 	addi    a0, a0, SZREG
-	REG_S	t2, -SZREG(t1)
-	bgez	t3, 0b
+	REG_S	v0, -SZREG(a1)
+	bgez	v1, 0b
 
 /* rt_sigreturn () -- no arguments, sp points to struct rt_sigframe.  */
 	li	v0, SYS_ify (rt_sigreturn)
@@ -124,7 +138,7 @@ LEAF (__setcontext)
 	   its calling place.  */
 	addi    sp, sp, ((RT_SIGFRAME_SIZE + ALSZ) & ALMASK)
 
-99:	PIC_J(__syscall_error)
+99:	j	__syscall_error
 
 PSEUDO_END (__setcontext)
 

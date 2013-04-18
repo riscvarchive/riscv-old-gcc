@@ -131,8 +131,6 @@ extern void _bfd_riscv_elf_use_plts_and_copy_relocs
   (struct bfd_link_info *);
 extern bfd_vma _bfd_riscv_elf_plt_sym_val
   (bfd_vma, const asection *, const arelent *rel);
-extern void _bfd_riscv_post_process_headers
-  (bfd *abfd, struct bfd_link_info *link_info);
 
 extern const struct bfd_elf_special_section _bfd_riscv_elf_special_sections [];
 
@@ -144,4 +142,3 @@ extern bfd_boolean _bfd_riscv_elf_common_definition (Elf_Internal_Sym *);
 #define elf_backend_special_sections _bfd_riscv_elf_special_sections
 #define elf_backend_eh_frame_address_size _bfd_riscv_elf_eh_frame_address_size
 #define elf_backend_merge_symbol_attribute  _bfd_riscv_elf_merge_symbol_attribute
-#define elf_backend_post_process_headers _bfd_riscv_post_process_headers

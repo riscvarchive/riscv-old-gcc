@@ -25,23 +25,19 @@ typedef struct __jmp_buf_internal_tag
   {
     /* Program counter.  */
     long __pc;
-
+    /* Callee-saved registers. */
+    long __regs[12];
     /* Stack pointer.  */
     long __sp;
-
     /* Thread pointer. */
     long __tp;
-
-    /* Callee-saved registers s0 through s9.  */
-    long __regs[10];
-
     /* Floating point status register.  */
     long __fsr;
 
     /* Callee-saved floating point registers.
        Note that there are an even number of preceding words in this struct,
        so no padding will be inserted before __fpregs, even for RV32. */
-    double __fpregs[10];
+    double __fpregs[16];
   } __jmp_buf[1];
 
 #endif /* _RISCV_BITS_SETJMP_H */

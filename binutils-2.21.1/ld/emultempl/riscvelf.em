@@ -44,23 +44,6 @@ riscv_after_parse (void)
   after_parse_default ();
 }
 
-/* This is called after we have merged the private data of the input bfds.  */
-
-static void
-riscv_before_allocation (void)
-{
-  flagword flags;
-  
-  flags = elf_elfheader (link_info.output_bfd)->e_flags;
-  if (!link_info.shared
-      && !link_info.nocopyreloc
-      && (flags & (EF_MIPS_PIC | EF_MIPS_CPIC)) == EF_MIPS_CPIC)
-    _bfd_riscv_elf_use_plts_and_copy_relocs (&link_info);
-
-  gld${EMULATION_NAME}_before_allocation ();
-}
-
 EOF
 
 LDEMUL_AFTER_PARSE=riscv_after_parse
-LDEMUL_BEFORE_ALLOCATION=riscv_before_allocation

@@ -38,7 +38,7 @@
       cfi_startproc;							      \
       cfi_adjust_cfa_offset (STKSPACE);					      \
   99: RESTORESTK;							      \
-      PIC_J(__syscall_error);						      \
+      j __syscall_error;						      \
   .type __##syscall_name##_nocancel, @function;				      \
   .globl __##syscall_name##_nocancel;					      \
   __##syscall_name##_nocancel:						      \
@@ -124,14 +124,14 @@
 # define RESTORESTK 	addi sp, sp, STKSPACE; cfi_adjust_cfa_offset(-STKSPACE)
 
 # ifdef IS_IN_libpthread
-#  define CENABLE  PIC_JAL(__pthread_enable_asynccancel)
-#  define CDISABLE PIC_JAL(__pthread_disable_asynccancel)
+#  define CENABLE  j __pthread_enable_asynccancel
+#  define CDISABLE j __pthread_disable_asynccancel
 # elif defined IS_IN_librt
-#  define CENABLE  PIC_JAL(__librt_enable_asynccancel)
-#  define CDISABLE PIC_JAL(__librt_disable_asynccancel)
+#  define CENABLE  j __librt_enable_asynccancel
+#  define CDISABLE j __librt_disable_asynccancel
 # else
-#  define CENABLE  PIC_JAL(__libc_enable_asynccancel)
-#  define CDISABLE PIC_JAL(__libc_disable_asynccancel)
+#  define CENABLE  j __libc_enable_asynccancel
+#  define CDISABLE j __libc_disable_asynccancel
 # endif
 
 # ifndef __ASSEMBLER__

@@ -116,15 +116,11 @@ struct mips_cl_insn
   fixS *fixp[3];
 };
 
-/* The ABI to use.  */
-enum mips_abi_level
-{
-  ABI_32,
-  ABI_64,
-};
-
-/* MIPS ABI we are using for this output file.  */
-static enum mips_abi_level mips_abi = ABI_64;
+static bfd_boolean rv64 = TRUE; /* RV64 (true) or RV32 (false) */
+#define HAVE_32BIT_SYMBOLS 1 /* LUI/ADDI for symbols, even in RV64 */
+#define HAVE_32BIT_ADDRESSES (!rv64)
+#define LOAD_ADDRESS_INSN (HAVE_32BIT_ADDRESSES ? "lw" : "ld")
+#define ADD32_INSN (rv64 ? "addiw" : "addi")
 
 /* This is the set of options which may be modified by the .set
    pseudo-op.  We use a struct so that .set push and .set pop are more
@@ -146,26 +142,6 @@ static struct mips_set_options mips_opts =
    place.  */
 unsigned long mips_gprmask;
 unsigned long mips_fprmask;
-
-/* True if the given ABI requires 32-bit registers.  */
-#define ABI_NEEDS_32BIT_REGS(ABI) ((ABI) == ABI_32)
-
-/* Likewise 64-bit registers.  */
-#define ABI_NEEDS_64BIT_REGS(ABI) ((ABI) == ABI_64)
-#define HAVE_32BIT_GPRS ABI_NEEDS_32BIT_REGS (mips_abi)
-#define HAVE_64BIT_GPRS (!HAVE_32BIT_GPRS)
-#define HAVE_64BIT_OBJECTS ABI_NEEDS_64BIT_REGS (mips_abi)
-
-#define ADD32_INSN (HAVE_64BIT_GPRS ? "addiw" : "addi")
-#define LOAD_ADDRESS_INSN (HAVE_64BIT_GPRS ? "ld" : "lw")
-
-/* The ABI-derived address size.  */
-#define HAVE_64BIT_ADDRESSES HAVE_64BIT_GPRS
-#define HAVE_32BIT_ADDRESSES (!HAVE_64BIT_ADDRESSES)
-/* The size of symbolic constants (i.e., expressions of the form
-   "SYMBOL" or "SYMBOL + OFFSET").  */
-#define HAVE_32BIT_SYMBOLS 1
-#define HAVE_64BIT_SYMBOLS (!HAVE_32BIT_SYMBOLS)
 
 /* Whether or not we're generating position-independent code.  */
 static bfd_boolean is_pic = FALSE;
@@ -212,9 +188,6 @@ static int auto_align = 1;
 /* Debugging level.  -g sets this to 2.  -gN sets this to N.  -g0 is
    equivalent to seeing no -g option at all.  */
 static int mips_debug = 0;
-
-/* Nop instructions used by emit_nop.  */
-static struct mips_cl_insn nop_insn;
 
 /* For ECOFF and ELF, relocations against symbols are done in two
    parts, with a HI relocation and a LO relocation.  Each relocation
@@ -323,8 +296,6 @@ static void s_cons (int);
 static void s_float_cons (int);
 static void s_mips_globl (int);
 static void s_mipsset (int);
-static void s_pic (int);
-static void s_nopic (int);
 static void s_dtprelword (int);
 static void s_dtpreldword (int);
 static void s_mips_weakext (int);
@@ -355,8 +326,6 @@ static const pseudo_typeS mips_pseudo_table[] =
   /* MIPS specific pseudo-ops.  */
   {"set", s_mipsset, 0},
   {"rdata", s_change_sec, 'r'},
-  {"pic", s_pic, 0},
-  {"nopic", s_nopic, 0},
   {"dtprelword", s_dtprelword, 0},
   {"dtpreldword", s_dtpreldword, 0},
 
@@ -465,7 +434,7 @@ static bfd_reloc_code_real_type offset_reloc[3]
 const char *
 mips_target_format (void)
 {
-  return HAVE_64BIT_OBJECTS ? "elf64-littleriscv" : "elf32-littleriscv";
+  return rv64 ? "elf64-littleriscv" : "elf32-littleriscv";
 }
 
 /* Return the length of instruction INSN.  */
@@ -939,72 +908,72 @@ struct regname {
 
 /* Remaining symbolic register names */
 #define SYMBOLIC_REGISTER_NAMES \
-    {"zero",	RTYPE_GP | 0},  \
-    {"ra",	RTYPE_GP | 1},  \
-    {"v0",	RTYPE_GP | 2},  \
-    {"v1",	RTYPE_GP | 3},  \
-    {"a0",	RTYPE_GP | 4},  \
-    {"a1",	RTYPE_GP | 5},  \
-    {"a2",	RTYPE_GP | 6},  \
-    {"a3",	RTYPE_GP | 7},  \
-    {"a4",	RTYPE_GP | 8},  \
-    {"a5",	RTYPE_GP | 9},  \
-    {"a6",	RTYPE_GP | 10},  \
-    {"a7",	RTYPE_GP | 11}, \
-    {"t0",	RTYPE_GP | 12}, \
-    {"t1",	RTYPE_GP | 13}, \
-    {"t2",	RTYPE_GP | 14}, \
-    {"t3",	RTYPE_GP | 15}, \
-    {"t4",	RTYPE_GP | 16}, \
-    {"t5",	RTYPE_GP | 17}, \
-    {"t6",	RTYPE_GP | 18}, \
-    {"t7",	RTYPE_GP | 19}, \
-    {"s0",	RTYPE_GP | 20}, \
-    {"s1",	RTYPE_GP | 21}, \
-    {"s2",	RTYPE_GP | 22}, \
-    {"s3",	RTYPE_GP | 23}, \
-    {"s4",	RTYPE_GP | 24}, \
-    {"s5",	RTYPE_GP | 25}, \
-    {"s6",	RTYPE_GP | 26}, \
-    {"s7",	RTYPE_GP | 27}, \
-    {"s8",	RTYPE_GP | 28}, \
-    {"s9",	RTYPE_GP | 29}, \
-    {"sp",	RTYPE_GP | 30}, \
-    {"tp",	RTYPE_GP | 31}
+  { "zero",	 0 | RTYPE_GP }, \
+  { "ra",	 1 | RTYPE_GP }, \
+  { "s0",	 2 | RTYPE_GP }, \
+  { "s1",	 3 | RTYPE_GP }, \
+  { "s2",	 4 | RTYPE_GP }, \
+  { "s3",	 5 | RTYPE_GP }, \
+  { "s4",	 6 | RTYPE_GP }, \
+  { "s5",	 7 | RTYPE_GP }, \
+  { "s6",	 8 | RTYPE_GP }, \
+  { "s7",	 9 | RTYPE_GP }, \
+  { "s8",	10 | RTYPE_GP }, \
+  { "s9",	11 | RTYPE_GP }, \
+  { "s10",	12 | RTYPE_GP }, \
+  { "s11",	13 | RTYPE_GP }, \
+  { "sp",	14 | RTYPE_GP }, \
+  { "tp",	15 | RTYPE_GP }, \
+  { "v0",	16 | RTYPE_GP }, \
+  { "v1",	17 | RTYPE_GP }, \
+  { "a0",	18 | RTYPE_GP }, \
+  { "a1",	19 | RTYPE_GP }, \
+  { "a2",	20 | RTYPE_GP }, \
+  { "a3",	21 | RTYPE_GP }, \
+  { "a4",	22 | RTYPE_GP }, \
+  { "a5",	23 | RTYPE_GP }, \
+  { "a6",	24 | RTYPE_GP }, \
+  { "a7",	25 | RTYPE_GP }, \
+  { "a8",	26 | RTYPE_GP }, \
+  { "a9",	27 | RTYPE_GP }, \
+  { "a10",	28 | RTYPE_GP }, \
+  { "a11",	29 | RTYPE_GP }, \
+  { "a12",	30 | RTYPE_GP }, \
+  { "a13",	31 | RTYPE_GP }
 
-#define FP_SYMBOLIC_REGISTER_NAMES \
-    {"ft0",	RTYPE_FPU | 0},  \
-    {"ft1",	RTYPE_FPU | 1},  \
-    {"fv0",	RTYPE_FPU | 2},  \
-    {"fv1",	RTYPE_FPU | 3},  \
-    {"fa0",	RTYPE_FPU | 4},  \
-    {"fa1",	RTYPE_FPU | 5},  \
-    {"fa2",	RTYPE_FPU | 6},  \
-    {"fa3",	RTYPE_FPU | 7},  \
-    {"fa4",	RTYPE_FPU | 8},  \
-    {"fa5",	RTYPE_FPU | 9},  \
-    {"fa6",	RTYPE_FPU | 10},  \
-    {"fa7",	RTYPE_FPU | 11}, \
-    {"ft2",	RTYPE_FPU | 12}, \
-    {"ft3",	RTYPE_FPU | 13}, \
-    {"ft4",	RTYPE_FPU | 14}, \
-    {"ft5",	RTYPE_FPU | 15}, \
-    {"ft6",	RTYPE_FPU | 16}, \
-    {"ft7",	RTYPE_FPU | 17}, \
-    {"ft8",	RTYPE_FPU | 18}, \
-    {"ft9",	RTYPE_FPU | 19}, \
-    {"fs0",	RTYPE_FPU | 20}, \
-    {"fs1",	RTYPE_FPU | 21}, \
-    {"fs2",	RTYPE_FPU | 22}, \
-    {"fs3",	RTYPE_FPU | 23}, \
-    {"fs4",	RTYPE_FPU | 24}, \
-    {"fs5",	RTYPE_FPU | 25}, \
-    {"fs6",	RTYPE_FPU | 26}, \
-    {"fs7",	RTYPE_FPU | 27}, \
-    {"fs8",	RTYPE_FPU | 28}, \
-    {"fs9",	RTYPE_FPU | 29}, \
-    {"ft10",	RTYPE_FPU | 30}, \
-    {"ft11",	RTYPE_FPU | 31}
+#define FP_SYMBOLIC_REGISTER_NAMES  \
+  { "fs0",	 0 | RTYPE_FPU }, \
+  { "fs1",	 1 | RTYPE_FPU }, \
+  { "fs2",	 2 | RTYPE_FPU }, \
+  { "fs3",	 3 | RTYPE_FPU }, \
+  { "fs4",	 4 | RTYPE_FPU }, \
+  { "fs5",	 5 | RTYPE_FPU }, \
+  { "fs6",	 6 | RTYPE_FPU }, \
+  { "fs7",	 7 | RTYPE_FPU }, \
+  { "fs8",	 8 | RTYPE_FPU }, \
+  { "fs9",	 9 | RTYPE_FPU }, \
+  { "fs10",	10 | RTYPE_FPU }, \
+  { "fs11",	11 | RTYPE_FPU }, \
+  { "fs12",	12 | RTYPE_FPU }, \
+  { "fs13",	13 | RTYPE_FPU }, \
+  { "fs14",	14 | RTYPE_FPU }, \
+  { "fs15",	15 | RTYPE_FPU }, \
+  { "fv0",	16 | RTYPE_FPU }, \
+  { "fv1",	17 | RTYPE_FPU }, \
+  { "fa0",	18 | RTYPE_FPU }, \
+  { "fa1",	19 | RTYPE_FPU }, \
+  { "fa2",	20 | RTYPE_FPU }, \
+  { "fa3",	21 | RTYPE_FPU }, \
+  { "fa4",	22 | RTYPE_FPU }, \
+  { "fa5",	23 | RTYPE_FPU }, \
+  { "fa6",	24 | RTYPE_FPU }, \
+  { "fa7",	25 | RTYPE_FPU }, \
+  { "fa8",	26 | RTYPE_FPU }, \
+  { "fa9",	27 | RTYPE_FPU }, \
+  { "fa10",	28 | RTYPE_FPU }, \
+  { "fa11",	29 | RTYPE_FPU }, \
+  { "fa12",	30 | RTYPE_FPU }, \
+  { "fa13",	31 | RTYPE_FPU }
 
 #define RISCV_VEC_GR_REGISTER_NAMES \
     {"vx0",	RTYPE_VGR_REG | 0}, \
@@ -1079,10 +1048,6 @@ static const struct regname reg_names[] = {
   FP_REGISTER_NAMES,
   CR_REGISTER_NUMBERS,
 
-  /* The $txx registers depends on the abi,
-     these will be added later into the symbol table from
-     one of the tables below once mips_abi is set after 
-     parsing of arguments from the command line. */
   SYMBOLIC_REGISTER_NAMES,
   FP_SYMBOLIC_REGISTER_NAMES,
 
@@ -1138,7 +1103,6 @@ md_begin (void)
 {
   const char *retval = NULL;
   int i = 0;
-  int broken = 0;
 
   if (! bfd_set_arch_mach (stdoutput, bfd_arch_riscv, CPU_UNKNOWN))
     as_warn (_("Could not set architecture and machine"));
@@ -1162,19 +1126,12 @@ md_begin (void)
 	  if (riscv_opcodes[i].pinfo != INSN_MACRO)
 	    {
 	      if (!validate_mips_insn (&riscv_opcodes[i]))
-		broken = 1;
-	      if (nop_insn.insn_mo == NULL && strcmp (name, "nop") == 0)
-		{
-		  create_insn (&nop_insn, riscv_opcodes + i);
-		}
+		as_fatal (_("Broken assembler.  No assembly attempted."));
 	    }
 	  ++i;
 	}
       while ((i < NUMOPCODES) && !strcmp (riscv_opcodes[i].name, name));
     }
-
-  if (broken)
-    as_fatal (_("Broken assembler.  No assembly attempted."));
 
   reg_names_hash = hash_new ();
   for (i = 0; reg_names[i].name; i++)
@@ -1228,7 +1185,7 @@ md_begin (void)
 	if (strncmp (TARGET_OS, "elf", 3) != 0)
 	  flags |= SEC_ALLOC | SEC_LOAD;
 
-	if (mips_abi != ABI_64)
+	if (!rv64)
 	  {
 	    sec = subseg_new (".reginfo", (subsegT) 0);
 
@@ -1487,7 +1444,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 
 	  /* These relocations can have an addend that won't fit in
 	     4 octets for 64bit assembly.  */
-	  if (HAVE_64BIT_GPRS
+	  if (rv64
 	      && ! howto->partial_inplace
 	      && (reloc_type[0] == BFD_RELOC_32
 		  || reloc_type[0] == BFD_RELOC_GPREL16
@@ -1797,6 +1754,8 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 static void
 normalize_constant_expr (expressionS *ex)
 {
+  if (rv64)
+    return;
   if (ex->X_op == O_constant
       && IS_ZEXT_32BIT_NUM (ex->X_add_number))
     ex->X_add_number = (((ex->X_add_number & 0xffffffff) ^ 0x80000000)
@@ -1852,7 +1811,7 @@ load_got_addr (int destreg, expressionS *ep, const char* lo_insn,
                bfd_reloc_code_real_type hi_reloc,
 	       bfd_reloc_code_real_type lo_reloc)
 {
-  macro_build_lui ("luipc", ep, destreg, hi_reloc);
+  macro_build_lui ("auipc", ep, destreg, hi_reloc);
   macro_build (ep, lo_insn, "d,O(b)", destreg, lo_reloc, destreg);
 }
 
@@ -1866,9 +1825,7 @@ check_absolute_expr (struct mips_cl_insn *ip, expressionS *ex)
   else if (ex->X_op != O_constant)
     as_bad (_("Instruction %s requires absolute expression"),
 	    ip->insn_mo->name);
-
-  if (HAVE_32BIT_GPRS)
-    normalize_constant_expr (ex);
+  normalize_constant_expr (ex);
 }
 
 /* load_const generates an unoptimized instruction sequence to load
@@ -1881,13 +1838,13 @@ load_const (int reg, expressionS *ep)
 
   // this is an awful way to generate arbitrary 64-bit constants.
   // fortunately, this is just used for hand-coded assembly programs.
-  if(HAVE_64BIT_GPRS && !IS_SEXT_32BIT_NUM(ep->X_add_number))
+  if (rv64 && !IS_SEXT_32BIT_NUM(ep->X_add_number))
   {
     expressionS upper = *ep, lower = *ep;
     upper.X_add_number = (int64_t)ep->X_add_number >> (RISCV_IMM_BITS-1);
     load_const(reg, &upper);
 
-    macro_build (NULL, "sll", "d,s,>", reg, reg, RISCV_IMM_BITS-1);
+    macro_build (NULL, "slli", "d,s,>", reg, reg, RISCV_IMM_BITS-1);
 
     lower.X_add_number = ep->X_add_number & (RISCV_IMM_REACH/2-1);
     if (lower.X_add_number != 0)
@@ -2434,8 +2391,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      if (imm_expr.X_op != O_big
 		  && imm_expr.X_op != O_constant)
 		insn_error = _("absolute expression required");
-	      if (HAVE_32BIT_GPRS)
-		normalize_constant_expr (&imm_expr);
+	      normalize_constant_expr (&imm_expr);
 	      s = expr_end;
 	      continue;
 
@@ -2465,7 +2421,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		      && imm_expr.X_op == O_constant
 		      && imm_expr.X_add_number < 0
 		      && imm_expr.X_unsigned
-		      && HAVE_64BIT_GPRS)
+		      && rv64)
 		    break;
 
 		  /* For compatibility with older assemblers, we accept
@@ -2707,8 +2663,8 @@ const char *md_shortopts = "O::g::G:";
 
 enum options
   {
-    OPTION_MARCH = OPTION_MD_BASE,
-    OPTION_MABI,
+    OPTION_M32 = OPTION_MD_BASE,
+    OPTION_M64,
     OPTION_PIC,
     OPTION_NO_PIC,
     OPTION_EB,
@@ -2720,7 +2676,8 @@ enum options
   
 struct option md_longopts[] =
 {
-  {"mabi", required_argument, NULL, OPTION_MABI},
+  {"m32", no_argument, NULL, OPTION_M32},
+  {"m64", no_argument, NULL, OPTION_M64},
   {"fPIC", no_argument, NULL, OPTION_PIC},
   {"fpic", no_argument, NULL, OPTION_PIC},
   {"fno-pic", no_argument, NULL, OPTION_NO_PIC},
@@ -2761,16 +2718,12 @@ md_parse_option (int c, char *arg)
       mips_opts.rvc = 0;
       break;
 
-    case OPTION_MABI:
-      if (strcmp (arg, "32") == 0)
-	mips_abi = ABI_32;
-      else if (strcmp (arg, "64") == 0)
-	  mips_abi = ABI_64;
-      else
-	{
-	  as_fatal (_("invalid abi -mabi=%s"), arg);
-	  return 0;
-	}
+    case OPTION_M32:
+      rv64 = FALSE;
+      break;
+
+    case OPTION_M64:
+      rv64 = TRUE;
       break;
 
     case OPTION_NO_PIC:
@@ -3412,20 +3365,6 @@ s_mipsset (int x ATTRIBUTE_UNUSED)
   demand_empty_rest_of_line ();
 }
 
-static void
-s_pic (int ignore ATTRIBUTE_UNUSED)
-{
-  is_pic = TRUE;
-  demand_empty_rest_of_line ();
-}
-
-static void
-s_nopic (int ignore ATTRIBUTE_UNUSED)
-{
-  is_pic = FALSE;
-  demand_empty_rest_of_line ();
-}
-
 /* Handle the .dtprelword and .dtpreldword pseudo-ops.  They generate
    a 32-bit or 64-bit DTP-relative relocation (BYTES says which) for
    use in DWARF debug information.  */
@@ -3781,7 +3720,7 @@ void
 mips_elf_final_processing (void)
 {
   /* Write out the register information.  */
-  if (mips_abi != ABI_64)
+  if (!rv64)
     {
       Elf32_RegInfo s;
 
@@ -3821,13 +3760,7 @@ mips_elf_final_processing (void)
       elf_elfheader (stdoutput)->e_flags |= EF_MIPS_CPIC;
     }
 
-  /* Set the MIPS ELF ABI flags.  */
-  if (mips_abi == ABI_64)
-    elf_elfheader (stdoutput)->e_flags |= E_RISCV_ABI_64;
-  else if (mips_abi == ABI_32)
-    elf_elfheader (stdoutput)->e_flags |= E_RISCV_ABI_32;
-  else
-    gas_assert(0);
+  elf_elfheader (stdoutput)->e_flags |= rv64 ? E_RISCV_ABI_64 : E_RISCV_ABI_32;
 }
 
 #endif /* OBJ_ELF || OBJ_MAYBE_ELF */
@@ -3882,30 +3815,27 @@ void
 md_show_usage (FILE *stream)
 {
   fprintf (stream, _("\
-MIPS options:\n\
--EB            generate big endian output\n\
--EL            generate little endian output\n\
--mabi=ABI      create ABI conformant object file for:\n\
-                 32, 64\n\
+RISC-V options:\n\
+  -m32           assemble RV32 code\n\
+  -m64           assemble RV64 code (default)\n\
+  -fpic          generate position-independent code\n\
+  -fno-pic       don't generate position-independent code (default)\n\
 "));
 }
 
 enum dwarf2_format
 mips_dwarf2_format (asection *sec ATTRIBUTE_UNUSED)
 {
-  if (HAVE_64BIT_SYMBOLS)
-    return dwarf2_format_64bit;
-  else
+  if (HAVE_32BIT_SYMBOLS)
     return dwarf2_format_32bit;
+  else
+    return dwarf2_format_64bit;
 }
 
 int
 mips_dwarf2_addr_size (void)
 {
-  if (HAVE_64BIT_OBJECTS)
-    return 8;
-  else
-    return 4;
+  return rv64 ? 8 : 4;
 }
 
 /* Standard calling conventions leave the CFA at SP on entry.  */

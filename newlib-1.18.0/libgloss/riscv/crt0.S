@@ -109,15 +109,13 @@ _start:
         move    a0, sp
         jal     _fix_args
 #endif
-        addi    sp,sp,-64
-
         jal     _init               # Run global initialization functions
 
         la      a0, _fini           # Register global termination functions
         jal     atexit              #  to be called upon exit
 
-        LR      a0, 64(sp)          # a0 = argc
-        addi    a1, sp, 64+REGBYTES # a1 = argv
+        LR      a0, 0(sp)           # a0 = argc
+        addi    a1, sp, REGBYTES    # a1 = argv
         jal     main
         
         move    a0, v0              # Call exit function with return value

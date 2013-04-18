@@ -1,3 +1,3 @@
-ifeq ($(filter -mabi=32,$(CC)),)
-CC += -mabi=32
+ifeq ($(filter -m32,$(CC)),)
+CC += -m32
 endif

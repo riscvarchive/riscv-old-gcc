@@ -40,15 +40,6 @@
 (define_register_constraint "b" "ALL_REGS"
   "@internal")
 
-(define_register_constraint "j" "PIC_FN_ADDR_REG"
-  "@internal")
-
-;; Don't use this constraint in gcc code!  It runs the risk of
-;; introducing a spill failure; see tls_get_tp_<mode>.
-(define_register_constraint "v" "V1_REG"
-  "Register @code{$3}.  Do not use this constraint in new code;
-   it is retained only for compatibility with glibc.")
-
 (define_register_constraint "z" "GR_REGS"
   "A floating-point condition code register.")
 

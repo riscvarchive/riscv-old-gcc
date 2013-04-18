@@ -26,53 +26,18 @@ struct	stat
 {
   dev_t		st_dev;
   ino_t		st_ino;
-#ifdef __riscv__
   nlink_t	st_nlink;
   mode_t	st_mode;
-#else
-  mode_t	st_mode;
-  nlink_t	st_nlink;
-#endif
   uid_t		st_uid;
   gid_t		st_gid;
-#ifdef __riscv__
-  int   	__pad0;
-#endif
   dev_t		st_rdev;
   off_t		st_size;
-#if defined(__riscv__)
   long long	st_blksize;
   long long	st_blocks;
   time_t	st_atime;
-  long long	st_spare1;
-  time_t	st_mtime;
-  long long	st_spare2;
-  time_t	st_ctime;
-  long long	st_spare3;
-  long long	__pad1[3];
-  /* SysV/sco doesn't have the rest... But Solaris, eabi does.  */
-#elif defined(__svr4__) && !defined(__PPC__) && !defined(__sun__)
-  time_t	st_atime;
   time_t	st_mtime;
   time_t	st_ctime;
-#else
-  time_t	st_atime;
-  long long	st_spare1;
-  time_t	st_mtime;
-  long long	st_spare2;
-  time_t	st_ctime;
-  long long	st_spare3;
-  long long	st_blksize;
-  long long	st_blocks;
-  long long	st_spare4[2];
-#endif
 };
-
-#if defined(__rtems__)
-#define st_atime st_atim.tv_sec
-#define st_ctime st_ctim.tv_sec
-#define st_mtime st_mtim.tv_sec
-#endif
 
 #endif
 

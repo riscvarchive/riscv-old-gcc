@@ -93,21 +93,16 @@ struct mips_cpu_info {
       builtin_define ("_riscv");					\
 									\
       if (TARGET_64BIT)							\
-	builtin_define ("__riscv64");					\
+	{								\
+	  builtin_define ("__riscv64");					\
+	  builtin_define ("_RISCV_SIM=_ABI64");			        \
+	}								\
+      else						        	\
+	builtin_define ("_RISCV_SIM=_ABI32");			        \
 									\
       builtin_define ("_ABI32=1");					\
       builtin_define ("_ABI64=3");					\
 									\
-      switch (mips_abi)							\
-	{								\
-	case ABI_32:							\
-	  builtin_define ("_RISCV_SIM=_ABI32");			        \
-	  break;							\
-									\
-	case ABI_64:							\
-	  builtin_define ("_RISCV_SIM=_ABI64");				\
-	  break;							\
-	}								\
 									\
       builtin_define_with_int_value ("_RISCV_SZINT", INT_TYPE_SIZE);	\
       builtin_define_with_int_value ("_RISCV_SZLONG", LONG_TYPE_SIZE);	\
@@ -186,23 +181,23 @@ struct mips_cpu_info {
 #endif
 #endif
 
-#ifndef MIPS_ABI_DEFAULT
-#define MIPS_ABI_DEFAULT ABI_64
+#ifndef TARGET_64BIT_DEFAULT
+#define TARGET_64BIT_DEFAULT 1
 #endif
 
-#if MIPS_ABI_DEFAULT == ABI_32
-#define MULTILIB_ABI_DEFAULT "mabi=32"
-#define MULTILIB_ISA_DEFAULT "rv32"
-#endif
-
-#if MIPS_ABI_DEFAULT == ABI_64
-#define MULTILIB_ABI_DEFAULT "mabi=64"
-#define MULTILIB_ISA_DEFAULT "rv64"
+#if TARGET_64BIT_DEFAULT
+# define MULTILIB_ARCH_DEFAULT "m64"
+# define OPT_ARCH64 "!m32"
+# define OPT_ARCH32 "m32"
+#else
+# define MULTILIB_ARCH_DEFAULT "m32"
+# define OPT_ARCH64 "m64"
+# define OPT_ARCH32 "!m64"
 #endif
 
 #ifndef MULTILIB_DEFAULTS
 #define MULTILIB_DEFAULTS \
-    { MULTILIB_ENDIAN_DEFAULT, MULTILIB_ISA_DEFAULT, MULTILIB_ABI_DEFAULT }
+    { MULTILIB_ENDIAN_DEFAULT, MULTILIB_ARCH_DEFAULT }
 #endif
 
 /* We must pass -EL to the linker by default for little endian embedded
@@ -228,24 +223,6 @@ struct mips_cpu_info {
 #define MIPS_ARCH_OPTION_SPEC \
   MIPS_ISA_LEVEL_OPTION_SPEC "|march=*"
 
-/* A spec that infers a -mips argument from an -march argument,
-   or injects the default if no architecture is specified.  */
-
-#define MIPS_ISA_LEVEL_SPEC \
-  "%{" MIPS_ISA_LEVEL_OPTION_SPEC ":;: \
-     %{march=mips1|march=r2000|march=r3000|march=r3900:-mips1} \
-     %{march=mips2|march=r6000:-mips2} \
-     %{march=mips3|march=r4*|march=vr4*|march=orion|march=loongson2*:-mips3} \
-     %{march=mips4|march=r8000|march=vr5*|march=rm7000|march=rm9000 \
-       |march=r10000|march=r12000|march=r14000|march=r16000:-mips4} \
-     %{march=mips32|march=4kc|march=4km|march=4kp|march=4ksc:-mips32} \
-     %{march=mips32r2|march=m4k|march=4ke*|march=4ksd|march=24k* \
-       |march=34k*|march=74k*|march=1004k*: -mips32r2} \
-     %{march=mips64|march=5k*|march=20k*|march=sb1*|march=sr71000 \
-       |march=xlr|march=loongson3a: -mips64} \
-     %{march=mips64r2|march=octeon: -mips64r2} \
-     %{!march=*: -" MULTILIB_ISA_DEFAULT "}}"
-
 /* A spec that infers a -mhard-float or -msoft-float setting from an
    -march argument.  Note that soft-float and hard-float code are not
    link-compatible.  */
@@ -257,32 +234,25 @@ struct mips_cpu_info {
      |march=octeon|march=xlr: -msoft-float;		  \
      march=*: -mhard-float}"
 
-#define OPT_ARCH64 "mabi=32:;"
-#define OPT_ARCH32 "mabi=32"
-
 /* Support for a compile-time default CPU, et cetera.  The rules are:
    --with-arch is ignored if -march is specified or a -mips is specified
      (other than -mips16); likewise --with-arch-32 and --with-arch-64.
    --with-tune is ignored if -mtune is specified; likewise
      --with-tune-32 and --with-tune-64.
-   --with-abi is ignored if -mabi is specified.
    --with-float is ignored if -mhard-float or -msoft-float are
      specified.
    --with-divide is ignored if -mdivide-traps or -mdivide-breaks are
      specified. */
 #define OPTION_DEFAULT_SPECS \
   {"arch", "%{" MIPS_ARCH_OPTION_SPEC ":;: -march=%(VALUE)}" }, \
-  {"arch_32", "%{" OPT_ARCH32 ":%{" MIPS_ARCH_OPTION_SPEC ":;: -march=%(VALUE)}}" }, \
-  {"arch_64", "%{" OPT_ARCH64 ":%{" MIPS_ARCH_OPTION_SPEC ":;: -march=%(VALUE)}}" }, \
+  {"arch_32", "%{" OPT_ARCH32 ":%{m32}}" }, \
+  {"arch_64", "%{" OPT_ARCH64 ":%{m64}}" }, \
   {"tune", "%{!mtune=*:-mtune=%(VALUE)}" }, \
   {"tune_32", "%{" OPT_ARCH32 ":%{!mtune=*:-mtune=%(VALUE)}}" }, \
   {"tune_64", "%{" OPT_ARCH64 ":%{!mtune=*:-mtune=%(VALUE)}}" }, \
-  {"abi", "%{!mabi=*:-mabi=%(VALUE)}" }, \
   {"float", "%{!msoft-float:%{!mhard-float:-m%(VALUE)-float}}" }, \
 
 #define DRIVER_SELF_SPECS ""
-
-#define TARGET_64BIT	(mips_abi == ABI_64)
 
 #ifdef IN_LIBGCC2
 #undef TARGET_64BIT
@@ -324,8 +294,8 @@ struct mips_cpu_info {
 #define ASM_SPEC "\
 %{G*} %(endian_spec) \
 %(subtarget_asm_debugging_spec) \
-%{mabi=*} %{!mabi=*: %(asm_abi_default_spec)} \
-%{fPIC|fpic:-fpic} \
+%{m32} %{m64} %{!m32:%{!m64: %(asm_abi_default_spec)}} \
+%{fPIC|fpic|fPIE|fpie:-fpic} \
 %{march=*} \
 %(subtarget_asm_spec)"
 
@@ -335,8 +305,8 @@ struct mips_cpu_info {
 #define LINK_SPEC "\
 %{!T:-dT riscv.ld} \
 %(endian_spec) \
-%{mabi=64:-melf64%{EB:b}%{!EB:l}riscv} \
-%{mabi=32:-melf32%{EB:b}%{!EB:l}riscv} \
+%{m64:-melf64%{EB:b}%{!EB:l}riscv} \
+%{m32:-melf32%{EB:b}%{!EB:l}riscv} \
 %{G*} %{mips1} %{mips2} %{mips3} %{mips4} %{mips32*} %{mips64*} \
 %{shared}"
 #endif  /* LINK_SPEC defined */
@@ -382,7 +352,7 @@ struct mips_cpu_info {
   { "subtarget_cpp_spec", SUBTARGET_CPP_SPEC },				\
   { "subtarget_asm_debugging_spec", SUBTARGET_ASM_DEBUGGING_SPEC },	\
   { "subtarget_asm_spec", SUBTARGET_ASM_SPEC },				\
-  { "asm_abi_default_spec", "-" MULTILIB_ABI_DEFAULT },			\
+  { "asm_abi_default_spec", "-" MULTILIB_ARCH_DEFAULT },		\
   { "endian_spec", ENDIAN_SPEC },					\
   SUBTARGET_EXTRA_SPECS
 
@@ -430,7 +400,7 @@ struct mips_cpu_info {
 #define EH_RETURN_DATA_REGNO(N) \
   ((N) < 4 ? (N) + GP_ARG_FIRST : INVALID_REGNUM)
 
-#define EH_RETURN_STACKADJ_RTX  gen_rtx_REG (Pmode, GP_REG_FIRST + 3)
+#define EH_RETURN_STACKADJ_RTX  gen_rtx_REG (Pmode, GP_ARG_FIRST + 4)
 
 /* Offsets recorded in opcodes are a multiple of this alignment factor.
    The default for this in 64-bit mode is 8, which causes problems with
@@ -670,8 +640,8 @@ struct mips_cpu_info {
 
 #define FIXED_REGISTERS							\
 { /* General registers.  */                                             \
-  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1,			\
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   /* Floating-point registers.  */                                      \
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
@@ -699,11 +669,11 @@ struct mips_cpu_info {
 
 #define CALL_USED_REGISTERS						\
 { /* General registers.  */                                             \
-  1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1,			\
-  /* Floating-point registers.  */                                      \
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
+  /* Floating-point registers.  */                                      \
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   /* Vector General registers.  */                                      \
   1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
@@ -716,11 +686,11 @@ struct mips_cpu_info {
 
 #define CALL_REALLY_USED_REGISTERS                                      \
 { /* General registers.  */                                             \
-  1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,                       \
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,                       \
-  /* Floating-point registers.  */                                      \
+  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
+  /* Floating-point registers.  */                                      \
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
+  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   /* Vector General registers.  */                                      \
   1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,                       \
   1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,                       \
@@ -745,11 +715,11 @@ struct mips_cpu_info {
 #define FP_REG_NUM   (FP_REG_LAST - FP_REG_FIRST + 1)
 #define FP_DBX_FIRST ((write_symbols == DBX_DEBUG) ? 38 : 32)
 
-#define CALLEE_SAVED_GP_REG_FIRST 20
-#define CALLEE_SAVED_GP_REG_LAST (CALLEE_SAVED_GP_REG_FIRST + 10 - 1)
+#define CALLEE_SAVED_GP_REG_FIRST (GP_REG_FIRST + 2)
+#define CALLEE_SAVED_GP_REG_LAST (CALLEE_SAVED_GP_REG_FIRST + 12 - 1)
 
-#define CALLEE_SAVED_FP_REG_FIRST 52
-#define CALLEE_SAVED_FP_REG_LAST (CALLEE_SAVED_FP_REG_FIRST + 12 - 1)
+#define CALLEE_SAVED_FP_REG_FIRST (FP_REG_FIRST + 0)
+#define CALLEE_SAVED_FP_REG_LAST (CALLEE_SAVED_FP_REG_FIRST + 16 - 1)
 
 #define VEC_GP_REG_FIRST 64
 #define VEC_GP_REG_LAST  95
@@ -791,12 +761,10 @@ struct mips_cpu_info {
 #define MODES_TIEABLE_P mips_modes_tieable_p
 
 /* Register to use for pushing function arguments.  */
-#define STACK_POINTER_REGNUM (GP_REG_FIRST + 30)
-#define HARD_FRAME_POINTER_REGNUM (GP_REG_FIRST + 29)
+#define STACK_POINTER_REGNUM (GP_REG_FIRST + 14)
+#define HARD_FRAME_POINTER_REGNUM (GP_REG_FIRST + 3)
 
-#define THREAD_POINTER_REGNUM (GP_REG_FIRST + 31)
-
-#define LINK_REGNUM (GP_REG_FIRST + 1) /* Return address, $ra */
+#define THREAD_POINTER_REGNUM (GP_REG_FIRST + 15)
 
 /* These two registers don't really exist: they get eliminated to either
    the stack or hard frame pointer.  */
@@ -807,30 +775,22 @@ struct mips_cpu_info {
 #define HARD_FRAME_POINTER_IS_ARG_POINTER 0
 
 /* Register in which static-chain is passed to a function.  */
-#define STATIC_CHAIN_REGNUM (GP_REG_FIRST + 15)
+#define STATIC_CHAIN_REGNUM GP_RETURN
 
-/* Registers used as temporaries in prologue/epilogue code:
-
-   - The prologue can use MIPS_PROLOGUE_TEMP as a general temporary
-     register.
-
-   - The epilogue can use MIPS_EPILOGUE_TEMP as a general temporary
-     register.
+/* Registers used as temporaries in prologue/epilogue code.
 
    The prologue registers mustn't conflict with any
    incoming arguments, the static chain pointer, or the frame pointer.
    The epilogue temporary mustn't conflict with the return registers,
-   the PIC call register ($25), the frame pointer, the EH stack adjustment,
-   or the EH data registers.
+   the frame pointer, the EH stack adjustment, or the EH data registers. */
 
-   If we're generating interrupt handlers, we use K0 as a temporary register
-   in prologue/epilogue code.  */
-
-#define MIPS_PROLOGUE_TEMP_REGNUM (GP_REG_FIRST + 3)
-#define MIPS_EPILOGUE_TEMP_REGNUM (GP_REG_FIRST + 8)
+#define MIPS_PROLOGUE_TEMP_REGNUM (GP_RETURN + 1)
+#define MIPS_EPILOGUE_TEMP_REGNUM(SIBCALL_P) \
+  ((SIBCALL_P) ? MIPS_PROLOGUE_TEMP_REGNUM : (GP_ARG_FIRST + 5))
 
 #define MIPS_PROLOGUE_TEMP(MODE) gen_rtx_REG (MODE, MIPS_PROLOGUE_TEMP_REGNUM)
-#define MIPS_EPILOGUE_TEMP(MODE) gen_rtx_REG (MODE, MIPS_EPILOGUE_TEMP_REGNUM)
+#define MIPS_EPILOGUE_TEMP(MODE, SIBCALL_P) \
+  gen_rtx_REG (MODE, MIPS_EPILOGUE_TEMP_REGNUM (SIBCALL_P))
 
 #define FUNCTION_PROFILER(STREAM, LABELNO)	\
 {						\
@@ -864,9 +824,6 @@ struct mips_cpu_info {
 enum reg_class
 {
   NO_REGS,			/* no registers in set */
-  PIC_FN_ADDR_REG,		/* SVR4 PIC function address register */
-  V1_REG,			/* Register $v1 ($3) used for TLS access.  */
-  LEA_REGS,			/* Every GPR except $25 */
   GR_REGS,			/* integer registers */
   FP_REGS,			/* floating point registers */
   VEC_GR_REGS,			/* vector integer registers */
@@ -887,9 +844,6 @@ enum reg_class
 #define REG_CLASS_NAMES							\
 {									\
   "NO_REGS",								\
-  "PIC_FN_ADDR_REG",							\
-  "V1_REG",								\
-  "LEA_REGS",								\
   "GR_REGS",								\
   "FP_REGS",								\
   "VEC_GR_REGS",							\
@@ -912,9 +866,6 @@ enum reg_class
 #define REG_CLASS_CONTENTS									\
 {												\
   { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* NO_REGS */		\
-  { 0x00080000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* PIC_FN_ADDR_REG */	\
-  { 0x00000008, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* V1_REG */		\
-  { 0xfff7ffff, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* LEA_REGS */		\
   { 0xffffffff, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* GR_REGS */		\
   { 0x00000000, 0xffffffff, 0x00000000, 0x00000000, 0x00000000 },	/* FP_REGS */		\
   { 0x00000000, 0x00000000, 0xffffffff, 0x00000000, 0x00000000 },	/* VEC_GR_REGS */	\
@@ -950,27 +901,15 @@ enum reg_class
 #define REG_ALLOC_ORDER							\
 { \
   /* Call-clobbered GPRs.  */						\
-  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,		\
-  16, 17, 18, 19, 1,							\
+  16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1,	\
   /* Call-saved GPRs.  */						\
-  20, 21, 22, 23, 24, 25, 26, 27, 29,	        			\
-  /* The global pointer.  This is call-clobbered for o32 and o64	\
-     abicalls, call-saved for n32 and n64 abicalls, and a program	\
-     invariant otherwise.  Putting it between the call-clobbered	\
-     and call-saved registers should cope with all eventualities.  */	\
-  28,									\
+  2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13,	       			\
   /* GPRs that can never be exposed to the register allocator.  */	\
-  0,  30, 31,								\
+  0,  14, 15,								\
   /* Call-clobbered FPRs.  */						\
-  34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,	\
-  50, 51, 32, 33,							\
-  /* FPRs that are usually call-saved.  The odd ones are actually	\
-     call-clobbered for n32, but listing them ahead of the even		\
-     registers might encourage the register allocator to fragment	\
-     the available FPR pairs.  We need paired FPRs to store long	\
-     doubles, so it isn't clear that using a different order		\
-     for n32 would be a win.  */					\
-  52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,			\
+  48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,	\
+  /* Call-saved FPRs.  */						\
+  32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,	\
   /* Vector GPRs  */							\
   64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,	\
   80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,	\
@@ -1064,16 +1003,16 @@ enum reg_class
 /* Symbolic macros for the registers used to return integer and floating
    point values.  */
 
-#define GP_RETURN (GP_REG_FIRST + 2)
-#define FP_RETURN ((TARGET_SOFT_FLOAT) ? GP_RETURN : (FP_REG_FIRST + 2))
+#define GP_RETURN (GP_REG_FIRST + 16)
+#define FP_RETURN ((TARGET_SOFT_FLOAT) ? GP_RETURN : (FP_REG_FIRST + 16))
 
-#define MAX_ARGS_IN_REGISTERS 8
+#define MAX_ARGS_IN_REGISTERS 14
 
 /* Symbolic macros for the first/last argument registers.  */
 
-#define GP_ARG_FIRST (GP_REG_FIRST + 4)
+#define GP_ARG_FIRST (GP_REG_FIRST + 18)
 #define GP_ARG_LAST  (GP_ARG_FIRST + MAX_ARGS_IN_REGISTERS - 1)
-#define FP_ARG_FIRST (FP_REG_FIRST + 12)
+#define FP_ARG_FIRST (FP_REG_FIRST + 18)
 #define FP_ARG_LAST  (FP_ARG_FIRST + MAX_ARGS_IN_REGISTERS - 1)
 
 #define LIBCALL_VALUE(MODE) \
@@ -1088,7 +1027,7 @@ enum reg_class
 
 #define FUNCTION_VALUE_REGNO_P(N) ((N) == GP_RETURN || (N) == FP_RETURN \
   || (LONG_DOUBLE_TYPE_SIZE == 128 && FP_RETURN != GP_RETURN \
-      && (N) == FP_RETURN + 2))
+      && (N) == FP_RETURN + 1))
 
 /* 1 if N is a possible register number for function argument passing.
    We have no FP argument registers when soft-float.  When FP registers
@@ -1351,38 +1290,68 @@ typedef struct mips_args {
 {									\
   { "zero",	 0 + GP_REG_FIRST },					\
   { "ra",	 1 + GP_REG_FIRST },					\
-  { "v0",	 2 + GP_REG_FIRST },					\
-  { "v1",	 3 + GP_REG_FIRST },					\
-  { "a0",	 4 + GP_REG_FIRST },					\
-  { "a1",	 5 + GP_REG_FIRST },					\
-  { "a2",	 6 + GP_REG_FIRST },					\
-  { "a3",	 7 + GP_REG_FIRST },					\
-  { "a4",	 8 + GP_REG_FIRST },					\
-  { "a5",	 9 + GP_REG_FIRST },					\
-  { "a6",	10 + GP_REG_FIRST },					\
-  { "a7",	11 + GP_REG_FIRST },					\
-  { "t0",	12 + GP_REG_FIRST },					\
-  { "t1",	13 + GP_REG_FIRST },					\
-  { "t2",	14 + GP_REG_FIRST },					\
-  { "t3",	15 + GP_REG_FIRST },					\
-  { "t4",	16 + GP_REG_FIRST },					\
-  { "t5",	17 + GP_REG_FIRST },					\
-  { "t6",	18 + GP_REG_FIRST },					\
-  { "t7",	19 + GP_REG_FIRST },					\
-  { "s0",	20 + GP_REG_FIRST },					\
-  { "s1",	21 + GP_REG_FIRST },					\
-  { "s2",	22 + GP_REG_FIRST },					\
-  { "s3",	23 + GP_REG_FIRST },					\
-  { "s4",	24 + GP_REG_FIRST },					\
-  { "s5",	25 + GP_REG_FIRST },					\
-  { "s6",	26 + GP_REG_FIRST },					\
-  { "s7",	27 + GP_REG_FIRST },					\
-  { "gp",	28 + GP_REG_FIRST },					\
-  { "s8",	28 + GP_REG_FIRST },					\
-  { "fp",	29 + GP_REG_FIRST },					\
-  { "s9",	29 + GP_REG_FIRST },					\
-  { "sp",	30 + GP_REG_FIRST },					\
-  { "tp",	31 + GP_REG_FIRST },					\
+  { "s0",	 2 + GP_REG_FIRST },					\
+  { "s1",	 3 + GP_REG_FIRST },					\
+  { "s2",	 4 + GP_REG_FIRST },					\
+  { "s3",	 5 + GP_REG_FIRST },					\
+  { "s4",	 6 + GP_REG_FIRST },					\
+  { "s5",	 7 + GP_REG_FIRST },					\
+  { "s6",	 8 + GP_REG_FIRST },					\
+  { "s7",	 9 + GP_REG_FIRST },					\
+  { "s8",	10 + GP_REG_FIRST },					\
+  { "s9",	11 + GP_REG_FIRST },					\
+  { "s10",	12 + GP_REG_FIRST },					\
+  { "s11",	13 + GP_REG_FIRST },					\
+  { "sp",	14 + GP_REG_FIRST },					\
+  { "tp",	15 + GP_REG_FIRST },					\
+  { "v0",	16 + GP_REG_FIRST },					\
+  { "v1",	17 + GP_REG_FIRST },					\
+  { "a0",	18 + GP_REG_FIRST },					\
+  { "a1",	19 + GP_REG_FIRST },					\
+  { "a2",	20 + GP_REG_FIRST },					\
+  { "a3",	21 + GP_REG_FIRST },					\
+  { "a4",	22 + GP_REG_FIRST },					\
+  { "a5",	23 + GP_REG_FIRST },					\
+  { "a6",	24 + GP_REG_FIRST },					\
+  { "a7",	25 + GP_REG_FIRST },					\
+  { "a8",	26 + GP_REG_FIRST },					\
+  { "a9",	27 + GP_REG_FIRST },					\
+  { "a10",	28 + GP_REG_FIRST },					\
+  { "a11",	29 + GP_REG_FIRST },					\
+  { "a12",	30 + GP_REG_FIRST },					\
+  { "a13",	31 + GP_REG_FIRST },					\
+  { "fs0",	 0 + FP_REG_FIRST },					\
+  { "fs1",	 1 + FP_REG_FIRST },					\
+  { "fs2",	 2 + FP_REG_FIRST },					\
+  { "fs3",	 3 + FP_REG_FIRST },					\
+  { "fs4",	 4 + FP_REG_FIRST },					\
+  { "fs5",	 5 + FP_REG_FIRST },					\
+  { "fs6",	 6 + FP_REG_FIRST },					\
+  { "fs7",	 7 + FP_REG_FIRST },					\
+  { "fs8",	 8 + FP_REG_FIRST },					\
+  { "fs9",	 9 + FP_REG_FIRST },					\
+  { "fs10",	10 + FP_REG_FIRST },					\
+  { "fs11",	11 + FP_REG_FIRST },					\
+  { "fs12",	12 + FP_REG_FIRST },					\
+  { "fs13",	13 + FP_REG_FIRST },					\
+  { "fs14",	14 + FP_REG_FIRST },					\
+  { "fs15",	15 + FP_REG_FIRST },					\
+  { "fv0",	16 + FP_REG_FIRST },					\
+  { "fv1",	17 + FP_REG_FIRST },					\
+  { "fa0",	18 + FP_REG_FIRST },					\
+  { "fa1",	19 + FP_REG_FIRST },					\
+  { "fa2",	20 + FP_REG_FIRST },					\
+  { "fa3",	21 + FP_REG_FIRST },					\
+  { "fa4",	22 + FP_REG_FIRST },					\
+  { "fa5",	23 + FP_REG_FIRST },					\
+  { "fa6",	24 + FP_REG_FIRST },					\
+  { "fa7",	25 + FP_REG_FIRST },					\
+  { "fa8",	26 + FP_REG_FIRST },					\
+  { "fa9",	27 + FP_REG_FIRST },					\
+  { "fa10",	28 + FP_REG_FIRST },					\
+  { "fa11",	29 + FP_REG_FIRST },					\
+  { "fa12",	30 + FP_REG_FIRST },					\
+  { "fa13",	31 + FP_REG_FIRST },					\
 }
 
 /* This is meant to be redefined in the host dependent files.  It is a
@@ -1660,7 +1629,6 @@ extern int mips_dwarf_regno[];
 extern bool mips_split_p[];
 extern enum processor mips_arch;        /* which cpu to codegen for */
 extern enum processor mips_tune;        /* which cpu to schedule for */
-extern int mips_abi;			/* which ABI to use */
 extern GTY(()) struct target_globals *mips16_globals;
 #endif
 

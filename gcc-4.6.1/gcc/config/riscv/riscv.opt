@@ -24,9 +24,13 @@ Driver
 EL
 Driver
 
-mabi=
-Target RejectNegative Joined
--mabi=ABI	Generate code that conforms to the given ABI
+m32
+Target RejectNegative Mask(32BIT)
+Generate RV32 code
+
+m64
+Target RejectNegative InverseMask(32BIT, 64BIT)
+Generate RV64 code
 
 mabicalls
 Target Report Mask(ABICALLS)

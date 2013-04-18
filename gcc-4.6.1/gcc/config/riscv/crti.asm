@@ -21,29 +21,22 @@ a copy of the GCC Runtime Library Exception along with this program;
 see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 <http://www.gnu.org/licenses/>.  */
 
-/* 4 slots for argument spill area.  1 for cpreturn, 1 for stack.
-   Return spill offset of 40 and 20.  Aligned to 16 bytes for n32.  */
+#ifdef __riscv64
+# define SR sd
+#else
+# define SR sw
+#endif
 
 	.section .init,"ax",@progbits
 	.globl	_init
 	.type	_init,@function
 _init:
-#ifdef __riscv64
-	add   	sp, sp, -48
-	sd      ra, 40(sp)
-#else
-	add	sp, sp, -32
-	sw	ra, 20(sp)
-#endif
+	add	sp, sp, -8
+	SR	ra, 0(sp)
 
 	.section .fini,"ax",@progbits
 	.globl	_fini
 	.type	_fini,@function
 _fini:
-#ifdef __riscv64
-	add   	sp, sp, -48
-	sd      ra, 40(sp)
-#else
-	add	sp, sp, -32
-	sw	ra, 20(sp)
-#endif
+	add	sp, sp, -8
+	SR	ra, 0(sp)

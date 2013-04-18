@@ -70,7 +70,7 @@ LEAF(__clone)
 
 	/* Something bad happened -- no child created */
 L(error):
-	PIC_J(__syscall_error)
+	j		__syscall_error
 	END(__clone)
 
 /* Load up the arguments to the function.  Put this block of code in
@@ -91,15 +91,15 @@ L(donepid):
 #endif
 
 	/* Restore the arg for user's function.  */
-	REG_L		t7,0(sp)	/* Function pointer.  */
+	REG_L		v0,0(sp)	/* Function pointer.  */
 	REG_L		a0,SZREG(sp)	/* Argument pointer.  */
 
 	/* Call the user's function.  */
-	jalr		t7
+	jalr		v0
 
 	/* Call _exit rather than doing it inline for breakpoint purposes.  */
 	move		a0,v0
-	PIC_JAL(_exit)
+	j		_exit
 
 #ifdef RESET_PID
 L(restore_pid):
@@ -109,12 +109,12 @@ L(restore_pid):
 	li		v0,__NR_getpid
 	syscall
 L(gotpid):
-	lui		t0,%hi(PID_OFFSET)
-	add		t0,t0,tp
-	sw		v0,%lo(PID_OFFSET)(t0)
-	lui		t0,%hi(PID_OFFSET)
-	add		t0,t0,tp
-	sw		v0,%lo(TID_OFFSET)(t0)
+	lui		a0,%hi(PID_OFFSET)
+	add		a0,a0,tp
+	sw		v0,%lo(PID_OFFSET)(a0)
+	lui		a0,%hi(PID_OFFSET)
+	add		a0,a0,tp
+	sw		v0,%lo(TID_OFFSET)(a0)
 	b		L(donepid)
 #endif
 

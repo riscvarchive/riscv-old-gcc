@@ -58,6 +58,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "bitmap.h"
 #include "diagnostic.h"
 #include "target-globals.h"
+#include <stdint.h>
 
 /*----------------------------------------------------------------------*/
 /* RISCV_SYSCFG_VLEN_MAX                                                */
@@ -322,9 +323,6 @@ int mips_dwarf_regno[FIRST_PSEUDO_REGISTER];
 /* The processor that we should tune the code for.  */
 enum processor mips_tune;
 
-/* Which ABI to use.  */
-int mips_abi = MIPS_ABI_DEFAULT;
-
 /* Which cost information to use.  */
 static const struct mips_rtx_cost_data *mips_cost;
 
@@ -350,25 +348,14 @@ struct target_globals *mips16_globals;
 
 /* Index R is the smallest register class that contains register R.  */
 const enum reg_class mips_regno_to_class[FIRST_PSEUDO_REGISTER] = {
-/*
-yunsup: new register mapping
-x0, ra, v0, v1,
-a0, a1, a2, a3,
-a4, a5, a6, a7,
-t0, t1, t2, t3,
-t4, t5, t6, t7,
-s0, s1, s2, s3,
-s4, s5, s6, s7,
-s8, s9, sp, tp
-*/
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	V1_REG,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	PIC_FN_ADDR_REG,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
-  LEA_REGS,	LEA_REGS,	LEA_REGS,	LEA_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
@@ -603,6 +590,14 @@ mips_tls_symbol_p (const_rtx x)
   return GET_CODE (x) == SYMBOL_REF && SYMBOL_REF_TLS_MODEL (x) != 0;
 }
 
+bool
+riscv_symbol_binds_local_p (const_rtx x)
+{
+  if (SYMBOL_REF_DECL (x))
+    return targetm.binds_local_p (SYMBOL_REF_DECL (x));
+  return SYMBOL_REF_LOCAL_P (x);
+}
+
 /* Return the method that should be used to access SYMBOL_REF or
    LABEL_REF X in context CONTEXT.  */
 
@@ -702,7 +697,7 @@ mips_symbol_insns (enum mips_symbol_type type, enum machine_mode mode)
     {
     case SYMBOL_ABSOLUTE:
     case SYMBOL_TPREL:
-      /* One of LUI or LUIPC, followed by one of ADDI, LD, or LW. */
+      /* One of LUI or AUIPC, followed by one of ADDI, LD, or LW. */
       return 2;
 
     case SYMBOL_TLS:
@@ -1251,7 +1246,7 @@ mips_call_tls_get_addr (rtx sym, rtx v0)
   start_sequence ();
   
   emit_insn (riscv_got_load_tls_gd(a0, sym));
-  insn = mips_expand_call (MIPS_CALL_NORMAL, v0, mips_tls_symbol, const0_rtx);
+  insn = mips_expand_call (false, v0, mips_tls_symbol, const0_rtx);
   RTL_CONST_CALL_P (insn) = 1;
   use_reg (&CALL_INSN_FUNCTION_USAGE (insn), a0);
   insn = get_insns ();
@@ -1354,6 +1349,36 @@ mips_legitimize_address (rtx x, rtx oldx ATTRIBUTE_UNUSED,
   return x;
 }
 
+static int
+riscv_split_integer_cost (HOST_WIDE_INT val)
+{
+  int cost = 0;
+  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
+  int32_t loval = val, hival = (val - (int32_t)val) >> 32;
+
+  cost += riscv_build_integer(codes, loval);
+  if (loval != hival)
+    cost += riscv_build_integer(codes, hival);
+  return cost + 2;
+}
+
+/* Try to split a 64b integer into 32b parts, then reassemble. */
+
+static rtx
+riscv_split_integer (HOST_WIDE_INT val, enum machine_mode mode)
+{
+  int32_t loval = val, hival = (val - (int32_t)val) >> 32;
+  rtx hi = gen_reg_rtx (mode), lo = gen_reg_rtx (mode);
+
+  mips_move_integer (hi, hi, hival);
+  mips_move_integer (lo, lo, loval);
+
+  hi = gen_rtx_fmt_ee (ASHIFT, mode, hi, GEN_INT (32));
+  hi = force_reg (mode, hi);
+
+  return gen_rtx_fmt_ee (PLUS, mode, hi, lo);
+}
+
 /* Load VALUE into DEST.  TEMP is as for mips_force_temporary.  */
 
 void
@@ -1367,21 +1392,8 @@ mips_move_integer (rtx temp, rtx dest, HOST_WIDE_INT value)
   mode = GET_MODE (dest);
   num_ops = riscv_build_integer (codes, value);
 
-  if (can_create_pseudo_p () && num_ops > 4)
-    {
-      /* Split into two 32-bit constants. Account for SExt of lower word. */
-      rtx upper = gen_reg_rtx (mode);
-      HOST_WIDE_INT correction = (value & 0x80000000L) ? 1 : 0;
-      mips_move_integer (upper, upper, (value >> 32) + correction);
-
-      rtx lower = gen_reg_rtx (mode);
-      mips_move_integer (lower, lower, value << 32 >> 32);
-
-      upper = gen_rtx_fmt_ee (ASHIFT, mode, upper, GEN_INT (32));
-      upper = force_reg (mode, upper);
-
-      x = gen_rtx_fmt_ee (PLUS, mode, upper, lower);
-    }
+  if (can_create_pseudo_p () && num_ops >= riscv_split_integer_cost (value))
+    x = riscv_split_integer (value, mode);
   else
     {
       /* Apply each binary operation to X. */
@@ -3027,25 +3039,28 @@ mips_va_start (tree valist, rtx nextarg)
    Return the call itself.  */
 
 rtx
-mips_expand_call (enum mips_call_type type, rtx result, rtx addr, rtx args_size)
+mips_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
 {
-  rtx orig_addr, pattern, insn;
+  rtx pattern, insn;
 
-  orig_addr = addr;
-  if (!call_insn_operand (addr, VOIDmode))
+  if (sibcall_p && !sibcall_insn_operand (addr, VOIDmode))
     {
-      if (type == MIPS_CALL_EPILOGUE)
-	addr = MIPS_EPILOGUE_TEMP (Pmode);
-      else
-	addr = gen_reg_rtx (Pmode);
-      mips_emit_move(addr, orig_addr);
+      rtx reg = MIPS_EPILOGUE_TEMP (Pmode, sibcall_p);
+      mips_emit_move (reg, addr);
+      addr = reg;
+    }
+  else if (!sibcall_p && !call_insn_operand (addr, VOIDmode))
+    {
+      rtx reg = gen_reg_rtx (Pmode);
+      mips_emit_move (reg, addr);
+      addr = reg;
     }
 
   if (result == 0)
     {
       rtx (*fn) (rtx, rtx);
 
-      if (type == MIPS_CALL_SIBCALL)
+      if (sibcall_p)
 	fn = gen_sibcall_internal;
       else
 	fn = gen_call_internal;
@@ -3058,7 +3073,7 @@ mips_expand_call (enum mips_call_type type, rtx result, rtx addr, rtx args_size)
       rtx (*fn) (rtx, rtx, rtx, rtx);
       rtx reg1, reg2;
 
-      if (type == MIPS_CALL_SIBCALL)
+      if (sibcall_p)
 	fn = gen_sibcall_value_multiple_internal;
       else
 	fn = gen_call_value_multiple_internal;
@@ -3071,7 +3086,7 @@ mips_expand_call (enum mips_call_type type, rtx result, rtx addr, rtx args_size)
     {
       rtx (*fn) (rtx, rtx, rtx);
 
-      if (type == MIPS_CALL_SIBCALL)
+      if (sibcall_p)
 	fn = gen_sibcall_value_internal;
       else
 	fn = gen_call_value_internal;
@@ -3727,18 +3742,6 @@ mips_finish_declare_object (FILE *stream, tree decl, int top_level, int at_end)
 }
 #endif
 
-/* Implement TARGET_ASM_FILE_START.  */
-
-static void
-mips_file_start (void)
-{
-  default_file_start ();
-
-  /* If TARGET_ABICALLS, tell GAS to generate -KPIC code.  */
-  if (TARGET_ABICALLS && flag_pic)
-    fprintf (asm_out_file, "\t.pic\n");
-}
-
 /* Make the last instruction frame-related and note that it performs
    the operation described by FRAME_PATTERN.  */
 
@@ -4001,31 +4004,22 @@ mips_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset,
   HOST_WIDE_INT offset;
   int regno;
 
-  /* Save the return address at the top of the frame. */
+  /* Save the link register and s-registers. */
   offset = cfun->machine->frame.gp_sp_offset - sp_offset;
-  if (BITSET_P (cfun->machine->frame.mask, LINK_REG))
-    {
-      mips_save_restore_reg (word_mode, LINK_REG + GP_REG_FIRST, offset, fn);
-      offset -= UNITS_PER_WORD;
-    }
-
-  /* Save the s-registers in reverse order. */
-  for (regno = GP_REG_NUM-1; regno >= 0; regno--, regno -= (regno == LINK_REG))
-    {
-      if (BITSET_P (cfun->machine->frame.mask, regno))
-        {
-          mips_save_restore_reg (word_mode, regno + GP_REG_FIRST, offset, fn);
-          offset -= UNITS_PER_WORD;
-        }
-    }
+  for (regno = GP_REG_FIRST; regno <= GP_REG_LAST-1; regno++)
+    if (BITSET_P (cfun->machine->frame.mask, regno - GP_REG_FIRST))
+      {
+        mips_save_restore_reg (word_mode, regno, offset, fn);
+        offset -= UNITS_PER_WORD;
+      }
 
   /* This loop must iterate over the same space as its companion in
      mips_compute_frame_info.  */
   offset = cfun->machine->frame.fp_sp_offset - sp_offset;
-  for (regno = FP_REG_NUM-1; regno >= 0; regno--)
-    if (BITSET_P (cfun->machine->frame.fmask, regno))
+  for (regno = FP_REG_FIRST; regno <= FP_REG_LAST; regno++)
+    if (BITSET_P (cfun->machine->frame.fmask, regno - FP_REG_FIRST))
       {
-	mips_save_restore_reg (DFmode, regno + FP_REG_FIRST, offset, fn);
+	mips_save_restore_reg (DFmode, regno, offset, fn);
 	offset -= GET_MODE_SIZE (DFmode);
       }
 }
@@ -4167,7 +4161,13 @@ mips_expand_prologue (void)
 static void
 mips_restore_reg (rtx reg, rtx mem)
 {
-  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg)));
+  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg), false));
+}
+
+static void
+mips_restore_reg_sibcall (rtx reg, rtx mem)
+{
+  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg), true));
 }
 
 /* Expand an "epilogue" or "sibcall_epilogue" pattern; SIBCALL_P
@@ -4205,8 +4205,8 @@ mips_expand_epilogue (bool sibcall_p)
       rtx adjust = GEN_INT (-frame->hard_frame_pointer_offset);
       if (!SMALL_INT (adjust))
 	{
-	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
-	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
+	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode, sibcall_p), adjust);
+	  adjust = MIPS_EPILOGUE_TEMP (Pmode, sibcall_p);
 	}
 
       emit_insn (gen_add3_insn (stack_pointer_rtx, hard_frame_pointer_rtx, adjust));
@@ -4227,15 +4227,16 @@ mips_expand_epilogue (bool sibcall_p)
       rtx adjust = GEN_INT (step1);
       if (!SMALL_OPERAND (step1))
 	{
-	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
-	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
+	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode, sibcall_p), adjust);
+	  adjust = MIPS_EPILOGUE_TEMP (Pmode, sibcall_p);
 	}
 
       emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx, adjust));
     }
 
   /* Restore the registers.  */
-  mips_for_each_saved_gpr_and_fpr (frame->total_size - step2, mips_restore_reg);
+  mips_for_each_saved_gpr_and_fpr (frame->total_size - step2, 
+    sibcall_p ? mips_restore_reg_sibcall : mips_restore_reg);
 
   /* Deallocate the final bit of the frame.  */
   if (step2 > 0)
@@ -5401,15 +5402,6 @@ mips_handle_option (size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
 {
   switch (code)
     {
-    case OPT_mabi_:
-      if (strcmp (arg, "32") == 0)
-	mips_abi = ABI_32;
-      else if (strcmp (arg, "64") == 0)
-	mips_abi = ABI_64;
-      else
-	return false;
-      return true;
-
     case OPT_mtune_:
       return mips_parse_cpu (arg) != 0;
 
@@ -5539,8 +5531,8 @@ mips_conditional_register_usage (void)
       call_really_used_regs[regno] = 1;
     }
 
-    call_used_regs[GP_REG_FIRST + LINK_REG] = 1;
-    call_really_used_regs[GP_REG_FIRST + LINK_REG] = 1;
+    call_used_regs[RETURN_ADDR_REGNUM] = 1;
+    call_really_used_regs[RETURN_ADDR_REGNUM] = 1;
 
     for (regno = CALLEE_SAVED_FP_REG_FIRST;
          regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
@@ -5560,8 +5552,8 @@ mips_conditional_register_usage (void)
 
     call_used_regs[GP_REG_FIRST + 28] = 1;
 
-    call_used_regs[GP_REG_FIRST + LINK_REG] = 0;
-    call_really_used_regs[GP_REG_FIRST + LINK_REG] = 0;
+    call_used_regs[RETURN_ADDR_REGNUM] = 0;
+    call_really_used_regs[RETURN_ADDR_REGNUM] = 0;
 
     for (regno = CALLEE_SAVED_FP_REG_FIRST;
          regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
@@ -5637,14 +5629,14 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 #define OP(X) gen_int_mode (X, SImode)
 #define MATCH_LREG ((Pmode) == DImode ? MATCH_LD : MATCH_LW)
 
-  /* luipc   t6, 0x0
-     l[wd]   v0, target_function_offset(t6)
-     l[wd]   $static_chain, static_chain_offset(t6)
-     jr      v0
+  /* auipc   v0, 0x0
+     l[wd]   v1, target_function_offset(v0)
+     l[wd]   $static_chain, static_chain_offset(v0)
+     jr      v1
   */
   i = 0;
 
-  trampoline[i++] = OP (RISCV_LTYPE (LUIPC, STATIC_CHAIN_REGNUM, 0));
+  trampoline[i++] = OP (RISCV_LTYPE (AUIPC, STATIC_CHAIN_REGNUM, 0));
   trampoline[i++] = OP (RISCV_ITYPE (LREG, MIPS_PROLOGUE_TEMP_REGNUM,
     			  STATIC_CHAIN_REGNUM, target_function_offset));
   trampoline[i++] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,
@@ -5780,6 +5772,7 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 #define TARGET_DEFAULT_TARGET_FLAGS		\
   (TARGET_DEFAULT				\
    | TARGET_CPU_DEFAULT				\
+   | (TARGET_64BIT_DEFAULT ? 0 : MASK_32BIT)	\
    | TARGET_ENDIAN_DEFAULT)
 #undef TARGET_HANDLE_OPTION
 #define TARGET_HANDLE_OPTION mips_handle_option
@@ -5807,8 +5800,6 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 #undef  TARGET_PREFERRED_RELOAD_CLASS
 #define TARGET_PREFERRED_RELOAD_CLASS mips_preferred_reload_class
 
-#undef TARGET_ASM_FILE_START
-#define TARGET_ASM_FILE_START mips_file_start
 #undef TARGET_ASM_FILE_START_FILE_DIRECTIVE
 #define TARGET_ASM_FILE_START_FILE_DIRECTIVE true
 

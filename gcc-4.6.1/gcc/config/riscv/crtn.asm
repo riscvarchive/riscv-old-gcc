@@ -21,26 +21,18 @@ a copy of the GCC Runtime Library Exception along with this program;
 see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 <http://www.gnu.org/licenses/>.  */
 
-/* 4 slots for argument spill area.  1 for cpreturn, 1 for stack.
-   Return spill offset of 40 and 20.  Aligned to 16 bytes for n32.  */
+#ifdef __riscv64
+# define LR ld
+#else
+# define LR lw
+#endif
 
 	.section .init,"ax",@progbits
-#ifdef __riscv64
-	ld      ra, 40(sp)
-	add	sp, sp, 48
-#else
-	lw	ra, 20(sp)
-	add	sp, sp, 32
-#endif
+	LR	ra, 0(sp)
+	addi	sp, sp, 8
 	ret
 
 	.section .fini,"ax",@progbits
-#ifdef	__riscv64
-	ld	ra, 40(sp)
-	add	sp, sp, 48
-#else
-	lw	ra, 20(sp)
-	add	sp, sp, 32
-#endif
+	LR	ra, 0(sp)
+	addi	sp, sp, 8
 	ret
-
