@@ -130,5 +130,6 @@ extern unsigned int current_section_flags (void);
 extern void mips_expand_vector_init (rtx, rtx);
 
 extern bool mips_epilogue_uses (unsigned int);
+extern bool riscv_symbol_binds_local_p (const_rtx x);
 
 #endif /* ! GCC_MIPS_PROTOS_H */

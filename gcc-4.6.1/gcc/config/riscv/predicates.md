@@ -68,16 +68,14 @@
 
   if (symbol_type == SYMBOL_ABSOLUTE)
     {
-      /* We can only use direct calls if we're sure that the target
-	 function does not need t7 to be valid on entry.  If we're
-	 non-PIC, t7 can be set up using the PLT. */
-      if (TARGET_ABICALLS && flag_pic)
-	return false;
-
-      /* If -mlong-calls or if this function has an explicit long_call
-	 attribute, we must use register addressing.  The
-	 SYMBOL_FLAG_LONG_CALL bit is set by mips_encode_section_info.  */
-      return !(GET_CODE (op) == SYMBOL_REF && SYMBOL_REF_LONG_CALL_P (op));
+      if (GET_CODE (op) == SYMBOL_REF)
+	{
+	  if (flag_pic && !riscv_symbol_binds_local_p (op))
+	    return false;
+	  if (SYMBOL_REF_LONG_CALL_P (op))
+	    return false;
+	}
+      return true;
     }
 
   return false;

@@ -590,6 +590,14 @@ mips_tls_symbol_p (const_rtx x)
   return GET_CODE (x) == SYMBOL_REF && SYMBOL_REF_TLS_MODEL (x) != 0;
 }
 
+bool
+riscv_symbol_binds_local_p (const_rtx x)
+{
+  if (SYMBOL_REF_DECL (x))
+    return targetm.binds_local_p (SYMBOL_REF_DECL (x));
+  return SYMBOL_REF_LOCAL_P (x);
+}
+
 /* Return the method that should be used to access SYMBOL_REF or
    LABEL_REF X in context CONTEXT.  */
 
