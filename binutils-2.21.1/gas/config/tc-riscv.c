@@ -1844,7 +1844,7 @@ load_const (int reg, expressionS *ep)
     upper.X_add_number = (int64_t)ep->X_add_number >> (RISCV_IMM_BITS-1);
     load_const(reg, &upper);
 
-    macro_build (NULL, "sll", "d,s,>", reg, reg, RISCV_IMM_BITS-1);
+    macro_build (NULL, "slli", "d,s,>", reg, reg, RISCV_IMM_BITS-1);
 
     lower.X_add_number = ep->X_add_number & (RISCV_IMM_REACH/2-1);
     if (lower.X_add_number != 0)
