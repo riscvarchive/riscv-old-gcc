@@ -57,7 +57,7 @@ LEAF(__vfork)
 
 	/* Something bad happened -- no child created.  */
 L(error):
-	PIC_J(__syscall_error)
+	j		__syscall_error
 
 	END(__vfork)
 

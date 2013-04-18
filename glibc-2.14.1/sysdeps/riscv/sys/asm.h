@@ -47,31 +47,6 @@
 #endif
 
 /*
- * For callee-saved gp calling convention:
- */
-#ifdef __PIC__
-
-# define PIC_JAL(target)		\
-  la   v0, target;			\
-  jalr v0
-# define PIC_J(target)			\
-  la   v0, target;			\
-  jr   v0
-
-#else
-
-# define PIC_JAL(target) jal target
-# define PIC_J(target) j target
-
-#endif
-
-/*
- * Stack Frame Definitions
- */
-#define NARGSAVE 0 /* No caller responsibilities.  */
-
-
-/*
  * LEAF - declare leaf routine
  */
 #define	LEAF(symbol)	\

@@ -62,7 +62,7 @@
 
 #define PSEUDO(name, syscall_name, args) \
   .align 2;							\
-  99: PIC_J(__syscall_error);					\
+  99: j __syscall_error;					\
   ENTRY(name)							\
   li v0, SYS_ify(syscall_name);					\
   syscall;							\

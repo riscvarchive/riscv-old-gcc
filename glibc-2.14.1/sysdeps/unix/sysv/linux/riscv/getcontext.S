@@ -84,7 +84,7 @@ LEAF (__getcontext)
 	move	v0, zero
 	ret
 
-99:	PIC_J(__syscall_error)
+99:	j	__syscall_error
 
 PSEUDO_END (__getcontext)
 

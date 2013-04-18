@@ -70,7 +70,7 @@ LEAF(__clone)
 
 	/* Something bad happened -- no child created */
 L(error):
-	PIC_J(__syscall_error)
+	j		__syscall_error
 	END(__clone)
 
 /* Load up the arguments to the function.  Put this block of code in
@@ -99,7 +99,7 @@ L(donepid):
 
 	/* Call _exit rather than doing it inline for breakpoint purposes.  */
 	move		a0,v0
-	PIC_JAL(_exit)
+	j		_exit
 
 #ifdef RESET_PID
 L(restore_pid):

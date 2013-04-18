@@ -82,7 +82,7 @@ LEAF (__socket)
 1:unimp
 #endif
 
-99: PIC_J(__syscall_error)
+99: 	j	__syscall_error
 
 END (__socket)
 

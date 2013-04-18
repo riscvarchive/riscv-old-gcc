@@ -146,7 +146,7 @@ LEAF (__swapcontext)
 	move	v0, zero
 	jr	v1
 
-99:	PIC_J(__syscall_error)
+99:	j	__syscall_error
 
 PSEUDO_END (__swapcontext)
 

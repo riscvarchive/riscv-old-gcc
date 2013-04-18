@@ -138,7 +138,7 @@ LEAF (__setcontext)
 	   its calling place.  */
 	addi    sp, sp, ((RT_SIGFRAME_SIZE + ALSZ) & ALMASK)
 
-99:	PIC_J(__syscall_error)
+99:	j	__syscall_error
 
 PSEUDO_END (__setcontext)
 
