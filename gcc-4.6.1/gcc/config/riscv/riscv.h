@@ -295,7 +295,7 @@ struct mips_cpu_info {
 %{G*} %(endian_spec) \
 %(subtarget_asm_debugging_spec) \
 %{m32} %{m64} %{!m32:%{!m64: %(asm_abi_default_spec)}} \
-%{fPIC|fpic:-fpic} \
+%{fPIC|fpic|fPIE|fpie:-fpic} \
 %{march=*} \
 %(subtarget_asm_spec)"
 
