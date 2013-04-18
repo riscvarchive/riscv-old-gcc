@@ -705,6 +705,9 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
 	l->l_mach.plt = gotplt[1] + l->l_addr;
       gotplt[0] = (ElfW(Addr)) &_dl_fixup;
       gotplt[1] = (ElfW(Addr)) l;
+      /* Relocate subsequent .got.plt entries. */
+      for (gotplt += 2; *gotplt; gotplt++)
+	*gotplt += l->l_addr;
     }
 
 # endif

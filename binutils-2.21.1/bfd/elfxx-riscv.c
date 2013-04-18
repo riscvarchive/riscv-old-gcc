@@ -301,9 +301,6 @@ struct mips_elf_link_hash_table
   bfd_size_type dynsym_sec_strindex[SIZEOF_MIPS_DYNSYM_SECNAMES];
 #endif
 
-  /* True if we can generate copy relocs and PLTs.  */
-  bfd_boolean use_plts_and_copy_relocs;
-
   /* Shortcuts to some dynamic sections, or NULL if they are not
      being used.  */
   asection *srelbss;
@@ -545,15 +542,15 @@ static bfd *reldyn_sorting_bfd;
 
 #define RISCV_PLT0_ENTRY_INSNS 44
 static void
-riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value,
+riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value, bfd_vma addr,
                       bfd_vma entry[RISCV_PLT0_ENTRY_INSNS])
 {
   /* save ra and arg registers to stack
-     lui    v0, %hi(GOTPLT)
+     auipc  v0, %hi(GOTPLT)
+     addi   v0, v0, %lo(GOTPLT)
      sub    a1, v1, v0
-     ld     a0, %lo(GOTPLT)+PTRSIZE(v0)  # assumes .got.plt is 16B aligned
-     sub    a1, a1, %lo(GOTPLT)
-     ld     v0, %lo(GOTPLT)(v0)
+     ld     a0, PTRSIZE(v0)
+     ld     v0, 0(v0)
      slli   a1, a1, 1
      addi   a1, a1, -4*PTRSIZE
      jalr   v0
@@ -566,11 +563,12 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value,
   entry[i++] = RISCV_BTYPE(SREG(abfd), 14, LINK_REG, 0);
   for (j = 0; j < 14; j++)
     entry[i++] = RISCV_BTYPE(SREG(abfd), 14, 18+j, (j+1)*regbytes);
-  entry[i++] = RISCV_LTYPE(LUI, 16, RISCV_LUI_HIGH_PART(gotplt_value));
+  gotplt_value -= addr + i*4;
+  entry[i++] = RISCV_LTYPE(AUIPC, 16, RISCV_LUI_HIGH_PART(gotplt_value));
+  entry[i++] = RISCV_ITYPE(ADDI, 16, 16, RISCV_CONST_LOW_PART(gotplt_value));
   entry[i++] = RISCV_RTYPE(SUB, 19, 17, 16);
-  entry[i++] = RISCV_ITYPE(LREG(abfd), 18, 16, RISCV_CONST_LOW_PART(regbytes+gotplt_value));
-  entry[i++] = RISCV_ITYPE(ADDI, 19, 19, RISCV_CONST_LOW_PART(-gotplt_value));
-  entry[i++] = RISCV_ITYPE(LREG(abfd), 16, 16, RISCV_CONST_LOW_PART(gotplt_value));
+  entry[i++] = RISCV_ITYPE(LREG(abfd), 18, 16, regbytes);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), 16, 16, 0);
   entry[i++] = RISCV_ITYPE(SLLI, 19, 19, 1);
   entry[i++] = RISCV_ITYPE(ADDI, 19, 19, -4*regbytes);
   entry[i++] = RISCV_ITYPE(JALR_C, LINK_REG, 16, 0);
@@ -589,16 +587,17 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value,
 
 #define RISCV_PLT_ENTRY_INSNS 4
 static void
-riscv_make_plt_entry(bfd* abfd, bfd_vma got_address,
+riscv_make_plt_entry(bfd* abfd, bfd_vma got_address, bfd_vma addr,
                      bfd_vma entry[RISCV_PLT_ENTRY_INSNS])
 {
-  /* lui    v1, %hi(.got.plt entry)
+  /* auipc  v1, %hi(.got.plt entry)
      l[w|d] v0, %lo(.got.plt entry)(t6)
      addi   v1, v1, %lo(.got.plt entry)
      jr     v0
   */
 
-  entry[0] = RISCV_LTYPE(LUI, 17, RISCV_LUI_HIGH_PART(got_address));
+  got_address -= addr;
+  entry[0] = RISCV_LTYPE(AUIPC, 17, RISCV_LUI_HIGH_PART(got_address));
   entry[1] = RISCV_ITYPE(LREG(abfd),  16, 17, RISCV_CONST_LOW_PART(got_address));
   entry[2] = RISCV_ITYPE(ADDI, 17, 17, RISCV_CONST_LOW_PART(got_address));
   entry[3] = RISCV_ITYPE(JALR_J, 0, 16, 0);
@@ -4139,12 +4138,8 @@ _bfd_riscv_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
       || !htab->splt)
     abort ();
 
-  if (!info->shared)
-    {
-      /* All variants of the plt0 entry are the same size.  */
-      htab->plt_header_size = RISCV_PLT0_ENTRY_INSNS * 4;
-      htab->plt_entry_size = RISCV_PLT_ENTRY_INSNS * 4;
-    }
+  htab->plt_header_size = RISCV_PLT0_ENTRY_INSNS * 4;
+  htab->plt_entry_size = RISCV_PLT_ENTRY_INSNS * 4;
 
   return TRUE;
 }
@@ -4760,7 +4755,6 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
      for any relative or absolute relocation in executables; in that
      case, the PLT entry becomes the function's canonical address.  */
   if (h->type == STT_FUNC && hmips->has_static_relocs
-	   && htab->use_plts_and_copy_relocs
 	   && !SYMBOL_CALLS_LOCAL (info, h)
 	   && !(ELF_ST_VISIBILITY (h->other) != STV_DEFAULT
 		&& h->root.type == bfd_link_hash_undefweak))
@@ -4775,7 +4769,7 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
 	     entry is 16 bytes and the PLT0 entry is 32 bytes.
 	     Encourage better cache usage by aligning.  We do this
 	     lazily to avoid pessimizing traditional objects.  */
-	  if (!bfd_set_section_alignment (dynobj, htab->splt, 5))
+	  if (!bfd_set_section_alignment (dynobj, htab->splt, 4))
 	    return FALSE;
 
 	  /* Make sure that .got.plt is word-aligned.  We do this lazily
@@ -4786,8 +4780,8 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
 
 	  htab->splt->size += htab->plt_header_size;
 
-	  /* The first two entries in .got.plt are reserved.  */
-	  htab->sgotplt->size += 2 * MIPS_ELF_GOT_SIZE (dynobj);
+	  /* The last and first two entries in .got.plt are reserved.  */
+	  htab->sgotplt->size += 3 * MIPS_ELF_GOT_SIZE (dynobj);
 	}
 
       /* Assign the next .plt entry to this symbol.  */
@@ -4796,7 +4790,7 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
 
       /* If the output file has no definition of the symbol, set the
 	 symbol's value to the address of the stub.  */
-      if (!info->shared && !h->def_regular)
+      if (!h->def_regular)
 	{
 	  h->root.u.def.section = htab->splt;
 	  h->root.u.def.value = h->plt.offset;
@@ -4835,17 +4829,6 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
      against this symbol into dynamic relocations.  */
   if (!hmips->has_static_relocs)
     return TRUE;
-
-  /* We're now relying on copy relocations.  Complain if we have
-     some that we can't convert.  */
-  if (!htab->use_plts_and_copy_relocs || info->shared)
-    {
-      (*_bfd_error_handler) (_("non-dynamic relocations refer to "
-			       "dynamic symbol %s"),
-			     h->root.root.string);
-      bfd_set_error (bfd_error_bad_value);
-      return FALSE;
-    }
 
   /* We must allocate the symbol in our .dynbss section, which will
      become part of the .bss section of the executable.  There will be
@@ -5014,8 +4997,6 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
       if (htab->splt && htab->splt->size > 0 && htab->root.hplt == NULL)
 	{
 	  struct elf_link_hash_entry *h;
-
-	  BFD_ASSERT (htab->use_plts_and_copy_relocs);
 
 	  h = _bfd_elf_define_linkage_sym (dynobj, info, htab->splt,
 					   "_PROCEDURE_LINKAGE_TABLE_");
@@ -5460,7 +5441,6 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       bfd_vma plt_entry[RISCV_PLT_ENTRY_INSNS];
       int i;
 
-      BFD_ASSERT (htab->use_plts_and_copy_relocs);
       BFD_ASSERT (h->dynindx != -1);
       BFD_ASSERT (htab->splt != NULL);
       BFD_ASSERT (h->plt.offset <= htab->splt->size);
@@ -5491,7 +5471,8 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       loc = htab->splt->contents + h->plt.offset;
 
       /* Fill in the PLT entry itself.  */
-      riscv_make_plt_entry (output_bfd, got_address, plt_entry);
+      riscv_make_plt_entry (output_bfd, got_address,
+                            header_address + h->plt.offset, plt_entry);
       for (i = 0; i < RISCV_PLT_ENTRY_INSNS; i++)
         bfd_put_32 (output_bfd, plt_entry[i], loc + 4*i);
 
@@ -5549,7 +5530,6 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       bfd_vma symval;
 
       BFD_ASSERT (h->dynindx != -1);
-      BFD_ASSERT (htab->use_plts_and_copy_relocs);
 
       s = mips_elf_rel_dyn_section (info, FALSE);
       symval = (h->root.u.def.section->output_section->vma
@@ -5568,7 +5548,7 @@ static void
 mips_finish_exec_plt (bfd *output_bfd, struct bfd_link_info *info)
 {
   bfd_byte *loc;
-  bfd_vma gotplt_value;
+  bfd_vma gotplt_value, plt_address;
   bfd_vma plt_entry[RISCV_PLT0_ENTRY_INSNS];
   struct mips_elf_link_hash_table *htab;
   int i;
@@ -5576,13 +5556,14 @@ mips_finish_exec_plt (bfd *output_bfd, struct bfd_link_info *info)
   htab = mips_elf_hash_table (info);
   BFD_ASSERT (htab != NULL);
 
+  plt_address = htab->splt->output_section->vma + htab->splt->output_offset;
   /* Calculate the value of .got.plt.  */
   gotplt_value = (htab->sgotplt->output_section->vma
 		  + htab->sgotplt->output_offset);
 
   /* Install the PLT header.  */
   loc = htab->splt->contents;
-  riscv_make_plt0_entry (output_bfd, gotplt_value, plt_entry);
+  riscv_make_plt0_entry (output_bfd, gotplt_value, plt_address, plt_entry);
   for (i = 0; i < RISCV_PLT0_ENTRY_INSNS; i++)
     bfd_put_32 (output_bfd, plt_entry[i], loc + 4*i);
 }
@@ -5728,17 +5709,14 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 	      break;
 
 	    case DT_PLTREL:
-	      BFD_ASSERT (htab->use_plts_and_copy_relocs);
 	      dyn.d_un.d_val = DT_REL;
 	      break;
 
 	    case DT_PLTRELSZ:
-	      BFD_ASSERT (htab->use_plts_and_copy_relocs);
 	      dyn.d_un.d_val = htab->srelplt->size;
 	      break;
 
 	    case DT_JMPREL:
-	      BFD_ASSERT (htab->use_plts_and_copy_relocs);
 	      dyn.d_un.d_ptr = (htab->srelplt->output_section->vma
 				+ htab->srelplt->output_offset);
 	      break;
@@ -5872,10 +5850,7 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
   }
 
   if (htab->splt && htab->splt->size > 0)
-    {
-      BFD_ASSERT (!info->shared);
-      mips_finish_exec_plt (output_bfd, info);
-    }
+    mips_finish_exec_plt (output_bfd, info);
   return TRUE;
 }
 
@@ -6606,7 +6581,6 @@ _bfd_riscv_elf_link_hash_table_create (bfd *abfd)
   for (i = 0; i < SIZEOF_MIPS_DYNSYM_SECNAMES; i++)
     ret->dynsym_sec_strindex[i] = (bfd_size_type) -1;
 #endif
-  ret->use_plts_and_copy_relocs = FALSE;
   ret->srelbss = NULL;
   ret->sdynbss = NULL;
   ret->srelplt = NULL;
@@ -6621,15 +6595,6 @@ _bfd_riscv_elf_link_hash_table_create (bfd *abfd)
   return &ret->root.root;
 }
 
-/* A function that the linker calls if we are allowed to use PLTs
-   and copy relocs.  */
-
-void
-_bfd_riscv_elf_use_plts_and_copy_relocs (struct bfd_link_info *info)
-{
-  mips_elf_hash_table (info)->use_plts_and_copy_relocs = TRUE;
-}
-
 /* We need to use a special link routine to handle the .reginfo and
    the .mdebug sections.  We need to merge all instances of these
    sections together, not write them all out sequentially.  */
@@ -7433,21 +7398,4 @@ _bfd_riscv_elf_plt_sym_val (bfd_vma i, const asection *plt,
   return (plt->vma
 	  + RISCV_PLT0_ENTRY_INSNS * 4
 	  + i * RISCV_PLT_ENTRY_INSNS * 4);
-}
-
-void
-_bfd_riscv_post_process_headers (bfd *abfd, struct bfd_link_info *link_info)
-{
-  struct mips_elf_link_hash_table *htab;
-  Elf_Internal_Ehdr *i_ehdrp;
-
-  i_ehdrp = elf_elfheader (abfd);
-  if (link_info)
-    {
-      htab = mips_elf_hash_table (link_info);
-      BFD_ASSERT (htab != NULL);
-
-      if (htab->use_plts_and_copy_relocs)
-	i_ehdrp->e_ident[EI_ABIVERSION] = 1;
-    }
 }
