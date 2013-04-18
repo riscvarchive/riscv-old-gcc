@@ -1811,7 +1811,7 @@ load_got_addr (int destreg, expressionS *ep, const char* lo_insn,
                bfd_reloc_code_real_type hi_reloc,
 	       bfd_reloc_code_real_type lo_reloc)
 {
-  macro_build_lui ("luipc", ep, destreg, hi_reloc);
+  macro_build_lui ("auipc", ep, destreg, hi_reloc);
   macro_build (ep, lo_insn, "d,O(b)", destreg, lo_reloc, destreg);
 }
 

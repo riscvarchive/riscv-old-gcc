@@ -689,7 +689,7 @@ mips_symbol_insns (enum mips_symbol_type type, enum machine_mode mode)
     {
     case SYMBOL_ABSOLUTE:
     case SYMBOL_TPREL:
-      /* One of LUI or LUIPC, followed by one of ADDI, LD, or LW. */
+      /* One of LUI or AUIPC, followed by one of ADDI, LD, or LW. */
       return 2;
 
     case SYMBOL_TLS:
@@ -5621,14 +5621,14 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 #define OP(X) gen_int_mode (X, SImode)
 #define MATCH_LREG ((Pmode) == DImode ? MATCH_LD : MATCH_LW)
 
-  /* luipc   v0, 0x0
+  /* auipc   v0, 0x0
      l[wd]   v1, target_function_offset(v0)
      l[wd]   $static_chain, static_chain_offset(v0)
      jr      v1
   */
   i = 0;
 
-  trampoline[i++] = OP (RISCV_LTYPE (LUIPC, STATIC_CHAIN_REGNUM, 0));
+  trampoline[i++] = OP (RISCV_LTYPE (AUIPC, STATIC_CHAIN_REGNUM, 0));
   trampoline[i++] = OP (RISCV_ITYPE (LREG, MIPS_PROLOGUE_TEMP_REGNUM,
     			  STATIC_CHAIN_REGNUM, target_function_offset));
   trampoline[i++] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,
