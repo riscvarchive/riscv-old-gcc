@@ -824,6 +824,7 @@ struct mips_cpu_info {
 enum reg_class
 {
   NO_REGS,			/* no registers in set */
+  V1_REG,			/* register used by indirect sibcalls */
   GR_REGS,			/* integer registers */
   FP_REGS,			/* floating point registers */
   VEC_GR_REGS,			/* vector integer registers */
@@ -844,6 +845,7 @@ enum reg_class
 #define REG_CLASS_NAMES							\
 {									\
   "NO_REGS",								\
+  "V1_REG",								\
   "GR_REGS",								\
   "FP_REGS",								\
   "VEC_GR_REGS",							\
@@ -866,6 +868,7 @@ enum reg_class
 #define REG_CLASS_CONTENTS									\
 {												\
   { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* NO_REGS */		\
+  { 0x00020000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* V1_REG */		\
   { 0xffffffff, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* GR_REGS */		\
   { 0x00000000, 0xffffffff, 0x00000000, 0x00000000, 0x00000000 },	/* FP_REGS */		\
   { 0x00000000, 0x00000000, 0xffffffff, 0x00000000, 0x00000000 },	/* VEC_GR_REGS */	\

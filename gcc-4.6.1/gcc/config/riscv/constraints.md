@@ -40,6 +40,9 @@
 (define_register_constraint "b" "ALL_REGS"
   "@internal")
 
+(define_register_constraint "j" "V1_REG"
+  "@internal")
+
 (define_register_constraint "z" "GR_REGS"
   "A floating-point condition code register.")
 
