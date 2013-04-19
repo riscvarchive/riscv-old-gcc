@@ -352,7 +352,7 @@ const enum reg_class mips_regno_to_class[FIRST_PSEUDO_REGISTER] = {
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
-  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	V1_REG, 	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
@@ -3043,15 +3043,9 @@ mips_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
 {
   rtx pattern, insn;
 
-  if (sibcall_p && !sibcall_insn_operand (addr, VOIDmode))
+  if (!call_insn_operand (addr, VOIDmode))
     {
-      rtx reg = MIPS_EPILOGUE_TEMP (Pmode, sibcall_p);
-      mips_emit_move (reg, addr);
-      addr = reg;
-    }
-  else if (!sibcall_p && !call_insn_operand (addr, VOIDmode))
-    {
-      rtx reg = gen_reg_rtx (Pmode);
+      rtx reg = MIPS_EPILOGUE_TEMP (Pmode, true);
       mips_emit_move (reg, addr);
       addr = reg;
     }

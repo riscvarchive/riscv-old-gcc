@@ -2721,7 +2721,7 @@
 })
 
 (define_insn "sibcall_internal"
-  [(call (mem:SI (match_operand 0 "sibcall_insn_operand" "r,S"))
+  [(call (mem:SI (match_operand 0 "call_insn_operand" "j,S"))
 	 (match_operand 1 "" ""))]
   "SIBLING_CALL_P (insn)"
   { return REG_P (operands[0]) ? "jr\t%0" : "j\t%0"; }
@@ -2740,7 +2740,7 @@
 
 (define_insn "sibcall_value_internal"
   [(set (match_operand 0 "register_operand" "")
-        (call (mem:SI (match_operand 1 "sibcall_insn_operand" "r,S"))
+        (call (mem:SI (match_operand 1 "call_insn_operand" "j,S"))
               (match_operand 2 "" "")))]
   "SIBLING_CALL_P (insn)"
   { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1"; }
@@ -2748,7 +2748,7 @@
 
 (define_insn "sibcall_value_multiple_internal"
   [(set (match_operand 0 "register_operand" "")
-        (call (mem:SI (match_operand 1 "sibcall_insn_operand" "r,S"))
+        (call (mem:SI (match_operand 1 "call_insn_operand" "j,S"))
               (match_operand 2 "" "")))
    (set (match_operand 3 "register_operand" "")
 	(call (mem:SI (match_dup 1))

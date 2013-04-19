@@ -85,11 +85,6 @@
   (ior (match_operand 0 "const_call_insn_operand")
        (match_operand 0 "register_operand")))
 
-(define_predicate "sibcall_insn_operand"
-  (ior (match_operand 0 "const_call_insn_operand")
-       (and (match_operand 0 "register_operand")
-            (match_test "REGNO (op) == MIPS_EPILOGUE_TEMP_REGNUM (true)"))))
-
 ;; A legitimate CONST_INT operand that takes more than one instruction
 ;; to load.
 (define_predicate "splittable_const_int_operand"
