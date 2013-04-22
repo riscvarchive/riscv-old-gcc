@@ -1,8 +1,9 @@
 #include <string.h>
 
 #undef memcpy
+#undef __memcpy_g
 
-void* memcpy(void* dst, const void* src, size_t n)
+void* __memcpy_g(void* dst, const void* src, size_t n)
 {
   void* dst0 = dst;
   void* end = dst + n;
@@ -46,5 +47,6 @@ void* memcpy(void* dst, const void* src, size_t n)
 
   return dst0;
 }
-
+libc_hidden_def (__memcpy_g)
+strong_alias (__memcpy_g, memcpy)
 libc_hidden_builtin_def (memcpy)
