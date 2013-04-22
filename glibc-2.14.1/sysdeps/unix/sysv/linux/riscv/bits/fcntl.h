@@ -31,74 +31,56 @@
 
 /* open/fcntl - O_SYNC is only implemented on blocks devices and on files
    located on an ext2 file system */
-#define O_ACCMODE	   0003
-#define O_RDONLY	     00
-#define O_WRONLY	     01
-#define O_RDWR		     02
-#define O_APPEND	 0x0008
-#define O_SYNC		 0x4010
-#define O_NONBLOCK	 0x0080
+#define O_ACCMODE	00000003
+#define O_RDONLY	00000000
+#define O_WRONLY	00000001
+#define O_RDWR		00000002
+#define O_CREAT		00000100	/* not fcntl */
+#define O_EXCL		00000200	/* not fcntl */
+#define O_NOCTTY	00000400	/* not fcntl */
+#define O_TRUNC		00001000	/* not fcntl */
+#define O_APPEND	00002000
+#define O_NONBLOCK	00004000
+#define O_DSYNC		00010000	/* used to be O_SYNC, see below */
+#define O_DIRECT	00040000	/* direct disk access hint */
+#define O_LARGEFILE	00100000
+#define O_DIRECTORY	00200000	/* must be a directory */
+#define O_NOFOLLOW	00400000	/* don't follow links */
+#define O_NOATIME	01000000
+#define O_CLOEXEC	02000000	/* set close_on_exec */
+#define __O_SYNC	04000000
+#define O_SYNC		(__O_SYNC|O_DSYNC)
+#define O_PATH		010000000
 #define O_NDELAY	O_NONBLOCK
-#define O_CREAT		 0x0100	/* not fcntl */
-#define O_TRUNC		 0x0200	/* not fcntl */
-#define O_EXCL		 0x0400	/* not fcntl */
-#define O_NOCTTY	 0x0800	/* not fcntl */
-#define O_FSYNC		 O_SYNC
-#define O_ASYNC		 0x1000
-
-#ifdef __USE_XOPEN2K8
-# define O_NOFOLLOW	0x20000	/* Do not follow links.	 */
-# define O_DIRECTORY	0x10000	/* Must be a directory.	 */
-# define O_CLOEXEC     02000000 /* Set close_on_exec.  */
-#endif
-#ifdef __USE_GNU
-# define O_DIRECT	0x8000	/* Direct disk access hint.  */
-# define O_NOATIME	0x40000	/* Do not set atime.  */
-#endif
-
-/* For now Linux has no synchronisity options for data and read operations.
-   We define the symbols here but let them do the same as O_SYNC since
-   this is a superset.	*/
-#if defined __USE_POSIX199309 || defined __USE_UNIX98
-# define O_DSYNC	0x0010	/* Synchronize data.  */
-# define O_RSYNC	O_SYNC	/* Synchronize read operations.	 */
-#endif
-
-#ifdef __USE_LARGEFILE64
-# define O_LARGEFILE	0x2000	/* Allow large file opens.  */
-#endif
 
 /* Values for the second argument to `fcntl'.  */
-#define F_DUPFD		0	/* Duplicate file descriptor.  */
-#define F_GETFD		1	/* Get file descriptor flags.  */
-#define F_SETFD		2	/* Set file descriptor flags.  */
-#define F_GETFL		3	/* Get file status flags.  */
-#define F_SETFL		4	/* Set file status flags.  */
-#ifndef __USE_FILE_OFFSET64
-# define F_GETLK	14	/* Get record locking info.  */
-# define F_SETLK	6	/* Set record locking info (non-blocking).  */
-# define F_SETLKW	7	/* Set record locking info (blocking).	*/
-#else
-# define F_GETLK	F_GETLK64  /* Get record locking info.	*/
-# define F_SETLK	F_SETLK64  /* Set record locking info (non-blocking).*/
-# define F_SETLKW	F_SETLKW64 /* Set record locking info (blocking).  */
-#endif
+#define F_DUPFD		0	/* dup */
+#define F_GETFD		1	/* get close_on_exec */
+#define F_SETFD		2	/* set/clear close_on_exec */
+#define F_GETFL		3	/* get file->f_flags */
+#define F_SETFL		4	/* set file->f_flags */
 
 #define F_GETLK64	33	/* Get record locking info.  */
 #define F_SETLK64	34	/* Set record locking info (non-blocking).  */
 #define F_SETLKW64	35	/* Set record locking info (blocking).	*/
 
-#if defined __USE_BSD || defined __USE_UNIX98 || defined __USE_XOPEN2K8
-# define F_SETOWN	24	/* Get owner (process receiving SIGIO).  */
-# define F_GETOWN	23	/* Set owner (process receiving SIGIO).  */
+#if _RISCV_SIM == _ABI32
+#define F_GETLK		F_GETLK64
+#define F_SETLK		F_SETLK64
+#define F_SETLKW	F_SETLKW64
+#else
+#define F_GETLK		5
+#define F_SETLK		6
+#define F_SETLKW	7
 #endif
 
-#ifdef __USE_GNU
-# define F_SETSIG	10	/* Set number of signal to be sent.  */
-# define F_GETSIG	11	/* Get number of signal to be sent.  */
-# define F_SETOWN_EX	15	/* Get owner (thread receiving SIGIO).  */
-# define F_GETOWN_EX	16	/* Set owner (thread receiving SIGIO).  */
-#endif
+#define F_SETOWN	8	/* for sockets. */
+#define F_GETOWN	9	/* for sockets. */
+
+#define F_SETSIG	10	/* for sockets. */
+#define F_GETSIG	11	/* for sockets. */
+#define F_SETOWN_EX	15
+#define F_GETOWN_EX	16
 
 #ifdef __USE_GNU
 # define F_SETLEASE	1024	/* Set a lease.	 */

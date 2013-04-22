@@ -4,9 +4,8 @@ BINUTILS_VERSION := 2.21.1
 GCC_VERSION := 4.6.1
 GLIBC_VERSION := 2.14.1
 NEWLIB_VERSION := 1.18.0
-LINUX_VERSION := 2.6.37
 
-LINUX_DIR := $(CURDIR)/linux-$(LINUX_VERSION)
+LINUX_DIR := $(CURDIR)/linux-headers/
 
 MAKE_JOBS := 16
 
@@ -78,7 +77,7 @@ build-gcc-newlib: build-gcc-newlib-src
 		--disable-libquadmath \
 		--disable-libgomp \
 		--disable-nls
-	$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit_libc=true
+	$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit-libc=true
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-binutils-linux:
@@ -87,7 +86,6 @@ build-binutils-linux:
 	cd $@ && ../binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-linux \
 		--prefix=$(INSTALL_DIR) \
-		--enable-shared \
 		--enable-tls \
 		--enable-languages=c \
 		--with-newlib \
@@ -112,8 +110,8 @@ build-gcc-linux-stage1: build-binutils-linux
 		--disable-libgomp \
 		--disable-nls \
 		--disable-multilib \
-		--with-headers=$(LINUX_DIR)/include
-	-$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit_libc=true
+		--disable-bootstrap
+	-$(MAKE) -C $@ -j $(MAKE_JOBS) inhibit-libc=true
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-glibc-linux: build-gcc-linux-stage1
@@ -128,6 +126,7 @@ build-glibc-linux: build-gcc-linux-stage1
 		--enable-shared \
 		--enable-__thread \
 		--disable-multilib \
+		--enable-add-ons=nptl \
 		--with-headers=$(LINUX_DIR)/include
 	$(MAKE) -C $@ -j $(MAKE_JOBS) cross-compiling=yes
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install cross-compiling=yes
@@ -148,6 +147,7 @@ build-gcc-linux-stage2: build-glibc-linux
 		--disable-libgomp \
 		--disable-nls \
 		--disable-multilib \
+		--disable-bootstrap \
 		--with-headers=$(LINUX_DIR)/include
 	$(MAKE) -C $@ -j $(MAKE_JOBS)
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
