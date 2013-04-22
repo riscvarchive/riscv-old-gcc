@@ -5737,6 +5737,43 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
   gcc_unreachable();
 }
 
+/* Implement TARGET_ASM_FUNCTION_RODATA_SECTION.
+
+   The complication here is that, with the combination TARGET_ABICALLS
+   && !TARGET_ABSOLUTE_ABICALLS && !TARGET_GPWORD, jump tables will use
+   absolute addresses, and should therefore not be included in the
+   read-only part of a DSO.  Handle such cases by selecting a normal
+   data section instead of a read-only one.  The logic apes that in
+   default_function_rodata_section.  */
+
+static section *
+mips_function_rodata_section (tree decl)
+{
+  if (!TARGET_ABICALLS)
+    return default_function_rodata_section (decl);
+
+  if (decl && DECL_SECTION_NAME (decl))
+    {
+      const char *name = TREE_STRING_POINTER (DECL_SECTION_NAME (decl));
+      if (DECL_ONE_ONLY (decl) && strncmp (name, ".gnu.linkonce.t.", 16) == 0)
+	{
+	  char *rname = ASTRDUP (name);
+	  rname[14] = 'd';
+	  return get_section (rname, SECTION_LINKONCE | SECTION_WRITE, decl);
+	}
+      else if (flag_function_sections
+	       && flag_data_sections
+	       && strncmp (name, ".text.", 6) == 0)
+	{
+	  char *rname = ASTRDUP (name);
+	  memcpy (rname + 1, "data", 4);
+	  return get_section (rname, SECTION_WRITE, decl);
+	}
+    }
+  return data_section;
+}
+
+
 
 /* Initialize the GCC target structure.  */
 #undef TARGET_ASM_ALIGNED_HI_OP
@@ -5756,6 +5793,8 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 
 #undef TARGET_ASM_FUNCTION_PROLOGUE
 #define TARGET_ASM_FUNCTION_PROLOGUE mips_output_function_prologue
+#undef TARGET_ASM_FUNCTION_RODATA_SECTION
+#define TARGET_ASM_FUNCTION_RODATA_SECTION mips_function_rodata_section
 
 #undef TARGET_SCHED_ADJUST_COST
 #define TARGET_SCHED_ADJUST_COST mips_adjust_cost
