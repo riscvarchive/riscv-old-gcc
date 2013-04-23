@@ -762,7 +762,7 @@ struct mips_cpu_info {
 
 /* Register to use for pushing function arguments.  */
 #define STACK_POINTER_REGNUM (GP_REG_FIRST + 14)
-#define HARD_FRAME_POINTER_REGNUM (GP_REG_FIRST + 3)
+#define HARD_FRAME_POINTER_REGNUM (GP_REG_FIRST + 2)
 
 #define THREAD_POINTER_REGNUM (GP_REG_FIRST + 15)
 
