@@ -3118,15 +3118,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value &= howto->dst_mask;
       break;
 
-    case R_RISCV_JALR:
-      /* This relocation is only a hint.  In some cases, we optimize
-	 it into a bal instruction.  But we don't try to optimize
-	 when the symbol does not resolve locally.  */
-      if (h != NULL && !SYMBOL_CALLS_LOCAL (info, &h->root))
-	return bfd_reloc_continue;
-      value = symbol + addend;
-      break;
-
     case R_RISCV_PJUMP:
     case R_RISCV_GNU_VTINHERIT:
     case R_RISCV_GNU_VTENTRY:
@@ -4349,11 +4340,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	    elf_hash_table (info)->dynobj = dynobj = abfd;
 	  if (!mips_elf_create_got_section (dynobj, info))
 	    return FALSE;
-	  break;
-
-	  /* This is just a hint; it can safely be ignored.  Don't set
-	     has_static_relocs for the corresponding symbol.  */
-	case R_RISCV_JALR:
 	  break;
 
 	case R_RISCV_32:

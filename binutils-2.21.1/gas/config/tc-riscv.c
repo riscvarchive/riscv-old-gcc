@@ -2852,7 +2852,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_MIPS_SCN_DISP:
     case BFD_RELOC_MIPS_REL16:
     case BFD_RELOC_MIPS_RELGOT:
-    case BFD_RELOC_MIPS_JALR:
     case BFD_RELOC_HI16:
     case BFD_RELOC_HI16_S:
     case BFD_RELOC_GPREL16:

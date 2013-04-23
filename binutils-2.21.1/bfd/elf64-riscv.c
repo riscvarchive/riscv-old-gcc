@@ -543,21 +543,7 @@ static reloc_howto_type mips_elf64_howto_table_rel[] =
 	 0xffffffff,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* Protected jump conversion.  This is an optimization hint.  No
-     relocation is required for correctness.  */
-  HOWTO (R_RISCV_JALR,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_JALR",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0x00000000,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO(37),
 
   /* TLS relocations.  */
   EMPTY_HOWTO (R_RISCV_TLS_DTPMOD32),
@@ -1225,21 +1211,7 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 	 0xffffffff,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* Protected jump conversion.  This is an optimization hint.  No
-     relocation is required for correctness.  */
-  HOWTO (R_RISCV_JALR,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_JALR",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0x00000000,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO(37),
 
   /* TLS relocations.  */
   EMPTY_HOWTO (R_RISCV_TLS_DTPMOD32),
@@ -2024,7 +1996,6 @@ static const struct elf_reloc_map mips_reloc_map[] =
   { BFD_RELOC_MIPS_REL16, R_RISCV_REL16 },
   /* Use of R_RISCV_ADD_IMMEDIATE and R_RISCV_PJUMP is deprecated.  */
   { BFD_RELOC_MIPS_RELGOT, R_RISCV_RELGOT },
-  { BFD_RELOC_MIPS_JALR, R_RISCV_JALR },
   { BFD_RELOC_MIPS_TLS_DTPMOD32, R_RISCV_TLS_DTPMOD32 },
   { BFD_RELOC_MIPS_TLS_DTPREL32, R_RISCV_TLS_DTPREL32 },
   { BFD_RELOC_MIPS_TLS_DTPMOD64, R_RISCV_TLS_DTPMOD64 },
