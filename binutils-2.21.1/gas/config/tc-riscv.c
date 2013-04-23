@@ -443,7 +443,7 @@ static inline unsigned int
 insn_length (const struct mips_cl_insn *insn)
 {
   /* RVC instructions have insn[1:0] != 3 */
-  return (insn->insn_opcode & 0x3) != 0x3 ? 2 : 4;
+  return mips_opts.rvc && (insn->insn_opcode & 0x3) != 0x3 ? 2 : 4;
 }
 
 static int
