@@ -1009,6 +1009,40 @@ struct regname {
     {"vx30",	RTYPE_VGR_REG | 30}, \
     {"vx31",	RTYPE_VGR_REG | 31}
 
+#define RISCV_VEC_GR_SYMBOLIC_REGISTER_NAMES \
+    {"vzero",	RTYPE_VGR_REG | 0}, \
+    {"vra",	RTYPE_VGR_REG | 1}, \
+    {"vs0",	RTYPE_VGR_REG | 2}, \
+    {"vs1",	RTYPE_VGR_REG | 3}, \
+    {"vs2",	RTYPE_VGR_REG | 4}, \
+    {"vs3",	RTYPE_VGR_REG | 5}, \
+    {"vs4",	RTYPE_VGR_REG | 6}, \
+    {"vs5",	RTYPE_VGR_REG | 7}, \
+    {"vs6",	RTYPE_VGR_REG | 8}, \
+    {"vs7",	RTYPE_VGR_REG | 9}, \
+    {"vs8",	RTYPE_VGR_REG | 10}, \
+    {"vs9",	RTYPE_VGR_REG | 11}, \
+    {"vs10",	RTYPE_VGR_REG | 12}, \
+    {"vs11",	RTYPE_VGR_REG | 13}, \
+    {"vsp",	RTYPE_VGR_REG | 14}, \
+    {"vtp",	RTYPE_VGR_REG | 15}, \
+    {"vv0",	RTYPE_VGR_REG | 16}, \
+    {"vv1",	RTYPE_VGR_REG | 17}, \
+    {"va0",	RTYPE_VGR_REG | 18}, \
+    {"va1",	RTYPE_VGR_REG | 19}, \
+    {"va2",	RTYPE_VGR_REG | 20}, \
+    {"va3",	RTYPE_VGR_REG | 21}, \
+    {"va4",	RTYPE_VGR_REG | 22}, \
+    {"va5",	RTYPE_VGR_REG | 23}, \
+    {"va6",	RTYPE_VGR_REG | 24}, \
+    {"va7",	RTYPE_VGR_REG | 25}, \
+    {"va8",	RTYPE_VGR_REG | 26}, \
+    {"va9",	RTYPE_VGR_REG | 27}, \
+    {"va10",	RTYPE_VGR_REG | 28}, \
+    {"va11",	RTYPE_VGR_REG | 29}, \
+    {"va12",	RTYPE_VGR_REG | 30}, \
+    {"va13",	RTYPE_VGR_REG | 31}
+
 #define RISCV_VEC_FP_REGISTER_NAMES \
     {"vf0",	RTYPE_VFP_REG | 0}, \
     {"vf1",	RTYPE_VFP_REG | 1}, \
@@ -1053,6 +1087,8 @@ static const struct regname reg_names[] = {
 
   RISCV_VEC_GR_REGISTER_NAMES,
   RISCV_VEC_FP_REGISTER_NAMES,
+
+  RISCV_VEC_GR_SYMBOLIC_REGISTER_NAMES,
 
   {0, 0}
 };

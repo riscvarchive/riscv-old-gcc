@@ -87,10 +87,10 @@ static const char * const mips_cp0_names_numeric[32] =
 
 static const char * const mips_vgr_reg_names_riscv[32] =
 {
-  "vzero","vra",  "vv0",  "vv1",  "va0",  "va1",  "va2",  "va3",
-  "va4",  "va5",  "va6",  "va7",  "vt0",  "vt1",  "vt2",  "vt3",
-  "vt4",  "vt5",  "vt6",  "vt7",  "vs0",  "vs1",  "vs2",  "vs3",
-  "vs4",  "vs5",  "vs6",  "vs7",  "vs8",  "vs9",  "vsp",  "vtp"
+  "vzero","vra",  "vs0",  "vs1",  "vs2",  "vs3",  "vs4",  "vs5",
+  "vs6",  "vs7",  "vs8",  "vs9",  "vs10", "vs11", "vsp",  "vtp",
+  "vv0",  "vv1",  "va0",  "va1",  "va2",  "va3",  "va4",  "va5",
+  "va6",  "va7",  "va8",  "va9",  "va10", "va11", "va12", "va13"
 };
 
 static const char * const mips_vfp_reg_names_riscv[32] =
