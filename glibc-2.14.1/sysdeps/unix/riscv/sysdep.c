@@ -37,7 +37,7 @@ long __syscall_error()
     errno_val = EAGAIN;
 #endif
 
-  errno = errno_val;
+  errno = -errno_val;
 
   return -1;
 }
