@@ -1,15 +1,12 @@
 #include <string.h>
 #include <stdint.h>
 
+#undef strlen
+
 size_t strlen(const char* str)
 {
   const char* start = str;
 
-#if defined(PREFER_SIZE_OVER_SPEED) || defined(__OPTIMIZE_SIZE__)
-  while (*str++)
-    ;
-  return str - start - 1;
-#else
   if (__builtin_expect((uintptr_t)str & (sizeof(long)-1), 0)) do
   {
     char ch = *str;
@@ -37,5 +34,5 @@ size_t strlen(const char* str)
   if (c1 == 0)            return ret + 5 - sl;
   if (c2 == 0)            return ret + 6 - sl;
                           return ret + 7 - sl;
-#endif /* not PREFER_SIZE_OVER_SPEED */
 }
+libc_hidden_def(strlen)

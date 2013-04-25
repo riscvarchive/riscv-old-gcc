@@ -9,9 +9,9 @@
       return c11 - c21; \
   } while(0)
 
+#undef strcmp
 int strcmp(const char* s1, const char* s2)
 {
-#if !defined(PREFER_SIZE_OVER_SPEED) && !defined(__OPTIMIZE_SIZE__)
   int misaligned = ((uintptr_t)s1 | (uintptr_t)s2) & (sizeof(long)-1);
   if (__builtin_expect(!misaligned, 1))
   {
@@ -31,13 +31,12 @@ int strcmp(const char* s1, const char* s2)
 
       if (sizeof(long) == 8)
       {
-        STRCMP2B(s1-8, s2-8, 0);
-        STRCMP2B(s1-6, s2-6, 0);
+	STRCMP2B(s1-8, s2-8, 0);
+	STRCMP2B(s1-6, s2-6, 0);
       }
       STRCMP2B(s1-4, s2-4, 0);
       STRCMP2B(s1-2, s2-2, 1);
   }
-#endif /* not PREFER_SIZE_OVER_SPEED */
 
   unsigned char c1, c2;
   const unsigned char* us1 = (const unsigned char*)s1;
@@ -50,3 +49,4 @@ int strcmp(const char* s1, const char* s2)
   while (c1 == c2 && c1 != 0);
   return c1 - c2;
 }
+libc_hidden_def(strcmp)

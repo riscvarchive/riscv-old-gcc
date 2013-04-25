@@ -10,6 +10,14 @@
 
 #if defined(__GNUC__) && !defined(__cplusplus)
 
+static inline unsigned long __libc_detect_null(unsigned long w)
+{
+  unsigned long mask = 0x7f7f7f7f;
+  if (sizeof(long) == 8)
+    mask = ((mask << 16) << 16) | mask;
+  return ~(((w & mask) + mask) | w | mask);
+}
+
 #define _HAVE_STRING_ARCH_memcpy 1
 #define __use_memcpy_align(k, d, s, n) \
   (__builtin_constant_p(n) && (n) % (k) == 0 && (n) <= 64 && \

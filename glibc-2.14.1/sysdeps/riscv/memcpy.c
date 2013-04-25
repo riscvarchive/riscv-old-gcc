@@ -1,51 +1,64 @@
 #include <string.h>
+#include <stdint.h>
 
 #undef memcpy
 #undef __memcpy_g
 
-void* __memcpy_g(void* dst, const void* src, size_t n)
+void* __memcpy_g(void* aa, const void* bb, size_t n)
 {
-  void* dst0 = dst;
-  void* end = dst + n;
-
-  /* are dst and src word-aligned? */
-  if ((((long)dst | (long)src) & (sizeof(long)-1)) == 0)
-  {
-    /* copy 10 words at a time */
-    for ( ; dst <= end - 10*sizeof(long); dst += 10*sizeof(long), src += 10*sizeof(long))
-    {
-      long t0 = *(const long*)(src+0*sizeof(long));
-      long t1 = *(const long*)(src+1*sizeof(long));
-      long t2 = *(const long*)(src+2*sizeof(long));
-      long t3 = *(const long*)(src+3*sizeof(long));
-      long t4 = *(const long*)(src+4*sizeof(long));
-      long t5 = *(const long*)(src+5*sizeof(long));
-      long t6 = *(const long*)(src+6*sizeof(long));
-      long t7 = *(const long*)(src+7*sizeof(long));
-      long t8 = *(const long*)(src+8*sizeof(long));
-      long t9 = *(const long*)(src+9*sizeof(long));
-      *(long*)(dst+0*sizeof(long)) = t0;
-      *(long*)(dst+1*sizeof(long)) = t1;
-      *(long*)(dst+2*sizeof(long)) = t2;
-      *(long*)(dst+3*sizeof(long)) = t3;
-      *(long*)(dst+4*sizeof(long)) = t4;
-      *(long*)(dst+5*sizeof(long)) = t5;
-      *(long*)(dst+6*sizeof(long)) = t6;
-      *(long*)(dst+7*sizeof(long)) = t7;
-      *(long*)(dst+8*sizeof(long)) = t8;
-      *(long*)(dst+9*sizeof(long)) = t9;
-    }
-
-    /* copy a word at a time */
-    for ( ; dst <= end - sizeof(long); dst += sizeof(long), src += sizeof(long))
-      *(long*)dst = *(const long*)src;
+  #define BODY(a, b, t) { \
+    t tt = *b; \
+    a++, b++; \
+    *(a-1) = tt; \
   }
 
-  /* copy a byte at a time */
-  for ( ; dst < end; dst++, src++)
-    *(char*)dst = *(const char*)src;
+  char* a = (char*)aa;
+  const char* b = (const char*)bb;
+  char* end = a+n;
+  uintptr_t msk = sizeof(long)-1;
+  if (__builtin_expect(((uintptr_t)a & msk) != ((uintptr_t)b & msk) || n < sizeof(long), 0))
+  {
+foo:
+    if (__builtin_expect(a < end, 1))
+      while (a < end)
+        BODY(a, b, char);
+    return aa;
+  }
 
-  return dst0;
+  if (__builtin_expect(((uintptr_t)a & msk) != 0, 0))
+    while ((uintptr_t)a & msk)
+      BODY(a, b, char);
+
+  long* __restrict__ la = (long*)a;
+  const long* __restrict__ lb = (const long*)b;
+  long* lend = (long*)((uintptr_t)end & ~msk);
+
+  if (__builtin_expect(la < lend-8, 0))
+  {
+    while (la < lend-8)
+    {
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+      *la++ = *lb++;
+    }
+    if (la == lend)
+      goto bar;
+  }
+
+  do BODY(la, lb, long) while (la < lend);
+
+bar:
+  a = (char*)la;
+  b = (const char*)lb;
+  if (__builtin_expect(a < end, 0))
+    goto foo;
+  return aa;
 }
 libc_hidden_def (__memcpy_g)
 strong_alias (__memcpy_g, memcpy)

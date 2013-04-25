@@ -19,19 +19,13 @@ void* memset(void* dst, int val, size_t n)
     # error
     #endif
 
-    /* set 10 words at a time */
-    for ( ; dst <= end - 10*sizeof(long); dst += 10*sizeof(long))
+    /* set 4 words at a time */
+    for ( ; dst <= end - 4*sizeof(long); dst += 4*sizeof(long))
     {
       *(long*)(dst+0*sizeof(long)) = lval;
       *(long*)(dst+1*sizeof(long)) = lval;
       *(long*)(dst+2*sizeof(long)) = lval;
       *(long*)(dst+3*sizeof(long)) = lval;
-      *(long*)(dst+4*sizeof(long)) = lval;
-      *(long*)(dst+5*sizeof(long)) = lval;
-      *(long*)(dst+6*sizeof(long)) = lval;
-      *(long*)(dst+7*sizeof(long)) = lval;
-      *(long*)(dst+8*sizeof(long)) = lval;
-      *(long*)(dst+9*sizeof(long)) = lval;
     }
 
     /* set a word at a time */
