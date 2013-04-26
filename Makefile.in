@@ -1,14 +1,14 @@
 #!/bin/bash
 
 INSTALL_DIR := @prefix@
-scrdir := $(shell cd @top_srcdir@ && pwd)
+srcdir := $(shell cd @top_srcdir@ && pwd)
 
 BINUTILS_VERSION := 2.21.1
 GCC_VERSION := 4.6.1
 GLIBC_VERSION := 2.14.1
 NEWLIB_VERSION := 1.18.0
 
-LINUX_DIR := $(CURDIR)/linux-headers/
+LINUX_DIR := $(srcdir)/linux-headers/
 
 MAKE_JOBS := 16
 
@@ -45,7 +45,7 @@ linux: build-gcc-linux-stage2
 build-binutils-newlib:
 	rm -rf $@
 	mkdir $@
-	cd $@ && $(scrdir)/binutils-$(BINUTILS_VERSION)/configure \
+	cd $@ && $(srcdir)/binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-elf \
 		--program-prefix=riscv- \
 		--prefix=$(INSTALL_DIR) \
@@ -57,9 +57,9 @@ build-binutils-newlib:
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 build-gcc-newlib-src: build-binutils-newlib
-	cp -r $(scrdir)/gcc-$(GCC_VERSION) $@
-	cp -r $(scrdir)/newlib-$(NEWLIB_VERSION)/newlib $@
-	cp -r $(scrdir)/newlib-$(NEWLIB_VERSION)/libgloss $@
+	cp -r $(srcdir)/gcc-$(GCC_VERSION) $@
+	cp -r $(srcdir)/newlib-$(NEWLIB_VERSION)/newlib $@
+	cp -r $(srcdir)/newlib-$(NEWLIB_VERSION)/libgloss $@
 
 build-gcc-newlib: build-gcc-newlib-src
 	rm -rf $@
@@ -84,7 +84,7 @@ build-gcc-newlib: build-gcc-newlib-src
 build-binutils-linux:
 	rm -rf $@
 	mkdir $@
-	cd $@ && $(scrdir)/binutils-$(BINUTILS_VERSION)/configure \
+	cd $@ && $(srcdir)/binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-linux \
 		--prefix=$(INSTALL_DIR) \
 		--enable-tls \
@@ -97,7 +97,7 @@ build-binutils-linux:
 build-gcc-linux-stage1: build-binutils-linux
 	rm -rf $@
 	mkdir $@
-	cd $@ && $(scrdir)/gcc-$(GCC_VERSION)/configure \
+	cd $@ && $(srcdir)/gcc-$(GCC_VERSION)/configure \
 		--target=riscv-linux \
 		--prefix=$(INSTALL_DIR) \
 		--enable-shared \
@@ -118,7 +118,7 @@ build-gcc-linux-stage1: build-binutils-linux
 build-glibc-linux: build-gcc-linux-stage1
 	rm -rf $@
 	mkdir $@
-	cd $@ && $(CURDIR)/glibc-$(GLIBC_VERSION)/configure \
+	cd $@ && $(srcdir)/glibc-$(GLIBC_VERSION)/configure \
 		riscv-linux \
 		--target=riscv-linux \
 		--prefix=$(INSTALL_DIR)/riscv-linux \
@@ -135,7 +135,7 @@ build-glibc-linux: build-gcc-linux-stage1
 build-gcc-linux-stage2: build-glibc-linux
 	rm -rf $@
 	mkdir $@
-	cd $@ && $(scrdir)/gcc-$(GCC_VERSION)/configure \
+	cd $@ && $(srcdir)/gcc-$(GCC_VERSION)/configure \
 		--target=riscv-linux \
 		--prefix=$(INSTALL_DIR) \
 		--enable-shared \
@@ -154,7 +154,7 @@ build-gcc-linux-stage2: build-glibc-linux
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
 clean:
-	rm -rf build-* *-*-riscv.patch
+	rm -rf build-*
 
 # the newlib and linux targets perform installation, so this does nothing
 install:
