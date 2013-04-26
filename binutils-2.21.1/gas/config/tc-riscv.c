@@ -74,18 +74,8 @@ static int mips_output_flavor (void) { return OUTPUT_FLAVOR; }
 static char *mips_regmask_frag;
 #endif
 
-#define ILLEGAL_REG (32)
-
 #define ZERO 0
-#define TREG 18
-#define PIC_CALL_REG 19
-#define KT0 ILLEGAL_REG
-#define KT1 ILLEGAL_REG
-#define GP  ILLEGAL_REG
-#define FP  29
-#define SP  30
-#define ATREG ILLEGAL_REG
-#define RA  LINK_REG
+#define SP 14
 
 /* Allow override of standard little-endian ECOFF format.  */
 
@@ -1528,7 +1518,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
       if (pinfo & INSN_WRITE_GPR_D)
 	mips_gprmask |= 1 << EXTRACT_OPERAND (RD, *ip);
       if (pinfo & INSN_WRITE_GPR_RA)
-	mips_gprmask |= 1 << RA;
+	mips_gprmask |= 1 << LINK_REG;
       if (pinfo & INSN_WRITE_FPR_D)
 	mips_fprmask |= 1 << EXTRACT_OPERAND (FD, *ip);
 
