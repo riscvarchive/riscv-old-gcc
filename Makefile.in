@@ -1,7 +1,7 @@
 #!/bin/bash
 
 INSTALL_DIR := @prefix@
-scrdir := @top_srcdir@
+scrdir := $(shell cd @top_srcdir@ && pwd)
 
 BINUTILS_VERSION := 2.21.1
 GCC_VERSION := 4.6.1
@@ -157,6 +157,9 @@ build-gcc-linux-stage2: build-glibc-linux
 
 clean:
 	rm -rf build-* *-*-riscv.patch
+
+# the newlib and linux targets perform installation, so this does nothing
+install:
 
 patches:
 	git diff 68ad6027997289e55963bee1c60fcf6aeec2dafd -- binutils-$(BINUTILS_VERSION) | sed 's/^+++ b\/binutils-/+++ binutils-/' > binutils-$(BINUTILS_VERSION)-riscv.patch
