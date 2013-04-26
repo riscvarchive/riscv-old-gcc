@@ -1210,12 +1210,6 @@ md_assemble (char *str)
 }
 
 static inline bfd_boolean
-got16_reloc_p (bfd_reloc_code_real_type reloc)
-{
-  return reloc == BFD_RELOC_MIPS_GOT16 || reloc == BFD_RELOC_MIPS16_GOT16;
-}
-
-static inline bfd_boolean
 hi16_reloc_p (bfd_reloc_code_real_type reloc)
 {
   return reloc == BFD_RELOC_HI16_S || reloc == BFD_RELOC_MIPS16_HI16_S;
@@ -1584,8 +1578,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	case 'j':
 	  macro_read_relocs (&args, r);
 	  gas_assert (*r == BFD_RELOC_LO16
-		  || *r == BFD_RELOC_MIPS_GOT16
-		  || *r == BFD_RELOC_MIPS_CALL16
 		  || *r == BFD_RELOC_MIPS_GOT_DISP
 		  || *r == BFD_RELOC_MIPS_GOT_LO16
 		  || *r == BFD_RELOC_MIPS_CALL_LO16);
@@ -2764,14 +2756,10 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_MIPS_RELGOT:
     case BFD_RELOC_HI16:
     case BFD_RELOC_HI16_S:
-    case BFD_RELOC_MIPS_CALL16:
-    case BFD_RELOC_MIPS_GOT16:
     case BFD_RELOC_MIPS_GOT_HI16:
     case BFD_RELOC_MIPS_GOT_LO16:
     case BFD_RELOC_MIPS_CALL_HI16:
     case BFD_RELOC_MIPS_CALL_LO16:
-    case BFD_RELOC_MIPS16_GOT16:
-    case BFD_RELOC_MIPS16_CALL16:
     case BFD_RELOC_MIPS16_HI16:
     case BFD_RELOC_MIPS16_HI16_S:
     case BFD_RELOC_MIPS16_JMP:

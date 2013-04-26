@@ -203,9 +203,7 @@ struct _mips_elf_section_data
 /* The ABI says that every symbol used by dynamic relocations must have
    a global GOT entry.  Among other things, this provides the dynamic
    linker with a free, directly-indexed cache.  The GOT can therefore
-   contain symbols that are not referenced by GOT relocations themselves
-   (in other words, it may have symbols that are not referenced by things
-   like R_RISCV_GOT16).
+   contain symbols that are not referenced by GOT relocations themselves.
 
    GOT relocations are less likely to overflow if we put the associated
    GOT entries towards the beginning.  We therefore divide the global
@@ -659,27 +657,9 @@ _bfd_riscv_elf_new_section_hook (bfd *abfd, asection *sec)
 }
 
 static inline bfd_boolean
-got16_reloc_p (int r_type)
-{
-  return r_type == R_RISCV_GOT16;
-}
-
-static inline bfd_boolean
-call16_reloc_p (int r_type)
-{
-  return r_type == R_RISCV_CALL16;
-}
-
-static inline bfd_boolean
 hi16_reloc_p (int r_type)
 {
   return r_type == R_RISCV_HI16;
-}
-
-static inline bfd_boolean
-lo16_reloc_p (int r_type)
-{
-  return r_type == R_RISCV_LO16;
 }
 
 static bfd_vma
@@ -688,8 +668,8 @@ mips_elf_high (bfd_vma value)
   return RISCV_LUI_HIGH_PART (value) & ((1<<RISCV_BIGIMM_BITS)-1);
 }
 
-/* Used to store a REL high-part relocation such as R_RISCV_HI16 or
-   R_RISCV_GOT16.  REL is the relocation, INPUT_SECTION is the section
+/* Used to store a REL high-part relocation such as R_RISCV_HI16.
+   REL is the relocation, INPUT_SECTION is the section
    that contains the relocation field and DATA points to the start of
    INPUT_SECTION.  */
 
@@ -741,27 +721,6 @@ _bfd_riscv_elf_hi16_reloc (bfd *abfd ATTRIBUTE_UNUSED, arelent *reloc_entry,
   return bfd_reloc_ok;
 }
 
-/* A howto special_function for REL R_MIPS*_GOT16 relocations.  This is just
-   like any other 16-bit relocation when applied to global symbols, but is
-   treated in the same as R_RISCV_HI16 when applied to local symbols.  */
-
-bfd_reloc_status_type
-_bfd_riscv_elf_got16_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
-			   void *data, asection *input_section,
-			   bfd *output_bfd, char **error_message)
-{
-  if ((symbol->flags & (BSF_GLOBAL | BSF_WEAK)) != 0
-      || bfd_is_und_section (bfd_get_section (symbol))
-      || bfd_is_com_section (bfd_get_section (symbol)))
-    /* The relocation is against a global symbol.  */
-    return _bfd_riscv_elf_generic_reloc (abfd, reloc_entry, symbol, data,
-					input_section, output_bfd,
-					error_message);
-
-  return _bfd_riscv_elf_hi16_reloc (abfd, reloc_entry, symbol, data,
-				   input_section, output_bfd, error_message);
-}
-
 /* A howto special_function for REL *LO16 relocations.  The *LO16 itself
    is a straightforward 16 bit inplace relocation, but we must deal with
    any partnering high-part relocations as well.  */
@@ -785,14 +744,6 @@ _bfd_riscv_elf_lo16_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
       struct mips_hi16 *hi;
 
       hi = mips_hi16_list;
-
-      /* R_MIPS*_GOT16 relocations are something of a special case.  We
-	 want to install the addend in the same way as for a R_MIPS*_HI16
-	 relocation (with a rightshift of 16).  However, since GOT16
-	 relocations can also be used with global symbols, their howto
-	 has a rightshift of 0.  */
-      if (hi->rel.howto->type == R_RISCV_GOT16)
-	hi->rel.howto = MIPS_ELF_RTYPE_TO_HOWTO (abfd, R_RISCV_HI16, FALSE);
 
       /* VALLO is a signed 16-bit number.  Bias it by 0x8000 so that any
 	 carry or borrow will induce a change of +1 or -1 in the high part.  */
@@ -1417,34 +1368,6 @@ mips_elf_global_got_index (bfd *abfd, struct elf_link_hash_entry *h,
   BFD_ASSERT (got_index < htab->sgot->size);
 
   return got_index;
-}
-
-/* Find a local GOT entry for an R_MIPS*_GOT16 relocation against VALUE.
-   EXTERNAL is true if the relocation was originally against a global
-   symbol that binds locally.  */
-
-static bfd_vma
-mips_elf_got16_entry (bfd *abfd, bfd *ibfd, struct bfd_link_info *info,
-		      bfd_vma value, bfd_boolean external)
-{
-  struct mips_got_entry *entry;
-
-  /* GOT16 relocations against local symbols are followed by a LO16
-     relocation; those against global symbols are not.  Thus if the
-     symbol was originally local, the GOT16 relocation should load the
-     equivalent of %hi(VALUE), otherwise it should load VALUE itself.  */
-  if (! external)
-    value = mips_elf_high (value) << RISCV_IMM_BITS;
-
-  /* It doesn't matter whether the original relocation was R_RISCV_GOT16,
-     R_MIPS16_GOT16, R_RISCV_CALL16, etc.  The format of the entry is the
-     same in all cases.  */
-  entry = mips_elf_create_local_got_entry (abfd, info, ibfd, value, 0,
-					   NULL, R_RISCV_GOT16);
-  if (entry)
-    return entry->gotidx;
-  else
-    return MINUS_ONE;
 }
 
 /* Returns the offset for the entry at the INDEXth position
@@ -2333,7 +2256,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
   struct mips_elf_link_hash_entry *h = NULL;
   /* TRUE if the symbol referred to by this relocation is a local
      symbol.  */
-  bfd_boolean local_p, was_local_p;
+  bfd_boolean local_p;
   Elf_Internal_Shdr *symtab_hdr;
   size_t extsymoff;
   unsigned long r_symndx;
@@ -2364,7 +2287,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
   symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
   local_p = mips_elf_local_relocation_p (input_bfd, relocation,
 					 local_sections);
-  was_local_p = local_p;
   if (! elf_bad_symtab (input_bfd))
     extsymoff = symtab_hdr->sh_info;
   else
@@ -2470,10 +2392,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
      to need it, get it now.  */
   switch (r_type)
     {
-    case R_MIPS16_CALL16:
-    case R_MIPS16_GOT16:
-    case R_RISCV_CALL16:
-    case R_RISCV_GOT16:
     case R_RISCV_GOT_DISP:
     case R_RISCV_GOT_HI16:
     case R_RISCV_CALL_HI16:
@@ -2505,9 +2423,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 		/* This is a static link.  We must initialize the GOT entry.  */
 		MIPS_ELF_PUT_WORD (dynobj, symbol, htab->sgot->contents + g);
 	}
-      else if (call16_reloc_p (r_type) || got16_reloc_p (r_type))
-	/* The calculation below does not involve "g".  */
-	break;
       else
 	{
 	  g = mips_elf_local_got_index (abfd, input_bfd, info,
@@ -2624,23 +2539,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_MIPS16_LO16:
       value = ((symbol + addend) << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
-
-    case R_MIPS16_GOT16:
-    case R_MIPS16_CALL16:
-    case R_RISCV_GOT16:
-    case R_RISCV_CALL16:
-      if (local_p)
-	{
-	  value = mips_elf_got16_entry (abfd, input_bfd, info,
-					symbol + addend, !was_local_p);
-	  if (value == MINUS_ONE)
-	    return bfd_reloc_outofrange;
-	  value
-	    = mips_elf_got_offset_from_index (info, value);
-	  overflowed_p = mips_elf_overflow_p (value, RISCV_IMM_BITS);
-	  value = (value << OP_SH_IMMEDIATE) & howto->dst_mask;
-	  break;
-	}
 
       /* Fall through.  */
 
@@ -3511,10 +3409,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
       can_make_dynamic_p = FALSE;
       switch (r_type)
 	{
-	case R_MIPS16_GOT16:
-	case R_MIPS16_CALL16:
-	case R_RISCV_GOT16:
-	case R_RISCV_CALL16:
 	case R_RISCV_CALL_HI16:
 	case R_RISCV_CALL_LO16:
 	case R_RISCV_GOT_HI16:
@@ -3595,14 +3489,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	       || r_type == R_RISCV_GOT_LO16
 	       || r_type == R_RISCV_GOT_DISP)
 	{
-	  /* We may need a local GOT entry for this relocation.  We
-	     don't count R_RISCV_GOT_PAGE because we can estimate the
-	     maximum number of pages needed by looking at the size of
-	     the segment.  Similar comments apply to R_MIPS*_GOT16 and
-	     R_MIPS*_CALL16, except on VxWorks, where GOT relocations
-	     always evaluate to "G".  We don't count R_RISCV_GOT_HI16, or
-	     R_RISCV_CALL_HI16 because these are always followed by an
-	     R_RISCV_GOT_LO16 or R_RISCV_CALL_LO16.  */
 	  if (!mips_elf_record_local_got_symbol (abfd, r_symndx,
 						 rel->r_addend, info, 0))
 	    return FALSE;
@@ -3610,20 +3496,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
       switch (r_type)
 	{
-	case R_RISCV_CALL16:
-	case R_MIPS16_CALL16:
-	  if (h == NULL)
-	    {
-	      (*_bfd_error_handler)
-		(_("%B: CALL16 reloc at 0x%lx not against global symbol"),
-		 abfd, (unsigned long) rel->r_offset);
-	      bfd_set_error (bfd_error_bad_value);
-	      return FALSE;
-	    }
-	  /* Fall through.  */
-
-	case R_MIPS16_GOT16:
-	case R_RISCV_GOT16:
 	case R_RISCV_GOT_HI16:
 	case R_RISCV_GOT_LO16:
 	  if (!h)
@@ -3636,11 +3508,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 		  howto = MIPS_ELF_RTYPE_TO_HOWTO (abfd, r_type, FALSE);
 		  addend = mips_elf_read_rel_addend (abfd, rel,
 						     howto, contents);
-		  if (got16_reloc_p (r_type))
-		    mips_elf_add_lo16_rel_addend (abfd, rel, rel_end,
-						  contents, &addend);
-		  else
-		    addend <<= howto->rightshift;
+		  addend <<= howto->rightshift;
 		}
 	      else
 		addend = rel->r_addend;
@@ -3778,32 +3646,20 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  break;
 	}
 
-      /* Refuse some position-dependent relocations when creating a
-	 shared library.  Do not refuse R_RISCV_32 / R_RISCV_64; they're
-	 not PIC, but we can create dynamic relocations and the result
-	 will be fine.  Also do not refuse R_RISCV_LO16, which can be
-	 combined with R_RISCV_GOT16.  */
-      if (info->shared)
+      /* Refuse position-dependent relocations when creating a
+	 shared library. */
+      if (info->shared && r_symndx != STN_UNDEF && r_type == R_RISCV_HI16)
 	{
-	  switch (r_type)
-	    {
-	    case R_MIPS16_HI16:
-	    case R_RISCV_HI16:
-	      /* Don't refuse a high part relocation if it's against
-		 no symbol (e.g. part of a compound relocation).  */
-	      if (r_symndx == STN_UNDEF)
-		break;
+	  if (r_symndx == STN_UNDEF)
+	    break;
 
-	      howto = MIPS_ELF_RTYPE_TO_HOWTO (abfd, r_type, FALSE);
-	      (*_bfd_error_handler)
-		(_("%B: relocation %s against `%s' can not be used when making a shared object; recompile with -fPIC"),
-		 abfd, howto->name,
-		 (h) ? h->root.root.string : "a local symbol");
-	      bfd_set_error (bfd_error_bad_value);
-	      return FALSE;
-	    default:
-	      break;
-	    }
+	  howto = MIPS_ELF_RTYPE_TO_HOWTO (abfd, r_type, FALSE);
+	  (*_bfd_error_handler)
+	    (_("%B: relocation %s against `%s' can not be used when making a shared object; recompile with -fPIC"),
+	     abfd, howto->name,
+	     (h) ? h->root.root.string : "a local symbol");
+	  bfd_set_error (bfd_error_bad_value);
+	  return FALSE;
 	}
     }
 
@@ -4436,10 +4292,7 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	      rela_relocation_p = FALSE;
 	      addend = mips_elf_read_rel_addend (input_bfd, rel,
 						 howto, contents);
-	      if (hi16_reloc_p (r_type)
-		  || (got16_reloc_p (r_type)
-		      && mips_elf_local_relocation_p (input_bfd, rel,
-						      local_sections)))
+	      if (hi16_reloc_p (r_type))
 		{
 		  if (!mips_elf_add_lo16_rel_addend (input_bfd, rel, relend,
 						     contents, &addend))
@@ -4470,7 +4323,7 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	  if (!rela_relocation_p && rel->r_addend)
 	    {
 	      addend += rel->r_addend;
-	      if (hi16_reloc_p (r_type) || got16_reloc_p (r_type))
+	      if (hi16_reloc_p (r_type))
 		addend = mips_elf_high (addend);
 	      else
 		addend >>= howto->rightshift;
@@ -4664,7 +4517,7 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       bfd_vma value;
 
       value = sym->st_value;
-      offset = mips_elf_global_got_index (dynobj, h, R_RISCV_GOT16, info);
+      offset = mips_elf_global_got_index (dynobj, h, R_RISCV_GOT_HI16, info);
       MIPS_ELF_PUT_WORD (output_bfd, value, sgot->contents + offset);
     }
 

@@ -217,21 +217,7 @@ static reloc_howto_type mips_elf64_howto_table_rel[] =
 
   EMPTY_HOWTO (7),
   EMPTY_HOWTO (8),
-
-  /* Reference to global offset table.  */
-  HOWTO (R_RISCV_GOT16,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,	/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_got16_reloc, /* special_function */
-	 "R_RISCV_GOT16",	/* name */
-	 TRUE,			/* partial_inplace */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (9),
 
   /* 16 bit PC relative reference.  Note that the ABI document has a typo
      and claims R_RISCV_PC16 to be not rightshifted, rendering it useless.
@@ -250,21 +236,7 @@ static reloc_howto_type mips_elf64_howto_table_rel[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 TRUE),			/* pcrel_offset */
 
-  /* 16 bit call through global offset table.  */
-  HOWTO (R_RISCV_CALL16,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_CALL16",	/* name */
-	 TRUE,			/* partial_inplace */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (11),
   EMPTY_HOWTO (12),
   EMPTY_HOWTO (13),
   EMPTY_HOWTO (14),
@@ -844,21 +816,7 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 
   EMPTY_HOWTO (7),
   EMPTY_HOWTO (8),
-
-  /* Reference to global offset table.  */
-  HOWTO (R_RISCV_GOT16,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_GOT16",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (9),
 
   /* 16 bit PC relative reference.  Note that the ABI document has a typo
      and claims R_RISCV_PC16 to be not rightshifted, rendering it useless.
@@ -877,21 +835,7 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 TRUE),			/* pcrel_offset */
 
-  /* 16 bit call through global offset table.  */
-  HOWTO (R_RISCV_CALL16,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_CALL16",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (11),
   EMPTY_HOWTO (12),
   EMPTY_HOWTO (13),
   EMPTY_HOWTO (14),
@@ -1635,8 +1579,6 @@ static const struct elf_reloc_map mips_reloc_map[] =
   { BFD_RELOC_HI16_S, R_RISCV_HI16 },
   { BFD_RELOC_LO16, R_RISCV_LO16 },
   { BFD_RELOC_MIPS_JMP, R_RISCV_26 },
-  { BFD_RELOC_MIPS_GOT16, R_RISCV_GOT16 },
-  { BFD_RELOC_MIPS_CALL16, R_RISCV_CALL16 },
   { BFD_RELOC_MIPS_GOT_DISP, R_RISCV_GOT_DISP },
   { BFD_RELOC_MIPS_GOT_HI16, R_RISCV_GOT_HI16 },
   { BFD_RELOC_MIPS_GOT_LO16, R_RISCV_GOT_LO16 },
