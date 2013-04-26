@@ -68,16 +68,8 @@ static int mips_output_flavor (void) { return OUTPUT_FLAVOR; }
 #include "elf/riscv.h"
 #endif
 
-#include "ecoff.h"
-
 #define ZERO 0
 #define SP 14
-
-/* Allow override of standard little-endian ECOFF format.  */
-
-#ifndef ECOFF_LITTLE_FORMAT
-#define ECOFF_LITTLE_FORMAT "ecoff-littlemips"
-#endif
 
 extern int target_big_endian;
 
@@ -340,18 +332,12 @@ static const pseudo_typeS mips_pseudo_table[] =
   {"text", s_change_sec, 't'},
   {"word", s_cons, 2},
 
-  { NULL, NULL, 0 },
-};
-
-static const pseudo_typeS mips_nonecoff_pseudo_table[] =
-{
-  /* These pseudo-ops should be defined by the object file format.
-     However, a.out doesn't support them, so we have versions here.  */
   {"bgnb", s_ignore, 0},
   {"endb", s_ignore, 0},
   {"file", s_mips_file, 0},
   {"loc", s_mips_loc, 0},
   {"verstamp", s_ignore, 0},
+
   { NULL, NULL, 0 },
 };
 
@@ -361,9 +347,8 @@ void
 mips_pop_insert (void)
 {
   pop_insert (mips_pseudo_table);
-  pop_insert (mips_nonecoff_pseudo_table);
 }
-
+
 /* Symbols labelling the current insn.  */
 
 struct insn_label_list
@@ -1272,10 +1257,6 @@ static void
 append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	     bfd_reloc_code_real_type *reloc_type)
 {
-  unsigned long pinfo;
-
-  pinfo = ip->insn_mo->pinfo;
-
 #ifdef OBJ_ELF
   /* The value passed to dwarf2_emit_insn is the distance between
      the beginning of the current instruction and the address that
@@ -3490,14 +3471,6 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
       /* At this point, fx_addnumber is "symbol offset - pcrel address".
 	 Relocations want only the symbol offset.  */
       reloc->addend = fixp->fx_addnumber + reloc->address;
-      if (!IS_ELF)
-	{
-	  /* A gruesome hack which is a result of the gruesome gas
-	     reloc handling.  What's worse, for COFF (as opposed to
-	     ECOFF), we might need yet another copy of reloc->address.
-	     See bfd_install_relocation.  */
-	  reloc->addend += reloc->address;
-	}
     }
   else
     reloc->addend = fixp->fx_addnumber;

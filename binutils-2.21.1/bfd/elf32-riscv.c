@@ -41,15 +41,6 @@
 #include "elf/riscv.h"
 #include "opcode/riscv.h"
 
-/* Get the ECOFF swapping routines.  */
-#include "coff/sym.h"
-#include "coff/symconst.h"
-#include "coff/internal.h"
-#include "coff/ecoff.h"
-#include "coff/mips.h"
-#define ECOFF_SIGNED_32
-#include "ecoffswap.h"
-
 #include "opcode/riscv.h"
 
 static bfd_boolean mips_elf_assign_gp
@@ -2031,48 +2022,6 @@ elf32_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
   return TRUE;
 }
 
-/* ECOFF swapping routines.  These are used when dealing with the
-   .mdebug section, which is in the ECOFF debugging format.  */
-static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
-  /* Symbol table magic number.  */
-  magicSym,
-  /* Alignment of debugging information.  E.g., 4.  */
-  4,
-  /* Sizes of external symbolic information.  */
-  sizeof (struct hdr_ext),
-  sizeof (struct dnr_ext),
-  sizeof (struct pdr_ext),
-  sizeof (struct sym_ext),
-  sizeof (struct opt_ext),
-  sizeof (struct fdr_ext),
-  sizeof (struct rfd_ext),
-  sizeof (struct ext_ext),
-  /* Functions to swap in external symbolic data.  */
-  ecoff_swap_hdr_in,
-  ecoff_swap_dnr_in,
-  ecoff_swap_pdr_in,
-  ecoff_swap_sym_in,
-  ecoff_swap_opt_in,
-  ecoff_swap_fdr_in,
-  ecoff_swap_rfd_in,
-  ecoff_swap_ext_in,
-  _bfd_ecoff_swap_tir_in,
-  _bfd_ecoff_swap_rndx_in,
-  /* Functions to swap out external symbolic data.  */
-  ecoff_swap_hdr_out,
-  ecoff_swap_dnr_out,
-  ecoff_swap_pdr_out,
-  ecoff_swap_sym_out,
-  ecoff_swap_opt_out,
-  ecoff_swap_fdr_out,
-  ecoff_swap_rfd_out,
-  ecoff_swap_ext_out,
-  _bfd_ecoff_swap_tir_out,
-  _bfd_ecoff_swap_rndx_out,
-  /* Function to read in symbolic data.  */
-  _bfd_riscv_elf_read_ecoff_info
-};
-
 #define ELF_ARCH			bfd_arch_riscv
 #define ELF_TARGET_ID			MIPS_ELF_DATA
 #define ELF_MACHINE_CODE		EM_RISCV
@@ -2085,7 +2034,6 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 #define elf_backend_sym_is_global	mips_elf_sym_is_global
 #define elf_backend_object_p		mips_elf_n32_object_p
 #define elf_backend_symbol_processing	_bfd_riscv_elf_symbol_processing
-#define elf_backend_section_processing	_bfd_riscv_elf_section_processing
 #define elf_backend_section_from_shdr	_bfd_riscv_elf_section_from_shdr
 #define elf_backend_fake_sections	_bfd_riscv_elf_fake_sections
 #define elf_backend_section_from_bfd_section \
@@ -2122,7 +2070,6 @@ static const struct ecoff_debug_swap mips_elf32_ecoff_debug_swap = {
 					_bfd_riscv_elf_copy_indirect_symbol
 #define elf_backend_grok_prstatus	elf32_mips_grok_prstatus
 #define elf_backend_grok_psinfo		elf32_mips_grok_psinfo
-#define elf_backend_ecoff_debug_swap	&mips_elf32_ecoff_debug_swap
 
 #define elf_backend_got_header_size	(4 * MIPS_RESERVED_GOTNO)
 

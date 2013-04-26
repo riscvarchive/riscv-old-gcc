@@ -38,12 +38,6 @@
 #include "elf/riscv.h"
 #include "opcode/riscv.h"
 
-/* Get the ECOFF swapping routines.  */
-#include "coff/sym.h"
-#include "coff/symconst.h"
-#include "coff/ecoff.h"
-#include "coff/mips.h"
-
 #include "hashtab.h"
 
 /* This structure is used to hold information about one GOT entry.
@@ -254,9 +248,6 @@ struct mips_elf_link_hash_entry
 {
   struct elf_link_hash_entry root;
 
-  /* External symbol information.  */
-  EXTR esym;
-
   /* Number of R_RISCV_32, R_RISCV_REL32, or R_RISCV_64 relocs against
      this symbol.  */
   unsigned int possibly_dynamic_relocs;
@@ -295,11 +286,6 @@ struct mips_elf_link_hash_entry
 struct mips_elf_link_hash_table
 {
   struct elf_link_hash_table root;
-#if 0
-  /* We no longer use this.  */
-  /* String section indices for the dynamic section symbols.  */
-  bfd_size_type dynsym_sec_strindex[SIZEOF_MIPS_DYNSYM_SECNAMES];
-#endif
 
   /* Shortcuts to some dynamic sections, or NULL if they are not
      being used.  */
@@ -372,17 +358,6 @@ struct mips_htab_traverse_info
    || (r_type) == R_RISCV_TLS_LDM_HI16		\
    || (r_type) == R_RISCV_TLS_LDM_LO16)
 
-/* Structure used to pass information to mips_elf_output_extsym.  */
-
-struct extsym_info
-{
-  bfd *abfd;
-  struct bfd_link_info *info;
-  struct ecoff_debug_info *debug;
-  const struct ecoff_debug_swap *swap;
-  bfd_boolean failed;
-};
-
 /* The structure of the runtime procedure descriptor created by the
    loader for use by the static exception system.  */
 
@@ -427,14 +402,6 @@ static bfd *reldyn_sorting_bfd;
 
 /* Nonzero if ABFD is using the RV32 ABI.  */
 #define ABI_32_P(abfd) (!ABI_64_P(abfd))
-
-/* The name of the options section.  */
-#define MIPS_ELF_OPTIONS_SECTION_NAME(abfd) ".MIPS.options"
-
-/* True if NAME is the recognized name of any SHT_MIPS_OPTIONS section.
-   Some IRIX system files do not use MIPS_ELF_OPTIONS_SECTION_NAME.  */
-#define MIPS_ELF_OPTIONS_SECTION_NAME_P(NAME) \
-  (strcmp (NAME, ".MIPS.options") == 0)
 
 /* Whether the section is readonly.  */
 #define MIPS_ELF_READONLY_SECTION(sec) \
@@ -664,11 +631,6 @@ mips_elf_link_hash_newfunc (struct bfd_hash_entry *entry,
 				     table, string));
   if (ret != NULL)
     {
-      /* Set local fields.  */
-      memset (&ret->esym, 0, sizeof (EXTR));
-      /* We use -2 as a marker to indicate that the information has
-	 not been set.  -1 means there is no associated ifd.  */
-      ret->esym.ifd = -2;
       ret->possibly_dynamic_relocs = 0;
       ret->tls_type = GOT_NORMAL;
       ret->global_got_area = GGA_NONE;
@@ -694,93 +656,6 @@ _bfd_riscv_elf_new_section_hook (bfd *abfd, asection *sec)
     }
 
   return _bfd_elf_new_section_hook (abfd, sec);
-}
-
-/* Read ECOFF debugging information from a .mdebug section into a
-   ecoff_debug_info structure.  */
-
-bfd_boolean
-_bfd_riscv_elf_read_ecoff_info (bfd *abfd, asection *section,
-			       struct ecoff_debug_info *debug)
-{
-  HDRR *symhdr;
-  const struct ecoff_debug_swap *swap;
-  char *ext_hdr;
-
-  swap = get_elf_backend_data (abfd)->elf_backend_ecoff_debug_swap;
-  memset (debug, 0, sizeof (*debug));
-
-  ext_hdr = bfd_malloc (swap->external_hdr_size);
-  if (ext_hdr == NULL && swap->external_hdr_size != 0)
-    goto error_return;
-
-  if (! bfd_get_section_contents (abfd, section, ext_hdr, 0,
-				  swap->external_hdr_size))
-    goto error_return;
-
-  symhdr = &debug->symbolic_header;
-  (*swap->swap_hdr_in) (abfd, ext_hdr, symhdr);
-
-  /* The symbolic header contains absolute file offsets and sizes to
-     read.  */
-#define READ(ptr, offset, count, size, type)				\
-  if (symhdr->count == 0)						\
-    debug->ptr = NULL;							\
-  else									\
-    {									\
-      bfd_size_type amt = (bfd_size_type) size * symhdr->count;		\
-      debug->ptr = bfd_malloc (amt);					\
-      if (debug->ptr == NULL)						\
-	goto error_return;						\
-      if (bfd_seek (abfd, symhdr->offset, SEEK_SET) != 0		\
-	  || bfd_bread (debug->ptr, amt, abfd) != amt)			\
-	goto error_return;						\
-    }
-
-  READ (line, cbLineOffset, cbLine, sizeof (unsigned char), unsigned char *);
-  READ (external_dnr, cbDnOffset, idnMax, swap->external_dnr_size, void *);
-  READ (external_pdr, cbPdOffset, ipdMax, swap->external_pdr_size, void *);
-  READ (external_sym, cbSymOffset, isymMax, swap->external_sym_size, void *);
-  READ (external_opt, cbOptOffset, ioptMax, swap->external_opt_size, void *);
-  READ (external_aux, cbAuxOffset, iauxMax, sizeof (union aux_ext),
-	union aux_ext *);
-  READ (ss, cbSsOffset, issMax, sizeof (char), char *);
-  READ (ssext, cbSsExtOffset, issExtMax, sizeof (char), char *);
-  READ (external_fdr, cbFdOffset, ifdMax, swap->external_fdr_size, void *);
-  READ (external_rfd, cbRfdOffset, crfd, swap->external_rfd_size, void *);
-  READ (external_ext, cbExtOffset, iextMax, swap->external_ext_size, void *);
-#undef READ
-
-  debug->fdr = NULL;
-
-  return TRUE;
-
- error_return:
-  if (ext_hdr != NULL)
-    free (ext_hdr);
-  if (debug->line != NULL)
-    free (debug->line);
-  if (debug->external_dnr != NULL)
-    free (debug->external_dnr);
-  if (debug->external_pdr != NULL)
-    free (debug->external_pdr);
-  if (debug->external_sym != NULL)
-    free (debug->external_sym);
-  if (debug->external_opt != NULL)
-    free (debug->external_opt);
-  if (debug->external_aux != NULL)
-    free (debug->external_aux);
-  if (debug->ss != NULL)
-    free (debug->ss);
-  if (debug->ssext != NULL)
-    free (debug->ssext);
-  if (debug->external_fdr != NULL)
-    free (debug->external_fdr);
-  if (debug->external_rfd != NULL)
-    free (debug->external_rfd);
-  if (debug->external_ext != NULL)
-    free (debug->external_ext);
-  return FALSE;
 }
 
 static inline bfd_boolean
@@ -1068,90 +943,6 @@ _bfd_riscv_elf_generic_reloc (bfd *abfd ATTRIBUTE_UNUSED, arelent *reloc_entry,
   return bfd_reloc_ok;
 }
 
-/* A .reginfo section holds a single Elf32_RegInfo structure.  These
-   routines swap this structure in and out.  They are used outside of
-   BFD, so they are globally visible.  */
-
-void
-bfd_riscv_elf32_swap_reginfo_in (bfd *abfd, const Elf32_External_RegInfo *ex,
-				Elf32_RegInfo *in)
-{
-  in->ri_gprmask = H_GET_32 (abfd, ex->ri_gprmask);
-  in->ri_cprmask[0] = H_GET_32 (abfd, ex->ri_cprmask[0]);
-  in->ri_cprmask[1] = H_GET_32 (abfd, ex->ri_cprmask[1]);
-  in->ri_cprmask[2] = H_GET_32 (abfd, ex->ri_cprmask[2]);
-  in->ri_cprmask[3] = H_GET_32 (abfd, ex->ri_cprmask[3]);
-  in->ri_gp_value = H_GET_32 (abfd, ex->ri_gp_value);
-}
-
-void
-bfd_riscv_elf32_swap_reginfo_out (bfd *abfd, const Elf32_RegInfo *in,
-				 Elf32_External_RegInfo *ex)
-{
-  H_PUT_32 (abfd, in->ri_gprmask, ex->ri_gprmask);
-  H_PUT_32 (abfd, in->ri_cprmask[0], ex->ri_cprmask[0]);
-  H_PUT_32 (abfd, in->ri_cprmask[1], ex->ri_cprmask[1]);
-  H_PUT_32 (abfd, in->ri_cprmask[2], ex->ri_cprmask[2]);
-  H_PUT_32 (abfd, in->ri_cprmask[3], ex->ri_cprmask[3]);
-  H_PUT_32 (abfd, in->ri_gp_value, ex->ri_gp_value);
-}
-
-/* In the 64 bit ABI, the .MIPS.options section holds register
-   information in an Elf64_Reginfo structure.  These routines swap
-   them in and out.  They are globally visible because they are used
-   outside of BFD.  These routines are here so that gas can call them
-   without worrying about whether the 64 bit ABI has been included.  */
-
-void
-bfd_riscv_elf64_swap_reginfo_in (bfd *abfd, const Elf64_External_RegInfo *ex,
-				Elf64_Internal_RegInfo *in)
-{
-  in->ri_gprmask = H_GET_32 (abfd, ex->ri_gprmask);
-  in->ri_pad = H_GET_32 (abfd, ex->ri_pad);
-  in->ri_cprmask[0] = H_GET_32 (abfd, ex->ri_cprmask[0]);
-  in->ri_cprmask[1] = H_GET_32 (abfd, ex->ri_cprmask[1]);
-  in->ri_cprmask[2] = H_GET_32 (abfd, ex->ri_cprmask[2]);
-  in->ri_cprmask[3] = H_GET_32 (abfd, ex->ri_cprmask[3]);
-  in->ri_gp_value = H_GET_64 (abfd, ex->ri_gp_value);
-}
-
-void
-bfd_riscv_elf64_swap_reginfo_out (bfd *abfd, const Elf64_Internal_RegInfo *in,
-				 Elf64_External_RegInfo *ex)
-{
-  H_PUT_32 (abfd, in->ri_gprmask, ex->ri_gprmask);
-  H_PUT_32 (abfd, in->ri_pad, ex->ri_pad);
-  H_PUT_32 (abfd, in->ri_cprmask[0], ex->ri_cprmask[0]);
-  H_PUT_32 (abfd, in->ri_cprmask[1], ex->ri_cprmask[1]);
-  H_PUT_32 (abfd, in->ri_cprmask[2], ex->ri_cprmask[2]);
-  H_PUT_32 (abfd, in->ri_cprmask[3], ex->ri_cprmask[3]);
-  H_PUT_64 (abfd, in->ri_gp_value, ex->ri_gp_value);
-}
-
-/* Swap in an options header.  */
-
-void
-bfd_riscv_elf_swap_options_in (bfd *abfd, const Elf_External_Options *ex,
-			      Elf_Internal_Options *in)
-{
-  in->kind = H_GET_8 (abfd, ex->kind);
-  in->size = H_GET_8 (abfd, ex->size);
-  in->section = H_GET_16 (abfd, ex->section);
-  in->info = H_GET_32 (abfd, ex->info);
-}
-
-/* Swap out an options header.  */
-
-void
-bfd_riscv_elf_swap_options_out (bfd *abfd, const Elf_Internal_Options *in,
-			       Elf_External_Options *ex)
-{
-  H_PUT_8 (abfd, in->kind, ex->kind);
-  H_PUT_8 (abfd, in->size, ex->size);
-  H_PUT_16 (abfd, in->section, ex->section);
-  H_PUT_32 (abfd, in->info, ex->info);
-}
-
 /* This function is called via qsort() to sort the dynamic relocation
    entries by increasing r_symndx value.  */
 
@@ -1204,133 +995,6 @@ sort_dynamic_relocs_64 (const void *arg1 ATTRIBUTE_UNUSED,
 #else
   abort ();
 #endif
-}
-
-
-/* This routine is used to write out ECOFF debugging external symbol
-   information.  It is called via mips_elf_link_hash_traverse.  The
-   ECOFF external symbol information must match the ELF external
-   symbol information.  Unfortunately, at this point we don't know
-   whether a symbol is required by reloc information, so the two
-   tables may wind up being different.  We must sort out the external
-   symbol information before we can set the final size of the .mdebug
-   section, and we must set the size of the .mdebug section before we
-   can relocate any sections, and we can't know which symbols are
-   required by relocation until we relocate the sections.
-   Fortunately, it is relatively unlikely that any symbol will be
-   stripped but required by a reloc.  In particular, it can not happen
-   when generating a final executable.  */
-
-static bfd_boolean
-mips_elf_output_extsym (struct mips_elf_link_hash_entry *h, void *data)
-{
-  struct extsym_info *einfo = data;
-  bfd_boolean strip;
-  asection *sec, *output_section;
-
-  if (h->root.root.type == bfd_link_hash_warning)
-    h = (struct mips_elf_link_hash_entry *) h->root.root.u.i.link;
-
-  if (h->root.indx == -2)
-    strip = FALSE;
-  else if ((h->root.def_dynamic
-	    || h->root.ref_dynamic
-	    || h->root.type == bfd_link_hash_new)
-	   && !h->root.def_regular
-	   && !h->root.ref_regular)
-    strip = TRUE;
-  else if (einfo->info->strip == strip_all
-	   || (einfo->info->strip == strip_some
-	       && bfd_hash_lookup (einfo->info->keep_hash,
-				   h->root.root.root.string,
-				   FALSE, FALSE) == NULL))
-    strip = TRUE;
-  else
-    strip = FALSE;
-
-  if (strip)
-    return TRUE;
-
-  if (h->esym.ifd == -2)
-    {
-      h->esym.jmptbl = 0;
-      h->esym.cobol_main = 0;
-      h->esym.weakext = 0;
-      h->esym.reserved = 0;
-      h->esym.ifd = ifdNil;
-      h->esym.asym.value = 0;
-      h->esym.asym.st = stGlobal;
-
-      if (h->root.root.type == bfd_link_hash_undefined
-	  || h->root.root.type == bfd_link_hash_undefweak)
-	h->esym.asym.sc = scUndefined;
-      else if (h->root.root.type != bfd_link_hash_defined
-	  && h->root.root.type != bfd_link_hash_defweak)
-	h->esym.asym.sc = scAbs;
-      else
-	{
-	  const char *name;
-
-	  sec = h->root.root.u.def.section;
-	  output_section = sec->output_section;
-
-	  /* When making a shared library and symbol h is the one from
-	     the another shared library, OUTPUT_SECTION may be null.  */
-	  if (output_section == NULL)
-	    h->esym.asym.sc = scUndefined;
-	  else
-	    {
-	      name = bfd_section_name (output_section->owner, output_section);
-
-	      if (strcmp (name, ".text") == 0)
-		h->esym.asym.sc = scText;
-	      else if (strcmp (name, ".data") == 0)
-		h->esym.asym.sc = scData;
-	      else if (strcmp (name, ".rodata") == 0
-		       || strcmp (name, ".rdata") == 0)
-		h->esym.asym.sc = scRData;
-	      else if (strcmp (name, ".bss") == 0)
-		h->esym.asym.sc = scBss;
-	      else if (strcmp (name, ".init") == 0)
-		h->esym.asym.sc = scInit;
-	      else if (strcmp (name, ".fini") == 0)
-		h->esym.asym.sc = scFini;
-	      else
-		h->esym.asym.sc = scAbs;
-	    }
-	}
-
-      h->esym.asym.reserved = 0;
-      h->esym.asym.index = indexNil;
-    }
-
-  if (h->root.root.type == bfd_link_hash_common)
-    h->esym.asym.value = h->root.root.u.c.size;
-  else if (h->root.root.type == bfd_link_hash_defined
-	   || h->root.root.type == bfd_link_hash_defweak)
-    {
-      if (h->esym.asym.sc == scCommon || h->esym.asym.sc == scSCommon)
-	h->esym.asym.sc = scBss;
-
-      sec = h->root.root.u.def.section;
-      output_section = sec->output_section;
-      if (output_section != NULL)
-	h->esym.asym.value = (h->root.root.u.def.value
-			      + sec->output_offset
-			      + output_section->vma);
-      else
-	h->esym.asym.value = 0;
-    }
-
-  if (! bfd_ecoff_debug_one_external (einfo->abfd, einfo->debug, einfo->swap,
-				      h->root.root.root.string,
-				      &h->esym))
-    {
-      einfo->failed = TRUE;
-      return FALSE;
-    }
-
-  return TRUE;
 }
 
 /* Functions to manage the got entry hash table.  */
@@ -3514,135 +3178,6 @@ _bfd_riscv_elf_eh_frame_address_size (bfd *abfd, asection *sec ATTRIBUTE_UNUSED)
     return 8;
   return 4;
 }
-
-/* There appears to be a bug in the MIPSpro linker that causes GOT_DISP
-   relocations against two unnamed section symbols to resolve to the
-   same address.  For example, if we have code like:
-
-	lw	$4,%got_disp(.data)($gp)
-	lw	$25,%got_disp(.text)($gp)
-	jalr	$25
-
-   then the linker will resolve both relocations to .data and the program
-   will jump there rather than to .text.
-
-   We can work around this problem by giving names to local section symbols.
-   This is also what the MIPSpro tools do.  */
-
-bfd_boolean
-_bfd_riscv_elf_name_local_section_symbols (bfd *abfd ATTRIBUTE_UNUSED)
-{
-  return FALSE;
-}
-
-/* Work over a section just before writing it out.  This routine is
-   used by both the 32-bit and the 64-bit ABI.  FIXME: We recognize
-   sections that need the SHF_MIPS_GPREL flag by name; there has to be
-   a better way.  */
-
-bfd_boolean
-_bfd_riscv_elf_section_processing (bfd *abfd, Elf_Internal_Shdr *hdr)
-{
-  if (hdr->sh_type == SHT_MIPS_REGINFO
-      && hdr->sh_size > 0)
-    {
-      bfd_byte buf[4];
-
-      BFD_ASSERT (hdr->sh_size == sizeof (Elf32_External_RegInfo));
-      BFD_ASSERT (hdr->contents == NULL);
-
-      if (bfd_seek (abfd,
-		    hdr->sh_offset + sizeof (Elf32_External_RegInfo) - 4,
-		    SEEK_SET) != 0)
-	return FALSE;
-      H_PUT_32 (abfd, elf_gp (abfd), buf);
-      if (bfd_bwrite (buf, 4, abfd) != 4)
-	return FALSE;
-    }
-
-  if (hdr->sh_type == SHT_MIPS_OPTIONS
-      && hdr->bfd_section != NULL
-      && mips_elf_section_data (hdr->bfd_section) != NULL
-      && mips_elf_section_data (hdr->bfd_section)->u.tdata != NULL)
-    {
-      bfd_byte *contents, *l, *lend;
-
-      /* We stored the section contents in the tdata field in the
-	 set_section_contents routine.  We save the section contents
-	 so that we don't have to read them again.
-	 At this point we know that elf_gp is set, so we can look
-	 through the section contents to see if there is an
-	 ODK_REGINFO structure.  */
-
-      contents = mips_elf_section_data (hdr->bfd_section)->u.tdata;
-      l = contents;
-      lend = contents + hdr->sh_size;
-      while (l + sizeof (Elf_External_Options) <= lend)
-	{
-	  Elf_Internal_Options intopt;
-
-	  bfd_riscv_elf_swap_options_in (abfd, (Elf_External_Options *) l,
-					&intopt);
-	  if (intopt.size < sizeof (Elf_External_Options))
-	    {
-	      (*_bfd_error_handler)
-		(_("%B: Warning: bad `%s' option size %u smaller than its header"),
-		abfd, MIPS_ELF_OPTIONS_SECTION_NAME (abfd), intopt.size);
-	      break;
-	    }
-	  if (ABI_64_P (abfd) && intopt.kind == ODK_REGINFO)
-	    {
-	      bfd_byte buf[8];
-
-	      if (bfd_seek (abfd,
-			    (hdr->sh_offset
-			     + (l - contents)
-			     + sizeof (Elf_External_Options)
-			     + (sizeof (Elf64_External_RegInfo) - 8)),
-			     SEEK_SET) != 0)
-		return FALSE;
-	      H_PUT_64 (abfd, elf_gp (abfd), buf);
-	      if (bfd_bwrite (buf, 8, abfd) != 8)
-		return FALSE;
-	    }
-	  else if (intopt.kind == ODK_REGINFO)
-	    {
-	      bfd_byte buf[4];
-
-	      if (bfd_seek (abfd,
-			    (hdr->sh_offset
-			     + (l - contents)
-			     + sizeof (Elf_External_Options)
-			     + (sizeof (Elf32_External_RegInfo) - 4)),
-			    SEEK_SET) != 0)
-		return FALSE;
-	      H_PUT_32 (abfd, elf_gp (abfd), buf);
-	      if (bfd_bwrite (buf, 4, abfd) != 4)
-		return FALSE;
-	    }
-	  l += intopt.size;
-	}
-    }
-
-  if (hdr->bfd_section != NULL)
-    {
-      const char *name = bfd_get_section_name (abfd, hdr->bfd_section);
-
-      if (strcmp (name, ".rtproc") == 0)
-	{
-	  if (hdr->sh_addralign != 0 && hdr->sh_entsize == 0)
-	    {
-	      unsigned int adjust;
-
-	      adjust = hdr->sh_size % hdr->sh_addralign;
-	      if (adjust != 0)
-		hdr->sh_size += hdr->sh_addralign - adjust;
-	    }
-	}
-    }
-
-  return TRUE;
-}
 
 /* Handle a MIPS specific section when reading an object file.  This
    is called when elfcode.h finds a section with an unknown type.
@@ -3684,27 +3219,12 @@ _bfd_riscv_elf_section_from_shdr (bfd *abfd,
       if (strcmp (name, ".ucode") != 0)
 	return FALSE;
       break;
-    case SHT_MIPS_DEBUG:
-      if (strcmp (name, ".mdebug") != 0)
-	return FALSE;
-      flags = SEC_DEBUGGING;
-      break;
-    case SHT_MIPS_REGINFO:
-      if (strcmp (name, ".reginfo") != 0
-	  || hdr->sh_size != sizeof (Elf32_External_RegInfo))
-	return FALSE;
-      flags = (SEC_LINK_ONCE | SEC_LINK_DUPLICATES_SAME_SIZE);
-      break;
     case SHT_MIPS_IFACE:
       if (strcmp (name, ".MIPS.interfaces") != 0)
 	return FALSE;
       break;
     case SHT_MIPS_CONTENT:
       if (! CONST_STRNEQ (name, ".MIPS.content"))
-	return FALSE;
-      break;
-    case SHT_MIPS_OPTIONS:
-      if (!MIPS_ELF_OPTIONS_SECTION_NAME_P (name))
 	return FALSE;
       break;
     case SHT_MIPS_DWARF:
@@ -3737,83 +3257,6 @@ _bfd_riscv_elf_section_from_shdr (bfd *abfd,
 	return FALSE;
     }
 
-  /* FIXME: We should record sh_info for a .gptab section.  */
-
-  /* For a .reginfo section, set the gp value in the tdata information
-     from the contents of this section.  We need the gp value while
-     processing relocs, so we just get it now.  The .reginfo section
-     is not used in the 64-bit MIPS ELF ABI.  */
-  if (hdr->sh_type == SHT_MIPS_REGINFO)
-    {
-      Elf32_External_RegInfo ext;
-      Elf32_RegInfo s;
-
-      if (! bfd_get_section_contents (abfd, hdr->bfd_section,
-				      &ext, 0, sizeof ext))
-	return FALSE;
-      bfd_riscv_elf32_swap_reginfo_in (abfd, &ext, &s);
-      elf_gp (abfd) = s.ri_gp_value;
-    }
-
-  /* For a SHT_MIPS_OPTIONS section, look for a ODK_REGINFO entry, and
-     set the gp value based on what we find.  We may see both
-     SHT_MIPS_REGINFO and SHT_MIPS_OPTIONS/ODK_REGINFO; in that case,
-     they should agree.  */
-  if (hdr->sh_type == SHT_MIPS_OPTIONS)
-    {
-      bfd_byte *contents, *l, *lend;
-
-      contents = bfd_malloc (hdr->sh_size);
-      if (contents == NULL)
-	return FALSE;
-      if (! bfd_get_section_contents (abfd, hdr->bfd_section, contents,
-				      0, hdr->sh_size))
-	{
-	  free (contents);
-	  return FALSE;
-	}
-      l = contents;
-      lend = contents + hdr->sh_size;
-      while (l + sizeof (Elf_External_Options) <= lend)
-	{
-	  Elf_Internal_Options intopt;
-
-	  bfd_riscv_elf_swap_options_in (abfd, (Elf_External_Options *) l,
-					&intopt);
-	  if (intopt.size < sizeof (Elf_External_Options))
-	    {
-	      (*_bfd_error_handler)
-		(_("%B: Warning: bad `%s' option size %u smaller than its header"),
-		abfd, MIPS_ELF_OPTIONS_SECTION_NAME (abfd), intopt.size);
-	      break;
-	    }
-	  if (ABI_64_P (abfd) && intopt.kind == ODK_REGINFO)
-	    {
-	      Elf64_Internal_RegInfo intreg;
-
-	      bfd_riscv_elf64_swap_reginfo_in
-		(abfd,
-		 ((Elf64_External_RegInfo *)
-		  (l + sizeof (Elf_External_Options))),
-		 &intreg);
-	      elf_gp (abfd) = intreg.ri_gp_value;
-	    }
-	  else if (intopt.kind == ODK_REGINFO)
-	    {
-	      Elf32_RegInfo intreg;
-
-	      bfd_riscv_elf32_swap_reginfo_in
-		(abfd,
-		 ((Elf32_External_RegInfo *)
-		  (l + sizeof (Elf_External_Options))),
-		 &intreg);
-	      elf_gp (abfd) = intreg.ri_gp_value;
-	    }
-	  l += intopt.size;
-	}
-      free (contents);
-    }
-
   return TRUE;
 }
 
@@ -3839,18 +3282,6 @@ _bfd_riscv_elf_fake_sections (bfd *abfd ATTRIBUTE_UNUSED,
     BFD_ASSERT (FALSE);
   else if (strcmp (name, ".ucode") == 0)
     hdr->sh_type = SHT_MIPS_UCODE;
-  else if (strcmp (name, ".mdebug") == 0)
-    {
-      hdr->sh_type = SHT_MIPS_DEBUG;
-      hdr->sh_entsize = 1;
-    }
-  else if (strcmp (name, ".reginfo") == 0)
-    {
-      hdr->sh_type = SHT_MIPS_REGINFO;
-      /* In a shared object on IRIX 5.3, the .reginfo section has an
-         entsize of 0x18.  FIXME: Does this matter?  */
-      hdr->sh_entsize = sizeof (Elf32_External_RegInfo);
-    }
   else if (strcmp (name, ".got") == 0
 	   || strcmp (name, ".srdata") == 0
 	   || strcmp (name, ".sdata") == 0
@@ -3868,12 +3299,6 @@ _bfd_riscv_elf_fake_sections (bfd *abfd ATTRIBUTE_UNUSED,
       hdr->sh_type = SHT_MIPS_CONTENT;
       hdr->sh_flags |= SHF_MIPS_NOSTRIP;
       /* The sh_info field is set in final_write_processing.  */
-    }
-  else if (MIPS_ELF_OPTIONS_SECTION_NAME_P (name))
-    {
-      hdr->sh_type = SHT_MIPS_OPTIONS;
-      hdr->sh_entsize = 1;
-      hdr->sh_flags |= SHF_MIPS_NOSTRIP;
     }
   else if (CONST_STRNEQ (name, ".debug_")
            || CONST_STRNEQ (name, ".zdebug_"))
@@ -4839,18 +4264,10 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
   return _bfd_elf_adjust_dynamic_copy (h, htab->sdynbss);
 }
 
-/* This function is called after all the input files have been read,
-   and the input sections have been assigned to output sections.  We
-   check for any mips16 stub sections that we can discard.  */
-
 bfd_boolean
-_bfd_riscv_elf_always_size_sections (bfd *output_bfd,
-				    struct bfd_link_info *info ATTRIBUTE_UNUSED)
+_bfd_riscv_elf_always_size_sections (bfd *output_bfd ATTRIBUTE_UNUSED,
+				     struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
-  /* The .reginfo section has a fixed size.  */
-  asection *ri = bfd_get_section_by_name (output_bfd, ".reginfo");
-  if (ri != NULL)
-    bfd_set_section_size (output_bfd, ri, sizeof (Elf32_External_RegInfo));
   return TRUE;
 }
 
@@ -5688,12 +5105,6 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 	      dyn.d_un.d_val = g->local_gotno - htab->reserved_gotno;
 	      break;
 
-	    case DT_MIPS_OPTIONS:
-	      s = (bfd_get_section_by_name
-		   (output_bfd, MIPS_ELF_OPTIONS_SECTION_NAME (output_bfd)));
-	      dyn.d_un.d_ptr = s->vma;
-	      break;
-
 	    case DT_PLTREL:
 	      dyn.d_un.d_val = DT_REL;
 	      break;
@@ -5943,28 +5354,16 @@ _bfd_riscv_elf_final_write_processing (bfd *abfd,
 	}
     }
 }
-
-/* When creating an IRIX5 executable, we need REGINFO and RTPROC
-   segments.  */
 
 int
 _bfd_riscv_elf_additional_program_headers (bfd *abfd,
 					  struct bfd_link_info *info ATTRIBUTE_UNUSED)
 {
-  asection *s;
-  int ret = 0;
-
-  /* See if we need a PT_MIPS_REGINFO segment.  */
-  s = bfd_get_section_by_name (abfd, ".reginfo");
-  if (s && (s->flags & SEC_LOAD))
-    ++ret;
-
   /* Allocate a PT_NULL header in dynamic objects.  See
      _bfd_riscv_elf_modify_segment_map for details.  */
   if (bfd_get_section_by_name (abfd, ".dynamic"))
-    ++ret;
-
-  return ret;
+    return 1;
+  return 0;
 }
 
 /* Modify the segment map for an IRIX5 executable.  */
@@ -5973,40 +5372,7 @@ bfd_boolean
 _bfd_riscv_elf_modify_segment_map (bfd *abfd,
 				  struct bfd_link_info *info)
 {
-  asection *s;
   struct elf_segment_map *m, **pm;
-  bfd_size_type amt;
-
-  /* If there is a .reginfo section, we need a PT_MIPS_REGINFO
-     segment.  */
-  s = bfd_get_section_by_name (abfd, ".reginfo");
-  if (s != NULL && (s->flags & SEC_LOAD) != 0)
-    {
-      for (m = elf_tdata (abfd)->segment_map; m != NULL; m = m->next)
-	if (m->p_type == PT_MIPS_REGINFO)
-	  break;
-      if (m == NULL)
-	{
-	  amt = sizeof *m;
-	  m = bfd_zalloc (abfd, amt);
-	  if (m == NULL)
-	    return FALSE;
-
-	  m->p_type = PT_MIPS_REGINFO;
-	  m->count = 1;
-	  m->sections[0] = s;
-
-	  /* We want to put it after the PHDR and INTERP segments.  */
-	  pm = &elf_tdata (abfd)->segment_map;
-	  while (*pm != NULL
-		 && ((*pm)->p_type == PT_PHDR
-		     || (*pm)->p_type == PT_INTERP))
-	    pm = &(*pm)->next;
-
-	  m->next = *pm;
-	  *pm = m;
-	}
-    }
 
     {
       /* On IRIX5, the PT_DYNAMIC segment includes the .dynamic,
@@ -6238,15 +5604,6 @@ _bfd_riscv_elf_write_section (bfd *output_bfd,
 			    sec->output_offset, sec->size);
   return TRUE;
 }
-
-/* MIPS ELF uses a special find_nearest_line routine in order the
-   handle the ECOFF debugging information.  */
-
-struct mips_elf_find_line
-{
-  struct ecoff_debug_info d;
-  struct ecoff_find_line i;
-};
 
 bfd_boolean
 _bfd_riscv_elf_find_nearest_line (bfd *abfd, asection *section,
@@ -6255,8 +5612,6 @@ _bfd_riscv_elf_find_nearest_line (bfd *abfd, asection *section,
 				 const char **functionname_ptr,
 				 unsigned int *line_ptr)
 {
-  asection *msec;
-
   if (_bfd_dwarf1_find_nearest_line (abfd, section, symbols, offset,
 				     filename_ptr, functionname_ptr,
 				     line_ptr))
@@ -6267,82 +5622,6 @@ _bfd_riscv_elf_find_nearest_line (bfd *abfd, asection *section,
 				     line_ptr, ABI_64_P (abfd) ? 8 : 0,
 				     &elf_tdata (abfd)->dwarf2_find_line_info))
     return TRUE;
-
-  msec = bfd_get_section_by_name (abfd, ".mdebug");
-  if (msec != NULL)
-    {
-      flagword origflags;
-      struct mips_elf_find_line *fi;
-      const struct ecoff_debug_swap * const swap =
-	get_elf_backend_data (abfd)->elf_backend_ecoff_debug_swap;
-
-      /* If we are called during a link, mips_elf_final_link may have
-	 cleared the SEC_HAS_CONTENTS field.  We force it back on here
-	 if appropriate (which it normally will be).  */
-      origflags = msec->flags;
-      if (elf_section_data (msec)->this_hdr.sh_type != SHT_NOBITS)
-	msec->flags |= SEC_HAS_CONTENTS;
-
-      fi = elf_tdata (abfd)->find_line_info;
-      if (fi == NULL)
-	{
-	  bfd_size_type external_fdr_size;
-	  char *fraw_src;
-	  char *fraw_end;
-	  struct fdr *fdr_ptr;
-	  bfd_size_type amt = sizeof (struct mips_elf_find_line);
-
-	  fi = bfd_zalloc (abfd, amt);
-	  if (fi == NULL)
-	    {
-	      msec->flags = origflags;
-	      return FALSE;
-	    }
-
-	  if (! _bfd_riscv_elf_read_ecoff_info (abfd, msec, &fi->d))
-	    {
-	      msec->flags = origflags;
-	      return FALSE;
-	    }
-
-	  /* Swap in the FDR information.  */
-	  amt = fi->d.symbolic_header.ifdMax * sizeof (struct fdr);
-	  fi->d.fdr = bfd_alloc (abfd, amt);
-	  if (fi->d.fdr == NULL)
-	    {
-	      msec->flags = origflags;
-	      return FALSE;
-	    }
-	  external_fdr_size = swap->external_fdr_size;
-	  fdr_ptr = fi->d.fdr;
-	  fraw_src = (char *) fi->d.external_fdr;
-	  fraw_end = (fraw_src
-		      + fi->d.symbolic_header.ifdMax * external_fdr_size);
-	  for (; fraw_src < fraw_end; fraw_src += external_fdr_size, fdr_ptr++)
-	    (*swap->swap_fdr_in) (abfd, fraw_src, fdr_ptr);
-
-	  elf_tdata (abfd)->find_line_info = fi;
-
-	  /* Note that we don't bother to ever free this information.
-             find_nearest_line is either called all the time, as in
-             objdump -l, so the information should be saved, or it is
-             rarely called, as in ld error messages, so the memory
-             wasted is unimportant.  Still, it would probably be a
-             good idea for free_cached_info to throw it away.  */
-	}
-
-      if (_bfd_ecoff_locate_line (abfd, section, offset, &fi->d, swap,
-				  &fi->i, filename_ptr, functionname_ptr,
-				  line_ptr))
-	{
-	  msec->flags = origflags;
-	  return TRUE;
-	}
-
-      msec->flags = origflags;
-    }
-
-  /* Fall back on the generic ELF find_nearest_line routine.  */
 
   return _bfd_elf_find_nearest_line (abfd, section, symbols, offset,
 				     filename_ptr, functionname_ptr,
@@ -6362,39 +5641,11 @@ _bfd_riscv_elf_find_inliner_info (bfd *abfd,
   return found;
 }
 
-
-/* When are writing out the .options or .MIPS.options section,
-   remember the bytes we are writing out, so that we can install the
-   GP value in the section_processing routine.  */
-
 bfd_boolean
 _bfd_riscv_elf_set_section_contents (bfd *abfd, sec_ptr section,
 				    const void *location,
 				    file_ptr offset, bfd_size_type count)
 {
-  if (MIPS_ELF_OPTIONS_SECTION_NAME_P (section->name))
-    {
-      bfd_byte *c;
-
-      if (elf_section_data (section) == NULL)
-	{
-	  bfd_size_type amt = sizeof (struct bfd_elf_section_data);
-	  section->used_by_bfd = bfd_zalloc (abfd, amt);
-	  if (elf_section_data (section) == NULL)
-	    return FALSE;
-	}
-      c = mips_elf_section_data (section)->u.tdata;
-      if (c == NULL)
-	{
-	  c = bfd_zalloc (abfd, section->size);
-	  if (c == NULL)
-	    return FALSE;
-	  mips_elf_section_data (section)->u.tdata = c;
-	}
-
-      memcpy (c + offset, location, count);
-    }
-
   return _bfd_elf_set_section_contents (abfd, section, location, offset,
 					count);
 }
@@ -6562,11 +5813,6 @@ _bfd_riscv_elf_link_hash_table_create (bfd *abfd)
       return NULL;
     }
 
-#if 0
-  /* We no longer use this.  */
-  for (i = 0; i < SIZEOF_MIPS_DYNSYM_SECNAMES; i++)
-    ret->dynsym_sec_strindex[i] = (bfd_size_type) -1;
-#endif
   ret->srelbss = NULL;
   ret->sdynbss = NULL;
   ret->srelplt = NULL;
@@ -6589,29 +5835,7 @@ bfd_boolean
 _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 {
   asection *o;
-  struct bfd_link_order *p;
-  asection *reginfo_sec, *mdebug_sec;
-  Elf32_RegInfo reginfo;
-  struct ecoff_debug_info debug;
-  const struct elf_backend_data *bed = get_elf_backend_data (abfd);
-  const struct ecoff_debug_swap *swap = bed->elf_backend_ecoff_debug_swap;
-  HDRR *symhdr = &debug.symbolic_header;
-  void *mdebug_handle = NULL;
-  asection *s;
-  EXTR esym;
-  unsigned int i;
   struct mips_elf_link_hash_table *htab;
-
-  static const char * const secname[] =
-  {
-    ".text", ".init", ".fini", ".data",
-    ".rodata", ".bss"
-  };
-  static const int sc[] =
-  {
-    scText, scInit, scFini, scData,
-    scRData, scBss
-  };
 
   /* Sort the dynamic symbols so that those with GOT entries come after
      those without.  */
@@ -6652,284 +5876,8 @@ _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 	}
     }
 
-  /* Go through the sections and collect the .reginfo and .mdebug
-     information.  */
-  reginfo_sec = NULL;
-  mdebug_sec = NULL;
-  for (o = abfd->sections; o != NULL; o = o->next)
-    {
-      if (strcmp (o->name, ".reginfo") == 0)
-	{
-	  memset (&reginfo, 0, sizeof reginfo);
-
-	  /* We have found the .reginfo section in the output file.
-	     Look through all the link_orders comprising it and merge
-	     the information together.  */
-	  for (p = o->map_head.link_order; p != NULL; p = p->next)
-	    {
-	      asection *input_section;
-	      bfd *input_bfd;
-	      Elf32_External_RegInfo ext;
-	      Elf32_RegInfo sub;
-
-	      if (p->type != bfd_indirect_link_order)
-		{
-		  if (p->type == bfd_data_link_order)
-		    continue;
-		  abort ();
-		}
-
-	      input_section = p->u.indirect.section;
-	      input_bfd = input_section->owner;
-
-	      if (! bfd_get_section_contents (input_bfd, input_section,
-					      &ext, 0, sizeof ext))
-		return FALSE;
-
-	      bfd_riscv_elf32_swap_reginfo_in (input_bfd, &ext, &sub);
-
-	      reginfo.ri_gprmask |= sub.ri_gprmask;
-	      reginfo.ri_cprmask[0] |= sub.ri_cprmask[0];
-	      reginfo.ri_cprmask[1] |= sub.ri_cprmask[1];
-	      reginfo.ri_cprmask[2] |= sub.ri_cprmask[2];
-	      reginfo.ri_cprmask[3] |= sub.ri_cprmask[3];
-
-	      /* ri_gp_value is set by the function
-		 mips_elf32_section_processing when the section is
-		 finally written out.  */
-
-	      /* Hack: reset the SEC_HAS_CONTENTS flag so that
-		 elf_link_input_bfd ignores this section.  */
-	      input_section->flags &= ~SEC_HAS_CONTENTS;
-	    }
-
-	  /* Size has been set in _bfd_riscv_elf_always_size_sections.  */
-	  BFD_ASSERT(o->size == sizeof (Elf32_External_RegInfo));
-
-	  /* Skip this section later on (I don't think this currently
-	     matters, but someday it might).  */
-	  o->map_head.link_order = NULL;
-
-	  reginfo_sec = o;
-	}
-
-      if (strcmp (o->name, ".mdebug") == 0)
-	{
-	  struct extsym_info einfo;
-	  bfd_vma last;
-
-	  /* We have found the .mdebug section in the output file.
-	     Look through all the link_orders comprising it and merge
-	     the information together.  */
-	  symhdr->magic = swap->sym_magic;
-	  /* FIXME: What should the version stamp be?  */
-	  symhdr->vstamp = 0;
-	  symhdr->ilineMax = 0;
-	  symhdr->cbLine = 0;
-	  symhdr->idnMax = 0;
-	  symhdr->ipdMax = 0;
-	  symhdr->isymMax = 0;
-	  symhdr->ioptMax = 0;
-	  symhdr->iauxMax = 0;
-	  symhdr->issMax = 0;
-	  symhdr->issExtMax = 0;
-	  symhdr->ifdMax = 0;
-	  symhdr->crfd = 0;
-	  symhdr->iextMax = 0;
-
-	  /* We accumulate the debugging information itself in the
-	     debug_info structure.  */
-	  debug.line = NULL;
-	  debug.external_dnr = NULL;
-	  debug.external_pdr = NULL;
-	  debug.external_sym = NULL;
-	  debug.external_opt = NULL;
-	  debug.external_aux = NULL;
-	  debug.ss = NULL;
-	  debug.ssext = debug.ssext_end = NULL;
-	  debug.external_fdr = NULL;
-	  debug.external_rfd = NULL;
-	  debug.external_ext = debug.external_ext_end = NULL;
-
-	  mdebug_handle = bfd_ecoff_debug_init (abfd, &debug, swap, info);
-	  if (mdebug_handle == NULL)
-	    return FALSE;
-
-	  esym.jmptbl = 0;
-	  esym.cobol_main = 0;
-	  esym.weakext = 0;
-	  esym.reserved = 0;
-	  esym.ifd = ifdNil;
-	  esym.asym.iss = issNil;
-	  esym.asym.st = stLocal;
-	  esym.asym.reserved = 0;
-	  esym.asym.index = indexNil;
-	  last = 0;
-	  for (i = 0; i < sizeof (secname) / sizeof (secname[0]); i++)
-	    {
-	      esym.asym.sc = sc[i];
-	      s = bfd_get_section_by_name (abfd, secname[i]);
-	      if (s != NULL)
-		{
-		  esym.asym.value = s->vma;
-		  last = s->vma + s->size;
-		}
-	      else
-		esym.asym.value = last;
-	      if (!bfd_ecoff_debug_one_external (abfd, &debug, swap,
-						 secname[i], &esym))
-		return FALSE;
-	    }
-
-	  for (p = o->map_head.link_order; p != NULL; p = p->next)
-	    {
-	      asection *input_section;
-	      bfd *input_bfd;
-	      const struct ecoff_debug_swap *input_swap;
-	      struct ecoff_debug_info input_debug;
-	      char *eraw_src;
-	      char *eraw_end;
-
-	      if (p->type != bfd_indirect_link_order)
-		{
-		  if (p->type == bfd_data_link_order)
-		    continue;
-		  abort ();
-		}
-
-	      input_section = p->u.indirect.section;
-	      input_bfd = input_section->owner;
-
-	      if (!is_mips_elf (input_bfd))
-		{
-		  /* I don't know what a non MIPS ELF bfd would be
-		     doing with a .mdebug section, but I don't really
-		     want to deal with it.  */
-		  continue;
-		}
-
-	      input_swap = (get_elf_backend_data (input_bfd)
-			    ->elf_backend_ecoff_debug_swap);
-
-	      BFD_ASSERT (p->size == input_section->size);
-
-	      /* The ECOFF linking code expects that we have already
-		 read in the debugging information and set up an
-		 ecoff_debug_info structure, so we do that now.  */
-	      if (! _bfd_riscv_elf_read_ecoff_info (input_bfd, input_section,
-						   &input_debug))
-		return FALSE;
-
-	      if (! (bfd_ecoff_debug_accumulate
-		     (mdebug_handle, abfd, &debug, swap, input_bfd,
-		      &input_debug, input_swap, info)))
-		return FALSE;
-
-	      /* Loop through the external symbols.  For each one with
-		 interesting information, try to find the symbol in
-		 the linker global hash table and save the information
-		 for the output external symbols.  */
-	      eraw_src = input_debug.external_ext;
-	      eraw_end = (eraw_src
-			  + (input_debug.symbolic_header.iextMax
-			     * input_swap->external_ext_size));
-	      for (;
-		   eraw_src < eraw_end;
-		   eraw_src += input_swap->external_ext_size)
-		{
-		  EXTR ext;
-		  const char *name;
-		  struct mips_elf_link_hash_entry *h;
-
-		  (*input_swap->swap_ext_in) (input_bfd, eraw_src, &ext);
-		  if (ext.asym.sc == scNil
-		      || ext.asym.sc == scUndefined
-		      || ext.asym.sc == scSUndefined)
-		    continue;
-
-		  name = input_debug.ssext + ext.asym.iss;
-		  h = mips_elf_link_hash_lookup (mips_elf_hash_table (info),
-						 name, FALSE, FALSE, TRUE);
-		  if (h == NULL || h->esym.ifd != -2)
-		    continue;
-
-		  if (ext.ifd != -1)
-		    {
-		      BFD_ASSERT (ext.ifd
-				  < input_debug.symbolic_header.ifdMax);
-		      ext.ifd = input_debug.ifdmap[ext.ifd];
-		    }
-
-		  h->esym = ext;
-		}
-
-	      /* Free up the information we just read.  */
-	      free (input_debug.line);
-	      free (input_debug.external_dnr);
-	      free (input_debug.external_pdr);
-	      free (input_debug.external_sym);
-	      free (input_debug.external_opt);
-	      free (input_debug.external_aux);
-	      free (input_debug.ss);
-	      free (input_debug.ssext);
-	      free (input_debug.external_fdr);
-	      free (input_debug.external_rfd);
-	      free (input_debug.external_ext);
-
-	      /* Hack: reset the SEC_HAS_CONTENTS flag so that
-		 elf_link_input_bfd ignores this section.  */
-	      input_section->flags &= ~SEC_HAS_CONTENTS;
-	    }
-
-	  /* Build the external symbol information.  */
-	  einfo.abfd = abfd;
-	  einfo.info = info;
-	  einfo.debug = &debug;
-	  einfo.swap = swap;
-	  einfo.failed = FALSE;
-	  mips_elf_link_hash_traverse (mips_elf_hash_table (info),
-				       mips_elf_output_extsym, &einfo);
-	  if (einfo.failed)
-	    return FALSE;
-
-	  /* Set the size of the .mdebug section.  */
-	  o->size = bfd_ecoff_debug_size (abfd, &debug, swap);
-
-	  /* Skip this section later on (I don't think this currently
-	     matters, but someday it might).  */
-	  o->map_head.link_order = NULL;
-
-	  mdebug_sec = o;
-	}
-    }
-
   /* Invoke the regular ELF backend linker to do all the work.  */
-  if (!bfd_elf_final_link (abfd, info))
-    return FALSE;
-
-  /* Now write out the computed sections.  */
-
-  if (reginfo_sec != NULL)
-    {
-      Elf32_External_RegInfo ext;
-
-      bfd_riscv_elf32_swap_reginfo_out (abfd, &reginfo, &ext);
-      if (! bfd_set_section_contents (abfd, reginfo_sec, &ext, 0, sizeof ext))
-	return FALSE;
-    }
-
-  if (mdebug_sec != NULL)
-    {
-      BFD_ASSERT (abfd->output_has_begun);
-      if (! bfd_ecoff_write_accumulated_debug (mdebug_handle, abfd, &debug,
-					       swap, info,
-					       mdebug_sec->filepos))
-	return FALSE;
-
-      bfd_ecoff_debug_free (mdebug_handle, abfd, &debug, swap, info);
-    }
-
-  return TRUE;
+  return bfd_elf_final_link (abfd, info);
 }
 
 /* Return true if bfd machine EXTENSION is an extension of machine BASE.  */
@@ -7066,8 +6014,6 @@ _bfd_riscv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 	 (s)common sections, since merely defining a common symbol does
 	 not affect compatibility.  */
       if ((sec->flags & SEC_IS_COMMON) == 0
-	  && strcmp (sec->name, ".reginfo")
-	  && strcmp (sec->name, ".mdebug")
 	  && (sec->size != 0
 	      || (strcmp (sec->name, ".text")
 		  && strcmp (sec->name, ".data")
@@ -7340,7 +6286,6 @@ const struct bfd_elf_special_section _bfd_riscv_elf_special_sections[] =
 {
   { STRING_COMMA_LEN (".lit4"),   0, SHT_PROGBITS,   SHF_ALLOC + SHF_WRITE + SHF_MIPS_GPREL },
   { STRING_COMMA_LEN (".lit8"),   0, SHT_PROGBITS,   SHF_ALLOC + SHF_WRITE + SHF_MIPS_GPREL },
-  { STRING_COMMA_LEN (".mdebug"), 0, SHT_MIPS_DEBUG, 0 },
   { STRING_COMMA_LEN (".sbss"),  -2, SHT_NOBITS,     SHF_ALLOC + SHF_WRITE + SHF_MIPS_GPREL },
   { STRING_COMMA_LEN (".sdata"), -2, SHT_PROGBITS,   SHF_ALLOC + SHF_WRITE + SHF_MIPS_GPREL },
   { STRING_COMMA_LEN (".ucode"),  0, SHT_MIPS_UCODE, 0 },

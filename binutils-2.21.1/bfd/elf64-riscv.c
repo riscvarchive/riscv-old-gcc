@@ -54,17 +54,6 @@
 #include "elf/riscv.h"
 #include "opcode/riscv.h"
 
-/* Get the ECOFF swapping routines.  The 64-bit ABI is not supposed to
-   use ECOFF.  However, we support it anyhow for an easier changeover.  */
-#include "coff/sym.h"
-#include "coff/symconst.h"
-#include "coff/internal.h"
-#include "coff/ecoff.h"
-/* The 64 bit versions of the mdebug data structures are in alpha.h.  */
-#include "coff/alpha.h"
-#define ECOFF_SIGNED_64
-#include "ecoffswap.h"
-
 #include "opcode/riscv.h"
 
 static void mips_elf64_swap_reloc_in
@@ -2790,50 +2779,7 @@ elf64_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 
   return TRUE;
 }
-
-/* ECOFF swapping routines.  These are used when dealing with the
-   .mdebug section, which is in the ECOFF debugging format.  */
-static const struct ecoff_debug_swap mips_elf64_ecoff_debug_swap =
-{
-  /* Symbol table magic number.  */
-  magicSym2,
-  /* Alignment of debugging information.  E.g., 4.  */
-  8,
-  /* Sizes of external symbolic information.  */
-  sizeof (struct hdr_ext),
-  sizeof (struct dnr_ext),
-  sizeof (struct pdr_ext),
-  sizeof (struct sym_ext),
-  sizeof (struct opt_ext),
-  sizeof (struct fdr_ext),
-  sizeof (struct rfd_ext),
-  sizeof (struct ext_ext),
-  /* Functions to swap in external symbolic data.  */
-  ecoff_swap_hdr_in,
-  ecoff_swap_dnr_in,
-  ecoff_swap_pdr_in,
-  ecoff_swap_sym_in,
-  ecoff_swap_opt_in,
-  ecoff_swap_fdr_in,
-  ecoff_swap_rfd_in,
-  ecoff_swap_ext_in,
-  _bfd_ecoff_swap_tir_in,
-  _bfd_ecoff_swap_rndx_in,
-  /* Functions to swap out external symbolic data.  */
-  ecoff_swap_hdr_out,
-  ecoff_swap_dnr_out,
-  ecoff_swap_pdr_out,
-  ecoff_swap_sym_out,
-  ecoff_swap_opt_out,
-  ecoff_swap_fdr_out,
-  ecoff_swap_rfd_out,
-  ecoff_swap_ext_out,
-  _bfd_ecoff_swap_tir_out,
-  _bfd_ecoff_swap_rndx_out,
-  /* Function to read in symbolic data.  */
-  _bfd_riscv_elf_read_ecoff_info
-};
-
+
 /* Relocations in the 64 bit MIPS ELF ABI are more complex than in
    standard ELF.  This structure is used to redirect the relocation
    handling routines.  */
@@ -2881,7 +2827,6 @@ const struct elf_size_info mips_elf64_size_info =
 #define elf_info_to_howto_rel		mips_elf64_info_to_howto_rel
 #define elf_backend_object_p		mips_elf64_object_p
 #define elf_backend_symbol_processing	_bfd_riscv_elf_symbol_processing
-#define elf_backend_section_processing	_bfd_riscv_elf_section_processing
 #define elf_backend_section_from_shdr	_bfd_riscv_elf_section_from_shdr
 #define elf_backend_fake_sections	_bfd_riscv_elf_fake_sections
 #define elf_backend_section_from_bfd_section \
@@ -2919,7 +2864,6 @@ const struct elf_size_info mips_elf64_size_info =
 #define elf_backend_ignore_discarded_relocs \
 					_bfd_riscv_elf_ignore_discarded_relocs
 #define elf_backend_mips_rtype_to_howto	mips_elf64_rtype_to_howto
-#define elf_backend_ecoff_debug_swap	&mips_elf64_ecoff_debug_swap
 #define elf_backend_size_info		mips_elf64_size_info
 
 #define elf_backend_grok_prstatus	elf64_mips_grok_prstatus

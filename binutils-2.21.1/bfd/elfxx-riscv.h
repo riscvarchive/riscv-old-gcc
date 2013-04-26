@@ -29,10 +29,6 @@ extern void _bfd_riscv_elf_symbol_processing
   (bfd *, asymbol *);
 extern unsigned int _bfd_riscv_elf_eh_frame_address_size
   (bfd *, asection *);
-extern bfd_boolean _bfd_riscv_elf_name_local_section_symbols
-  (bfd *);
-extern bfd_boolean _bfd_riscv_elf_section_processing
-  (bfd *, Elf_Internal_Shdr *);
 extern bfd_boolean _bfd_riscv_elf_section_from_shdr
   (bfd *, Elf_Internal_Shdr *, const char *, int);
 extern bfd_boolean _bfd_riscv_elf_fake_sections
@@ -104,8 +100,6 @@ extern bfd_boolean _bfd_riscv_elf_discard_info
 extern bfd_boolean _bfd_riscv_elf_write_section
   (bfd *, struct bfd_link_info *, asection *, bfd_byte *);
 
-extern bfd_boolean _bfd_riscv_elf_read_ecoff_info
-  (bfd *, asection *, struct ecoff_debug_info *);
 extern bfd_reloc_status_type _bfd_riscv_elf_gprel16_with_gp
   (bfd *, asymbol *, arelent *, asection *, bfd_boolean, void *, bfd_vma);
 extern bfd_reloc_status_type _bfd_riscv_elf32_gprel16_reloc
@@ -137,8 +131,6 @@ extern const struct bfd_elf_special_section _bfd_riscv_elf_special_sections [];
 extern bfd_boolean _bfd_riscv_elf_common_definition (Elf_Internal_Sym *);
 
 #define elf_backend_common_definition   _bfd_riscv_elf_common_definition
-#define elf_backend_name_local_section_symbols \
-  _bfd_riscv_elf_name_local_section_symbols
 #define elf_backend_special_sections _bfd_riscv_elf_special_sections
 #define elf_backend_eh_frame_address_size _bfd_riscv_elf_eh_frame_address_size
 #define elf_backend_merge_symbol_attribute  _bfd_riscv_elf_merge_symbol_attribute
