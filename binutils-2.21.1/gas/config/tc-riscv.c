@@ -70,10 +70,6 @@ static int mips_output_flavor (void) { return OUTPUT_FLAVOR; }
 
 #include "ecoff.h"
 
-#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
-static char *mips_regmask_frag;
-#endif
-
 #define ZERO 0
 #define SP 14
 
@@ -126,12 +122,6 @@ static struct mips_set_options mips_opts =
 {
   /* rvc */ 0
 };
-
-/* These variables are filled in with the masks of registers used.
-   The object format code reads them and puts them in the appropriate
-   place.  */
-unsigned long mips_gprmask;
-unsigned long mips_fprmask;
 
 /* Whether or not we're generating position-independent code.  */
 static bfd_boolean is_pic = FALSE;
@@ -1175,9 +1165,6 @@ md_begin (void)
 
   mips_clear_insn_labels ();
 
-  mips_gprmask = 0;
-  mips_fprmask = 0;
-
   /* set the default alignment for the text section (2**2) */
   record_alignment (text_section, 2);
 
@@ -1192,62 +1179,6 @@ md_begin (void)
 	  (void) bfd_set_section_alignment (stdoutput, data_section, 4);
 	  (void) bfd_set_section_alignment (stdoutput, bss_section, 4);
 	}
-
-      /* Create a .reginfo section for register masks and a .mdebug
-	 section for debugging information.  */
-      {
-	segT seg;
-	subsegT subseg;
-	flagword flags;
-	segT sec;
-
-	seg = now_seg;
-	subseg = now_subseg;
-
-	/* The ABI says this section should be loaded so that the
-	   running program can access it.  However, we don't load it
-	   if we are configured for an embedded target */
-	flags = SEC_READONLY | SEC_DATA;
-	if (strncmp (TARGET_OS, "elf", 3) != 0)
-	  flags |= SEC_ALLOC | SEC_LOAD;
-
-	if (!rv64)
-	  {
-	    sec = subseg_new (".reginfo", (subsegT) 0);
-
-	    bfd_set_section_flags (stdoutput, sec, flags);
-	    bfd_set_section_alignment (stdoutput, sec, 3);
-
-	    mips_regmask_frag = frag_more (sizeof (Elf32_External_RegInfo));
-	  }
-	else
-	  {
-	    /* The 64-bit ABI uses a .MIPS.options section rather than
-               .reginfo section.  */
-	    sec = subseg_new (".MIPS.options", (subsegT) 0);
-	    bfd_set_section_flags (stdoutput, sec, flags);
-	    bfd_set_section_alignment (stdoutput, sec, 3);
-
-	    /* Set up the option header.  */
-	    {
-	      Elf_Internal_Options opthdr;
-	      char *f;
-
-	      opthdr.kind = ODK_REGINFO;
-	      opthdr.size = (sizeof (Elf_External_Options)
-			     + sizeof (Elf64_External_RegInfo));
-	      opthdr.section = 0;
-	      opthdr.info = 0;
-	      f = frag_more (sizeof (Elf_External_Options));
-	      bfd_riscv_elf_swap_options_out (stdoutput, &opthdr,
-					     (Elf_External_Options *) f);
-
-	      mips_regmask_frag = frag_more (sizeof (Elf64_External_RegInfo));
-	    }
-	  }
-
-	subseg_set (seg, subseg);
-      }
     }
 #endif /* OBJ_ELF */
 }
@@ -1513,27 +1444,6 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
   }
 
   install_insn (ip);
-
-  /* Update the register mask information.  */
-      if (pinfo & INSN_WRITE_GPR_D)
-	mips_gprmask |= 1 << EXTRACT_OPERAND (RD, *ip);
-      if (pinfo & INSN_WRITE_GPR_RA)
-	mips_gprmask |= 1 << LINK_REG;
-      if (pinfo & INSN_WRITE_FPR_D)
-	mips_fprmask |= 1 << EXTRACT_OPERAND (FD, *ip);
-
-      if (pinfo & INSN_READ_GPR_S)
-	mips_gprmask |= 1 << EXTRACT_OPERAND (RS, *ip);
-      if (pinfo & INSN_READ_GPR_T)
-	mips_gprmask |= 1 << EXTRACT_OPERAND (RT, *ip);
-      if (pinfo & INSN_READ_FPR_S)
-	mips_fprmask |= 1 << EXTRACT_OPERAND (FS, *ip);
-      if (pinfo & INSN_READ_FPR_T)
-	mips_fprmask |= 1 << EXTRACT_OPERAND (FT, *ip);
-      if (pinfo & INSN_READ_FPR_R)
-	mips_fprmask |= 1 << EXTRACT_OPERAND (FR, *ip);
-      /* Never set the bit for $0, which is always zero.  */
-      mips_gprmask &= ~1 << 0;
 
   /* We just output an insn, so the next one doesn't have a label.  */
   mips_clear_insn_labels ();
@@ -3744,39 +3654,6 @@ mips_define_label (symbolS *sym)
 void
 mips_elf_final_processing (void)
 {
-  /* Write out the register information.  */
-  if (!rv64)
-    {
-      Elf32_RegInfo s;
-
-      s.ri_gprmask = mips_gprmask;
-      s.ri_cprmask[0] = 0;
-      s.ri_cprmask[1] = mips_fprmask;
-      s.ri_cprmask[2] = 0;
-      s.ri_cprmask[3] = 0;
-      /* The gp_value field is set by the MIPS ELF backend.  */
-
-      bfd_riscv_elf32_swap_reginfo_out (stdoutput, &s,
-				       ((Elf32_External_RegInfo *)
-					mips_regmask_frag));
-    }
-  else
-    {
-      Elf64_Internal_RegInfo s;
-
-      s.ri_gprmask = mips_gprmask;
-      s.ri_pad = 0;
-      s.ri_cprmask[0] = 0;
-      s.ri_cprmask[1] = mips_fprmask;
-      s.ri_cprmask[2] = 0;
-      s.ri_cprmask[3] = 0;
-      /* The gp_value field is set by the MIPS ELF backend.  */
-
-      bfd_riscv_elf64_swap_reginfo_out (stdoutput, &s,
-				       ((Elf64_External_RegInfo *)
-					mips_regmask_frag));
-    }
-
   /* Set the MIPS ELF flag bits.  FIXME: There should probably be some
      sort of BFD interface for this.  */
   if (is_pic)
