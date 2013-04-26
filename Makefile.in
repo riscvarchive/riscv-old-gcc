@@ -12,8 +12,6 @@ LINUX_DIR := $(CURDIR)/linux-headers/
 
 MAKE_JOBS := 16
 
-# Check that INSTALL_DIR was specified on the command line or in Makelocal
--include Makelocal
 ifndef INSTALL_DIR
 busted: 
 	@echo -e "\
@@ -160,8 +158,3 @@ clean:
 
 # the newlib and linux targets perform installation, so this does nothing
 install:
-
-patches:
-	git diff 68ad6027997289e55963bee1c60fcf6aeec2dafd -- binutils-$(BINUTILS_VERSION) | sed 's/^+++ b\/binutils-/+++ binutils-/' > binutils-$(BINUTILS_VERSION)-riscv.patch
-	git diff 68ad6027997289e55963bee1c60fcf6aeec2dafd -- gcc-$(GCC_VERSION) | sed 's/^+++ b\/gcc-/+++ gcc-/' > gcc-$(GCC_VERSION)-riscv.patch
-	git diff 68ad6027997289e55963bee1c60fcf6aeec2dafd -- glibc-$(GLIBC_VERSION) | sed 's/^+++ b\/glibc-/+++ glibc-/' > glibc-$(GLIBC_VERSION)-riscv.patch
