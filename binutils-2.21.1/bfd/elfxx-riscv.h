@@ -33,14 +33,9 @@ extern bfd_boolean _bfd_riscv_elf_section_from_shdr
   (bfd *, Elf_Internal_Shdr *, const char *, int);
 extern bfd_boolean _bfd_riscv_elf_fake_sections
   (bfd *, Elf_Internal_Shdr *, asection *);
-extern bfd_boolean _bfd_riscv_elf_section_from_bfd_section
-  (bfd *, asection *, int *);
 extern bfd_boolean _bfd_riscv_elf_add_symbol_hook
   (bfd *, struct bfd_link_info *, Elf_Internal_Sym *,
    const char **, flagword *, asection **, bfd_vma *);
-extern int _bfd_riscv_elf_link_output_symbol_hook
-  (struct bfd_link_info *, const char *, Elf_Internal_Sym *,
-   asection *, struct elf_link_hash_entry *);
 extern bfd_boolean _bfd_riscv_elf_create_dynamic_sections
   (bfd *, struct bfd_link_info *);
 extern bfd_boolean _bfd_riscv_elf_check_relocs
@@ -97,10 +92,6 @@ extern bfd_boolean _bfd_riscv_elf_discard_info
 extern bfd_boolean _bfd_riscv_elf_write_section
   (bfd *, struct bfd_link_info *, asection *, bfd_byte *);
 
-extern bfd_reloc_status_type _bfd_riscv_elf_gprel16_with_gp
-  (bfd *, asymbol *, arelent *, asection *, bfd_boolean, void *, bfd_vma);
-extern bfd_reloc_status_type _bfd_riscv_elf32_gprel16_reloc
-  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 extern bfd_reloc_status_type _bfd_riscv_elf_hi16_reloc
   (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 extern bfd_reloc_status_type _bfd_riscv_elf_got16_reloc

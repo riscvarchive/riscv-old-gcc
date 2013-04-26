@@ -38,25 +38,6 @@ ENTRY=_start
 OTHER_GOT_RELOC_SECTIONS="
   .rel.dyn      ${RELOCATING-0} : { *(.rel.dyn) }
 "
-# GOT-related settings.  
-# If the output has a GOT section, there must be exactly 0x7ff0 bytes
-# between .got and _gp.  The ". = ." below stops the orphan code from
-# inserting other sections between the assignment to _gp and the start
-# of .got.
-OTHER_GOT_SYMBOLS='
-  . = .;
-  _gp = ALIGN(16);
-'
-# .got.plt is only used for the PLT psABI extension.  It should not be
-# included in the .sdata block with .got, as there is no need to access
-# the section from _gp.  Note that the traditional:
-#
-#      . = .
-#      _gp = ALIGN (16) + 0x7ff0;
-#      .got : { *(.got.plt) *(.got) }
-#
-# would set _gp to the wrong value; _gp - 0x7ff0 must point to the start
-# of *(.got).
 GOT=".got          ${RELOCATING-0} : { *(.got) }"
 unset OTHER_READWRITE_SECTIONS
 unset OTHER_RELRO_SECTIONS

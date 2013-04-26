@@ -215,9 +215,6 @@ extern void bfd_riscv_elf32_swap_reginfo_out
 
 /* Processor specific section flags.  */
 
-/* This section must be in the global data area.  */
-#define SHF_RISCV_GPREL		0x10000000
-
 /* This section may not be stripped.  */
 #define SHF_RISCV_NOSTRIP	0x08000000
 

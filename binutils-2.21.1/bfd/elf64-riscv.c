@@ -99,16 +99,6 @@ static void mips_elf64_write_rel
   (bfd *, asection *, Elf_Internal_Shdr *, int *, void *);
 static void mips_elf64_write_rela
   (bfd *, asection *, Elf_Internal_Shdr *, int *, void *);
-static bfd_reloc_status_type mips_elf64_gprel16_reloc
-  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
-static bfd_reloc_status_type mips_elf64_literal_reloc
-  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
-static bfd_reloc_status_type mips_elf64_gprel32_reloc
-  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
-static bfd_boolean mips_elf64_assign_gp
-  (bfd *, bfd_vma *);
-static bfd_reloc_status_type mips_elf64_final_gp
-  (bfd *, asymbol *, bfd_boolean, char **, bfd_vma *);
 static bfd_boolean mips_elf64_object_p
   (bfd *);
 static bfd_boolean elf64_mips_grok_prstatus
@@ -225,35 +215,8 @@ static reloc_howto_type mips_elf64_howto_table_rel[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* GP relative reference.  */
-  HOWTO (R_RISCV_GPREL16,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 mips_elf64_gprel16_reloc, /* special_function */
-	 "R_RISCV_GPREL16",	/* name */
-	 TRUE,			/* partial_inplace */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Reference to literal section.  */
-  HOWTO (R_RISCV_LITERAL,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 mips_elf64_literal_reloc, /* special_function */
-	 "R_RISCV_LITERAL",	/* name */
-	 TRUE,			/* partial_inplace */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (7),
+  EMPTY_HOWTO (8),
 
   /* Reference to global offset table.  */
   HOWTO (R_RISCV_GOT16,		/* type */
@@ -302,21 +265,7 @@ static reloc_howto_type mips_elf64_howto_table_rel[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* 32 bit GP relative reference.  */
-  HOWTO (R_RISCV_GPREL32,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 mips_elf64_gprel32_reloc, /* special_function */
-	 "R_RISCV_GPREL32",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (12),
   EMPTY_HOWTO (13),
   EMPTY_HOWTO (14),
   EMPTY_HOWTO (15),
@@ -893,35 +842,8 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* GP relative reference.  */
-  HOWTO (R_RISCV_GPREL16,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 mips_elf64_gprel16_reloc, /* special_function */
-	 "R_RISCV_GPREL16",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Reference to literal section.  */
-  HOWTO (R_RISCV_LITERAL,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 mips_elf64_literal_reloc, /* special_function */
-	 "R_RISCV_LITERAL",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (7),
+  EMPTY_HOWTO (8),
 
   /* Reference to global offset table.  */
   HOWTO (R_RISCV_GOT16,		/* type */
@@ -970,21 +892,7 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* 32 bit GP relative reference.  */
-  HOWTO (R_RISCV_GPREL32,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 mips_elf64_gprel32_reloc, /* special_function */
-	 "R_RISCV_GPREL32",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (12),
   EMPTY_HOWTO (13),
   EMPTY_HOWTO (14),
   EMPTY_HOWTO (15),
@@ -1708,246 +1616,6 @@ mips_elf64_be_swap_reloca_out (bfd *abfd, const Elf_Internal_Rela *src,
   mips_elf64_swap_reloca_out (abfd, &mirela,
 			      (Elf64_Mips_External_Rela *) dst);
 }
-
-/* Set the GP value for OUTPUT_BFD.  Returns FALSE if this is a
-   dangerous relocation.  */
-
-static bfd_boolean
-mips_elf64_assign_gp (bfd *output_bfd, bfd_vma *pgp)
-{
-  unsigned int count;
-  asymbol **sym;
-  unsigned int i;
-
-  /* If we've already figured out what GP will be, just return it.  */
-  *pgp = _bfd_get_gp_value (output_bfd);
-  if (*pgp)
-    return TRUE;
-
-  count = bfd_get_symcount (output_bfd);
-  sym = bfd_get_outsymbols (output_bfd);
-
-  /* The linker script will have created a symbol named `_gp' with the
-     appropriate value.  */
-  if (sym == NULL)
-    i = count;
-  else
-    {
-      for (i = 0; i < count; i++, sym++)
-	{
-	  register const char *name;
-
-	  name = bfd_asymbol_name (*sym);
-	  if (*name == '_' && strcmp (name, "_gp") == 0)
-	    {
-	      *pgp = bfd_asymbol_value (*sym);
-	      _bfd_set_gp_value (output_bfd, *pgp);
-	      break;
-	    }
-	}
-    }
-
-  if (i >= count)
-    {
-      /* Only get the error once.  */
-      *pgp = 4;
-      _bfd_set_gp_value (output_bfd, *pgp);
-      return FALSE;
-    }
-
-  return TRUE;
-}
-
-/* We have to figure out the gp value, so that we can adjust the
-   symbol value correctly.  We look up the symbol _gp in the output
-   BFD.  If we can't find it, we're stuck.  We cache it in the ELF
-   target data.  We don't need to adjust the symbol value for an
-   external symbol if we are producing relocatable output.  */
-
-static bfd_reloc_status_type
-mips_elf64_final_gp (bfd *output_bfd, asymbol *symbol, bfd_boolean relocatable,
-		     char **error_message, bfd_vma *pgp)
-{
-  if (bfd_is_und_section (symbol->section)
-      && ! relocatable)
-    {
-      *pgp = 0;
-      return bfd_reloc_undefined;
-    }
-
-  *pgp = _bfd_get_gp_value (output_bfd);
-  if (*pgp == 0
-      && (! relocatable
-	  || (symbol->flags & BSF_SECTION_SYM) != 0))
-    {
-      if (relocatable)
-	{
-	  /* Make up a value.  */
-	  *pgp = symbol->section->output_section->vma /*+ 0x4000*/;
-	  _bfd_set_gp_value (output_bfd, *pgp);
-	}
-      else if (!mips_elf64_assign_gp (output_bfd, pgp))
-	{
-	  *error_message =
-	    (char *) _("GP relative relocation when _gp not defined");
-	  return bfd_reloc_dangerous;
-	}
-    }
-
-  return bfd_reloc_ok;
-}
-
-/* Do a R_RISCV_GPREL16 relocation.  This is a 16 bit value which must
-   become the offset from the gp register.  */
-
-static bfd_reloc_status_type
-mips_elf64_gprel16_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
-			  void *data, asection *input_section, bfd *output_bfd,
-			  char **error_message)
-{
-  bfd_boolean relocatable;
-  bfd_reloc_status_type ret;
-  bfd_vma gp;
-
-  /* If we're relocating, and this is an external symbol, we don't want
-     to change anything.  */
-  if (output_bfd != NULL
-      && (symbol->flags & BSF_SECTION_SYM) == 0
-      && (symbol->flags & BSF_LOCAL) != 0)
-    {
-      reloc_entry->address += input_section->output_offset;
-      return bfd_reloc_ok;
-    }
-
-  if (output_bfd != NULL)
-    relocatable = TRUE;
-  else
-    {
-      relocatable = FALSE;
-      output_bfd = symbol->section->output_section->owner;
-    }
-
-  ret = mips_elf64_final_gp (output_bfd, symbol, relocatable, error_message,
-			     &gp);
-  if (ret != bfd_reloc_ok)
-    return ret;
-
-  return _bfd_riscv_elf_gprel16_with_gp (abfd, symbol, reloc_entry,
-					input_section, relocatable,
-					data, gp);
-}
-
-/* Do a R_RISCV_LITERAL relocation.  */
-
-static bfd_reloc_status_type
-mips_elf64_literal_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
-			  void *data, asection *input_section, bfd *output_bfd,
-			  char **error_message)
-{
-  bfd_boolean relocatable;
-  bfd_reloc_status_type ret;
-  bfd_vma gp;
-
-  /* R_RISCV_LITERAL relocations are defined for local symbols only.  */
-  if (output_bfd != NULL
-      && (symbol->flags & BSF_SECTION_SYM) == 0
-      && (symbol->flags & BSF_LOCAL) != 0)
-    {
-      *error_message = (char *)
-	_("literal relocation occurs for an external symbol");
-      return bfd_reloc_outofrange;
-    }
-
-  /* FIXME: The entries in the .lit8 and .lit4 sections should be merged.  */
-  if (output_bfd != NULL)
-    relocatable = TRUE;
-  else
-    {
-      relocatable = FALSE;
-      output_bfd = symbol->section->output_section->owner;
-    }
-
-  ret = mips_elf64_final_gp (output_bfd, symbol, relocatable, error_message,
-			     &gp);
-  if (ret != bfd_reloc_ok)
-    return ret;
-
-  return _bfd_riscv_elf_gprel16_with_gp (abfd, symbol, reloc_entry,
-					input_section, relocatable,
-					data, gp);
-}
-
-/* Do a R_RISCV_GPREL32 relocation.  This is a 32 bit value which must
-   become the offset from the gp register.  */
-
-static bfd_reloc_status_type
-mips_elf64_gprel32_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
-			  void *data, asection *input_section, bfd *output_bfd,
-			  char **error_message)
-{
-  bfd_boolean relocatable;
-  bfd_reloc_status_type ret;
-  bfd_vma gp;
-  bfd_vma relocation;
-  bfd_vma val;
-
-  /* R_RISCV_GPREL32 relocations are defined for local symbols only.  */
-  if (output_bfd != NULL
-      && (symbol->flags & BSF_SECTION_SYM) == 0
-      && (symbol->flags & BSF_LOCAL) != 0)
-    {
-      *error_message = (char *)
-	_("32bits gp relative relocation occurs for an external symbol");
-      return bfd_reloc_outofrange;
-    }
-
-  if (output_bfd != NULL)
-    relocatable = TRUE;
-  else
-    {
-      relocatable = FALSE;
-      output_bfd = symbol->section->output_section->owner;
-    }
-
-  ret = mips_elf64_final_gp (output_bfd, symbol, relocatable,
-			     error_message, &gp);
-  if (ret != bfd_reloc_ok)
-    return ret;
-
-  if (bfd_is_com_section (symbol->section))
-    relocation = 0;
-  else
-    relocation = symbol->value;
-
-  relocation += symbol->section->output_section->vma;
-  relocation += symbol->section->output_offset;
-
-  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
-    return bfd_reloc_outofrange;
-
-  /* Set val to the offset into the section or symbol.  */
-  val = reloc_entry->addend;
-
-  if (reloc_entry->howto->partial_inplace)
-    val += bfd_get_32 (abfd, (bfd_byte *) data + reloc_entry->address);
-
-  /* Adjust val for the final section location and GP value.  If we
-     are producing relocatable output, we don't want to do this for
-     an external symbol.  */
-  if (! relocatable
-      || (symbol->flags & BSF_SECTION_SYM) != 0)
-    val += relocation - gp;
-
-  if (reloc_entry->howto->partial_inplace)
-    bfd_put_32 (abfd, val, (bfd_byte *) data + reloc_entry->address);
-  else
-    reloc_entry->addend = val;
-
-  if (relocatable)
-    reloc_entry->address += input_section->output_offset;
-
-  return bfd_reloc_ok;
-}
 
 /* A mapping from BFD reloc types to MIPS ELF reloc types.  */
 
@@ -1966,10 +1634,7 @@ static const struct elf_reloc_map mips_reloc_map[] =
   { BFD_RELOC_16_PCREL_S2, R_RISCV_PC16 },
   { BFD_RELOC_HI16_S, R_RISCV_HI16 },
   { BFD_RELOC_LO16, R_RISCV_LO16 },
-  { BFD_RELOC_GPREL16, R_RISCV_GPREL16 },
-  { BFD_RELOC_GPREL32, R_RISCV_GPREL32 },
   { BFD_RELOC_MIPS_JMP, R_RISCV_26 },
-  { BFD_RELOC_MIPS_LITERAL, R_RISCV_LITERAL },
   { BFD_RELOC_MIPS_GOT16, R_RISCV_GOT16 },
   { BFD_RELOC_MIPS_CALL16, R_RISCV_CALL16 },
   { BFD_RELOC_MIPS_GOT_DISP, R_RISCV_GOT_DISP },
@@ -2281,7 +1946,6 @@ mips_elf64_slurp_one_reloc_table (bfd *abfd, asection *asect,
 	  switch (type)
 	    {
 	    case R_RISCV_NONE:
-	    case R_RISCV_LITERAL:
 	    case R_RISCV_INSERT_A:
 	    case R_RISCV_INSERT_B:
 	    case R_RISCV_DELETE:
@@ -2829,11 +2493,7 @@ const struct elf_size_info mips_elf64_size_info =
 #define elf_backend_symbol_processing	_bfd_riscv_elf_symbol_processing
 #define elf_backend_section_from_shdr	_bfd_riscv_elf_section_from_shdr
 #define elf_backend_fake_sections	_bfd_riscv_elf_fake_sections
-#define elf_backend_section_from_bfd_section \
-				_bfd_riscv_elf_section_from_bfd_section
 #define elf_backend_add_symbol_hook	_bfd_riscv_elf_add_symbol_hook
-#define elf_backend_link_output_symbol_hook \
-				_bfd_riscv_elf_link_output_symbol_hook
 #define elf_backend_create_dynamic_sections \
 				_bfd_riscv_elf_create_dynamic_sections
 #define elf_backend_check_relocs	_bfd_riscv_elf_check_relocs

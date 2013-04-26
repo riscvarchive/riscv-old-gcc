@@ -1385,16 +1385,12 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	  if (rv64
 	      && ! howto->partial_inplace
 	      && (reloc_type[0] == BFD_RELOC_32
-		  || reloc_type[0] == BFD_RELOC_GPREL16
-		  || reloc_type[0] == BFD_RELOC_MIPS_LITERAL
-		  || reloc_type[0] == BFD_RELOC_GPREL32
 		  || reloc_type[0] == BFD_RELOC_64
 		  || reloc_type[0] == BFD_RELOC_CTOR
 		  || reloc_type[0] == BFD_RELOC_MIPS_SUB
 		  || reloc_type[0] == BFD_RELOC_MIPS_SCN_DISP
 		  || reloc_type[0] == BFD_RELOC_MIPS_REL16
 		  || reloc_type[0] == BFD_RELOC_MIPS_RELGOT
-		  || reloc_type[0] == BFD_RELOC_MIPS16_GPREL
 		  || hi16_reloc_p (reloc_type[0])
 		  || lo16_reloc_p (reloc_type[0])))
 	    ip->fixp[0]->fx_no_overflow = 1;
@@ -1587,9 +1583,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 
 	case 'j':
 	  macro_read_relocs (&args, r);
-	  gas_assert (*r == BFD_RELOC_GPREL16
-		  || *r == BFD_RELOC_MIPS_LITERAL
-		  || *r == BFD_RELOC_LO16
+	  gas_assert (*r == BFD_RELOC_LO16
 		  || *r == BFD_RELOC_MIPS_GOT16
 		  || *r == BFD_RELOC_MIPS_CALL16
 		  || *r == BFD_RELOC_MIPS_GOT_DISP
@@ -1604,7 +1598,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 		      || (ep->X_op == O_symbol
 			  && (*r == BFD_RELOC_HI16_S
 			      || *r == BFD_RELOC_HI16
-			      /*|| *r == BFD_RELOC_GPREL16*/
 			      || *r == BFD_RELOC_MIPS_GOT_HI16
 			      || *r == BFD_RELOC_MIPS_CALL_HI16))));
 	  continue;
@@ -2771,16 +2764,12 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_MIPS_RELGOT:
     case BFD_RELOC_HI16:
     case BFD_RELOC_HI16_S:
-    case BFD_RELOC_GPREL16:
-    case BFD_RELOC_MIPS_LITERAL:
     case BFD_RELOC_MIPS_CALL16:
     case BFD_RELOC_MIPS_GOT16:
-    case BFD_RELOC_GPREL32:
     case BFD_RELOC_MIPS_GOT_HI16:
     case BFD_RELOC_MIPS_GOT_LO16:
     case BFD_RELOC_MIPS_CALL_HI16:
     case BFD_RELOC_MIPS_CALL_LO16:
-    case BFD_RELOC_MIPS16_GPREL:
     case BFD_RELOC_MIPS16_GOT16:
     case BFD_RELOC_MIPS16_CALL16:
     case BFD_RELOC_MIPS16_HI16:

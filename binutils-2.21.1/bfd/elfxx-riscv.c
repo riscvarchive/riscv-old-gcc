@@ -688,55 +688,6 @@ mips_elf_high (bfd_vma value)
   return RISCV_LUI_HIGH_PART (value) & ((1<<RISCV_BIGIMM_BITS)-1);
 }
 
-bfd_reloc_status_type
-_bfd_riscv_elf_gprel16_with_gp (bfd *abfd, asymbol *symbol,
-			       arelent *reloc_entry, asection *input_section,
-			       bfd_boolean relocatable, void *data, bfd_vma gp)
-{
-  bfd_vma relocation;
-  bfd_signed_vma val;
-  bfd_reloc_status_type status;
-
-  if (bfd_is_com_section (symbol->section))
-    relocation = 0;
-  else
-    relocation = symbol->value;
-
-  relocation += symbol->section->output_section->vma;
-  relocation += symbol->section->output_offset;
-
-  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
-    return bfd_reloc_outofrange;
-
-  /* Set val to the offset into the section or symbol.  */
-  val = reloc_entry->addend;
-
-  _bfd_riscv_elf_sign_extend (val, RISCV_IMM_BITS);
-
-  /* Adjust val for the final section location and GP value.  If we
-     are producing relocatable output, we don't want to do this for
-     an external symbol.  */
-  if (! relocatable
-      || (symbol->flags & BSF_SECTION_SYM) != 0)
-    val += relocation - gp;
-
-  if (reloc_entry->howto->partial_inplace)
-    {
-      status = _bfd_relocate_contents (reloc_entry->howto, abfd, val,
-				       (bfd_byte *) data
-				       + reloc_entry->address);
-      if (status != bfd_reloc_ok)
-	return status;
-    }
-  else
-    reloc_entry->addend = val;
-
-  if (relocatable)
-    reloc_entry->address += input_section->output_offset;
-
-  return bfd_reloc_ok;
-}
-
 /* Used to store a REL high-part relocation such as R_RISCV_HI16 or
    R_RISCV_GOT16.  REL is the relocation, INPUT_SECTION is the section
    that contains the relocation field and DATA points to the start of
@@ -1500,20 +1451,17 @@ mips_elf_got16_entry (bfd *abfd, bfd *ibfd, struct bfd_link_info *info,
    in the GOT.  */
 
 static bfd_vma
-mips_elf_got_offset_from_index (struct bfd_link_info *info, bfd *output_bfd,
-				bfd_vma got_index)
+mips_elf_got_offset_from_index (struct bfd_link_info *info, bfd_vma got_index)
 {
   struct mips_elf_link_hash_table *htab;
   asection *sgot;
-  bfd_vma gp;
 
   htab = mips_elf_hash_table (info);
   BFD_ASSERT (htab != NULL);
 
   sgot = htab->sgot;
-  gp = _bfd_get_gp_value (output_bfd);
 
-  return sgot->output_section->vma + sgot->output_offset + got_index - gp;
+  return sgot->output_section->vma + sgot->output_offset + got_index;
 }
 
 /* Create and return a local GOT entry for VALUE, which was calculated
@@ -2365,22 +2313,16 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 			       bfd_vma addend, reloc_howto_type *howto,
 			       Elf_Internal_Sym *local_syms,
 			       asection **local_sections, bfd_vma *valuep,
-			       const char **namep,
-			       bfd_boolean save_addend)
+			       const char **namep)
 {
   /* The eventual value we will return.  */
   bfd_vma value;
   /* The address of the symbol against which the relocation is
      occurring.  */
   bfd_vma symbol = 0;
-  /* The final GP value to be used for the relocatable, executable, or
-     shared object file being produced.  */
-  bfd_vma gp;
   /* The place (section offset or address) of the storage unit being
      relocated.  */
   bfd_vma p;
-  /* The value of GP used to create the relocatable object.  */
-  bfd_vma gp0;
   /* The offset into the global offset table at which the address of
      the relocation entry symbol, adjusted by the addend, resides
      during execution.  */
@@ -2474,10 +2416,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       /* Record the name of this symbol, for our caller.  */
       *namep = h->root.root.root.string;
 
-      /* If this symbol is defined, calculate its address.  Note that
-	 _gp_disp is a magic symbol, always implicitly defined by the
-	 linker, so it's inappropriate to check to see whether or not
-	 its defined.  */
+      /* If this symbol is defined, calculate its address. */
       if ((h->root.root.type == bfd_link_hash_defined
 		|| h->root.root.type == bfd_link_hash_defweak)
 	       && h->root.root.u.def.section)
@@ -2526,9 +2465,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     }
 
   local_p = h == NULL || SYMBOL_REFERENCES_LOCAL (info, &h->root);
-
-  gp0 = _bfd_get_gp_value (input_bfd);
-  gp = _bfd_get_gp_value (abfd);
 
   /* If we haven't already determined the GOT offset, and we're going
      to need it, get it now.  */
@@ -2581,7 +2517,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	}
 
       /* Convert GOT indices to actual offsets.  */
-      g = mips_elf_got_offset_from_index (info, abfd, g);
+      g = mips_elf_got_offset_from_index (info, g);
       break;
     }
 
@@ -2689,36 +2625,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = ((symbol + addend) << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
 
-    case R_RISCV_LITERAL:
-      /* Because we don't merge literal sections, we can handle this
-	 just like R_RISCV_GPREL16.  In the long run, we should merge
-	 shared literals, and then we will need to additional work
-	 here.  */
-
-      /* Fall through.  */
-
-    case R_MIPS16_GPREL:
-      /* The R_MIPS16_GPREL performs the same calculation as
-	 R_RISCV_GPREL16, but stores the relocated bits in a different
-	 order.  We don't need to do anything special here; the
-	 differences are handled in mips_elf_perform_relocation.  */
-    case R_RISCV_GPREL16:
-      /* Only sign-extend the addend if it was extracted from the
-	 instruction.  If the addend was separate, leave it alone,
-	 otherwise we may lose significant bits.  */
-      if (howto->partial_inplace)
-	addend = _bfd_riscv_elf_sign_extend (addend, RISCV_IMM_BITS);
-      value = symbol + addend - gp;
-      /* If the symbol was local, any earlier relocatable links will
-	 have adjusted its addend with the gp offset, so compensate
-	 for that now.  Don't do it for symbols forced local in this
-	 link, though, since they won't have had the gp offset applied
-	 to them before.  */
-      if (was_local_p)
-	value += gp0;
-      overflowed_p = mips_elf_overflow_p (value, RISCV_IMM_BITS);
-      break;
-
     case R_MIPS16_GOT16:
     case R_MIPS16_CALL16:
     case R_RISCV_GOT16:
@@ -2730,7 +2636,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	  if (value == MINUS_ONE)
 	    return bfd_reloc_outofrange;
 	  value
-	    = mips_elf_got_offset_from_index (info, abfd, value);
+	    = mips_elf_got_offset_from_index (info, value);
 	  overflowed_p = mips_elf_overflow_p (value, RISCV_IMM_BITS);
 	  value = (value << OP_SH_IMMEDIATE) & howto->dst_mask;
 	  break;
@@ -2747,12 +2653,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = (value << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
 
-    case R_RISCV_GPREL32:
-      value = (addend + symbol + gp0 - gp);
-      if (!save_addend)
-	value &= howto->dst_mask;
-      break;
-
     case R_RISCV_TLS_GOT_HI16:
     case R_RISCV_TLS_GD_HI16:
     case R_RISCV_TLS_LDM_HI16:
@@ -2761,7 +2661,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       /* We're allowed to handle these two relocations identically.
 	 The dynamic linker is allowed to handle the CALL relocations
 	 differently by creating a lazy evaluation stub.  */
-      value = (mips_elf_high (g - p + gp) << OP_SH_BIGIMMEDIATE);
+      value = (mips_elf_high (g - p) << OP_SH_BIGIMMEDIATE);
       break;
 
     case R_RISCV_TLS_GOT_LO16:
@@ -2769,7 +2669,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_LDM_LO16:
     case R_RISCV_GOT_LO16:
     case R_RISCV_CALL_LO16:
-      value = ((g - p + gp) << OP_SH_IMMEDIATE) & howto->dst_mask;
+      value = ((g - p) << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
 
     case R_RISCV_SUB:
@@ -3083,22 +2983,6 @@ elf_mips_abi_name (bfd *abfd)
       return "unknown abi";
     }
 }
-
-/* MIPS ELF uses two common sections.  One is the usual one, and the
-   other is for small objects.  All the small objects are kept
-   together, and then referenced via the gp pointer, which yields
-   faster assembler code.  This is what we use for the small common
-   section.  This approach is copied from ecoff.c.  */
-static asection mips_elf_scom_section;
-static asymbol mips_elf_scom_symbol;
-static asymbol *mips_elf_scom_symbol_ptr;
-
-/* MIPS ELF also uses an acommon section, which represents an
-   allocated common symbol which may be overridden by a
-   definition in a shared library.  */
-static asection mips_elf_acom_section;
-static asymbol mips_elf_acom_symbol;
-static asymbol *mips_elf_acom_symbol_ptr;
 
 /* This is used for both the 32-bit and the 64-bit ABI.  */
 
@@ -3111,47 +2995,7 @@ _bfd_riscv_elf_symbol_processing (bfd *abfd ATTRIBUTE_UNUSED, asymbol *asym)
   elfsym = (elf_symbol_type *) asym;
   switch (elfsym->internal_elf_sym.st_shndx)
     {
-    case SHN_MIPS_ACOMMON:
-      /* This section is used in a dynamically linked executable file.
-	 It is an allocated common section.  The dynamic linker can
-	 either resolve these symbols to something in a shared
-	 library, or it can just leave them here.  For our purposes,
-	 we can consider these symbols to be in a new section.  */
-      if (mips_elf_acom_section.name == NULL)
-	{
-	  /* Initialize the acommon section.  */
-	  mips_elf_acom_section.name = ".acommon";
-	  mips_elf_acom_section.flags = SEC_ALLOC;
-	  mips_elf_acom_section.output_section = &mips_elf_acom_section;
-	  mips_elf_acom_section.symbol = &mips_elf_acom_symbol;
-	  mips_elf_acom_section.symbol_ptr_ptr = &mips_elf_acom_symbol_ptr;
-	  mips_elf_acom_symbol.name = ".acommon";
-	  mips_elf_acom_symbol.flags = BSF_SECTION_SYM;
-	  mips_elf_acom_symbol.section = &mips_elf_acom_section;
-	  mips_elf_acom_symbol_ptr = &mips_elf_acom_symbol;
-	}
-      asym->section = &mips_elf_acom_section;
-      break;
-
     case SHN_COMMON:
-      break;
-
-    case SHN_MIPS_SCOMMON:
-      if (mips_elf_scom_section.name == NULL)
-	{
-	  /* Initialize the small common section.  */
-	  mips_elf_scom_section.name = ".scommon";
-	  mips_elf_scom_section.flags = SEC_IS_COMMON;
-	  mips_elf_scom_section.output_section = &mips_elf_scom_section;
-	  mips_elf_scom_section.symbol = &mips_elf_scom_symbol;
-	  mips_elf_scom_section.symbol_ptr_ptr = &mips_elf_scom_symbol_ptr;
-	  mips_elf_scom_symbol.name = ".scommon";
-	  mips_elf_scom_symbol.flags = BSF_SECTION_SYM;
-	  mips_elf_scom_symbol.section = &mips_elf_scom_section;
-	  mips_elf_scom_symbol_ptr = &mips_elf_scom_symbol;
-	}
-      asym->section = &mips_elf_scom_section;
-      asym->value = elfsym->internal_elf_sym.st_size;
       break;
 
     case SHN_MIPS_SUNDEFINED:
@@ -3181,10 +3025,7 @@ _bfd_riscv_elf_eh_frame_address_size (bfd *abfd, asection *sec ATTRIBUTE_UNUSED)
 
 /* Handle a MIPS specific section when reading an object file.  This
    is called when elfcode.h finds a section with an unknown type.
-   This routine supports both the 32-bit and 64-bit ELF ABI.
-
-   FIXME: We need to handle the SHF_MIPS_GPREL flag, but I'm not sure
-   how to.  */
+   This routine supports both the 32-bit and 64-bit ELF ABI. */
 
 bfd_boolean
 _bfd_riscv_elf_section_from_shdr (bfd *abfd,
@@ -3278,28 +3119,6 @@ _bfd_riscv_elf_fake_sections (bfd *abfd ATTRIBUTE_UNUSED,
     }
   else if (strcmp (name, ".conflict") == 0)
     hdr->sh_type = SHT_MIPS_CONFLICT;
-  else if (CONST_STRNEQ (name, ".gptab."))
-    BFD_ASSERT (FALSE);
-  else if (strcmp (name, ".ucode") == 0)
-    hdr->sh_type = SHT_MIPS_UCODE;
-  else if (strcmp (name, ".got") == 0
-	   || strcmp (name, ".srdata") == 0
-	   || strcmp (name, ".sdata") == 0
-	   || strcmp (name, ".sbss") == 0
-	   || strcmp (name, ".lit4") == 0
-	   || strcmp (name, ".lit8") == 0)
-    hdr->sh_flags |= SHF_MIPS_GPREL;
-  else if (strcmp (name, ".MIPS.interfaces") == 0)
-    {
-      hdr->sh_type = SHT_MIPS_IFACE;
-      hdr->sh_flags |= SHF_MIPS_NOSTRIP;
-    }
-  else if (CONST_STRNEQ (name, ".MIPS.content"))
-    {
-      hdr->sh_type = SHT_MIPS_CONTENT;
-      hdr->sh_flags |= SHF_MIPS_NOSTRIP;
-      /* The sh_info field is set in final_write_processing.  */
-    }
   else if (CONST_STRNEQ (name, ".debug_")
            || CONST_STRNEQ (name, ".zdebug_"))
     {
@@ -3334,29 +3153,6 @@ _bfd_riscv_elf_fake_sections (bfd *abfd ATTRIBUTE_UNUSED,
   return TRUE;
 }
 
-/* Given a BFD section, try to locate the corresponding ELF section
-   index.  This is used by both the 32-bit and the 64-bit ABI.
-   Actually, it's not clear to me that the 64-bit ABI supports these,
-   but for non-PIC objects we will certainly want support for at least
-   the .scommon section.  */
-
-bfd_boolean
-_bfd_riscv_elf_section_from_bfd_section (bfd *abfd ATTRIBUTE_UNUSED,
-					asection *sec, int *retval)
-{
-  if (strcmp (bfd_get_section_name (abfd, sec), ".scommon") == 0)
-    {
-      *retval = SHN_MIPS_SCOMMON;
-      return TRUE;
-    }
-  if (strcmp (bfd_get_section_name (abfd, sec), ".acommon") == 0)
-    {
-      *retval = SHN_MIPS_ACOMMON;
-      return TRUE;
-    }
-  return FALSE;
-}
-
 /* Hook called by the linker routine which adds symbols from an object
    file.  We must handle the special MIPS section numbers here.  */
 
@@ -3365,17 +3161,11 @@ _bfd_riscv_elf_add_symbol_hook (bfd *abfd ATTRIBUTE_UNUSED,
              struct bfd_link_info *info ATTRIBUTE_UNUSED,
 			       Elf_Internal_Sym *sym, const char **namep ATTRIBUTE_UNUSED,
 			       flagword *flagsp ATTRIBUTE_UNUSED,
-			       asection **secp, bfd_vma *valp)
+			       asection **secp, bfd_vma *valp ATTRIBUTE_UNUSED)
 {
   switch (sym->st_shndx)
     {
     case SHN_COMMON:
-      break;
-
-    case SHN_MIPS_SCOMMON:
-      *secp = bfd_make_section_old_way (abfd, ".scommon");
-      (*secp)->flags |= SEC_IS_COMMON;
-      *valp = sym->st_size;
       break;
 
     case SHN_MIPS_TEXT:
@@ -3417,8 +3207,6 @@ _bfd_riscv_elf_add_symbol_hook (bfd *abfd ATTRIBUTE_UNUSED,
       *secp = elf_tdata (abfd)->elf_text_section;
       break;
 
-    case SHN_MIPS_ACOMMON:
-      /* Fall through. XXX Can we treat this as allocated data?  */
     case SHN_MIPS_DATA:
       /* This section is used in a shared object.  */
       if (elf_tdata (abfd)->elf_data_section == NULL)
@@ -3466,26 +3254,6 @@ _bfd_riscv_elf_add_symbol_hook (bfd *abfd ATTRIBUTE_UNUSED,
   return TRUE;
 }
 
-/* This hook function is called before the linker writes out a global
-   symbol.  We mark symbols as small common if appropriate.  This is
-   also where we undo the increment of the value for a mips16 symbol.  */
-
-int
-_bfd_riscv_elf_link_output_symbol_hook
-  (struct bfd_link_info *info ATTRIBUTE_UNUSED,
-   const char *name ATTRIBUTE_UNUSED, Elf_Internal_Sym *sym,
-   asection *input_sec, struct elf_link_hash_entry *h ATTRIBUTE_UNUSED)
-{
-  /* If we see a common symbol, which implies a relocatable link, then
-     if a symbol was small common in an input file, mark it as small
-     common in the output file.  */
-  if (sym->st_shndx == SHN_COMMON
-      && strcmp (input_sec->name, ".scommon") == 0)
-    sym->st_shndx = SHN_MIPS_SCOMMON;
-
-  return 1;
-}
-
 /* Functions for the dynamic linker.  */
 
 /* Create dynamic sections when linking against a dynamic object.  */
@@ -3988,9 +3756,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  break;
 
 	case R_RISCV_26:
-	case R_RISCV_GPREL16:
-	case R_RISCV_LITERAL:
-	case R_RISCV_GPREL32:
 	  break;
 
 	  /* This relocation describes the C++ object vtable hierarchy.
@@ -4570,22 +4335,12 @@ mips_elf_adjust_addend (bfd *output_bfd, struct bfd_link_info *info,
 			bfd *input_bfd, Elf_Internal_Sym *local_syms,
 			asection **local_sections, Elf_Internal_Rela *rel)
 {
-  unsigned int r_type, r_symndx;
+  unsigned int r_symndx;
   Elf_Internal_Sym *sym;
   asection *sec;
 
   if (mips_elf_local_relocation_p (input_bfd, rel, local_sections))
     {
-      r_type = ELF_R_TYPE (output_bfd, rel->r_info);
-      if (r_type == R_MIPS16_GPREL
-	  || r_type == R_RISCV_GPREL16
-	  || r_type == R_RISCV_GPREL32
-	  || r_type == R_RISCV_LITERAL)
-	{
-	  rel->r_addend += _bfd_get_gp_value (input_bfd);
-	  rel->r_addend -= _bfd_get_gp_value (output_bfd);
-	}
-
       r_symndx = ELF_R_SYM (output_bfd, rel->r_info);
       sym = local_syms + r_symndx;
 
@@ -4750,8 +4505,7 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
       switch (mips_elf_calculate_relocation (output_bfd, input_bfd,
 					     input_section, info, rel,
 					     addend, howto, local_syms,
-					     local_sections, &value,
-					     &name, use_saved_addend_p))
+					     local_sections, &value, &name))
 	{
 	case bfd_reloc_continue:
 	  /* There's nothing to do.  */
@@ -5692,7 +5446,6 @@ _bfd_riscv_elf_link_hash_table_create (bfd *abfd)
 bfd_boolean
 _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 {
-  asection *o;
   struct mips_elf_link_hash_table *htab;
 
   /* Sort the dynamic symbols so that those with GOT entries come after
@@ -5702,37 +5455,6 @@ _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 
   if (!mips_elf_sort_hash_table (abfd, info))
     return FALSE;
-
-  /* Get a value for the GP register.  */
-  if (elf_gp (abfd) == 0)
-    {
-      struct bfd_link_hash_entry *h;
-
-      h = bfd_link_hash_lookup (info->hash, "_gp", FALSE, FALSE, TRUE);
-      if (h != NULL && h->type == bfd_link_hash_defined)
-	elf_gp (abfd) = (h->u.def.value
-			 + h->u.def.section->output_section->vma
-			 + h->u.def.section->output_offset);
-      else if (info->relocatable)
-	{
-	  bfd_vma lo = MINUS_ONE;
-
-	  /* Find the GP-relative section with the lowest offset.  */
-	  for (o = abfd->sections; o != NULL; o = o->next)
-	    if (o->vma < lo
-		&& (elf_section_data (o)->this_hdr.sh_flags & SHF_MIPS_GPREL))
-	      lo = o->vma;
-
-	  /* And calculate GP relative to that.  */
-	  elf_gp (abfd) = lo;
-	}
-      else
-	{
-	  /* If the relocate_section function needs to do a reloc
-	     involving the GP value, it should make a reloc_dangerous
-	     callback to warn that GP is not defined.  */
-	}
-    }
 
   /* Invoke the regular ELF backend linker to do all the work.  */
   return bfd_elf_final_link (abfd, info);
@@ -6142,11 +5864,9 @@ _bfd_riscv_elf_print_private_bfd_data (bfd *abfd, void *ptr)
 
 const struct bfd_elf_special_section _bfd_riscv_elf_special_sections[] =
 {
-  { STRING_COMMA_LEN (".lit4"),   0, SHT_PROGBITS,   SHF_ALLOC + SHF_WRITE + SHF_MIPS_GPREL },
-  { STRING_COMMA_LEN (".lit8"),   0, SHT_PROGBITS,   SHF_ALLOC + SHF_WRITE + SHF_MIPS_GPREL },
-  { STRING_COMMA_LEN (".sbss"),  -2, SHT_NOBITS,     SHF_ALLOC + SHF_WRITE + SHF_MIPS_GPREL },
-  { STRING_COMMA_LEN (".sdata"), -2, SHT_PROGBITS,   SHF_ALLOC + SHF_WRITE + SHF_MIPS_GPREL },
-  { STRING_COMMA_LEN (".ucode"),  0, SHT_MIPS_UCODE, 0 },
+#if 0
+  { STRING_COMMA_LEN (".vtext"),  0, SHT_RISCV_VTEXT, 0 },
+#endif
   { NULL,                     0,  0, 0,              0 }
 };
 
@@ -6172,9 +5892,7 @@ _bfd_riscv_elf_merge_symbol_attribute (struct elf_link_hash_entry *h,
 bfd_boolean
 _bfd_riscv_elf_common_definition (Elf_Internal_Sym *sym)
 {
-  return (sym->st_shndx == SHN_COMMON
-	  || sym->st_shndx == SHN_MIPS_ACOMMON
-	  || sym->st_shndx == SHN_MIPS_SCOMMON);
+  return (sym->st_shndx == SHN_COMMON);
 }
 
 /* Return address for Ith PLT stub in section PLT, for relocation REL
