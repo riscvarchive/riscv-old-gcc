@@ -82,9 +82,6 @@ extern bfd_boolean _bfd_riscv_elf_find_inliner_info
   (bfd *, const char **, const char **, unsigned int *);
 extern bfd_boolean _bfd_riscv_elf_set_section_contents
   (bfd *, asection *, const void *, file_ptr, bfd_size_type);
-extern bfd_byte *_bfd_elf_riscv_get_relocated_section_contents
-  (bfd *, struct bfd_link_info *, struct bfd_link_order *,
-   bfd_byte *, bfd_boolean, asymbol **);
 extern struct bfd_link_hash_table *_bfd_riscv_elf_link_hash_table_create
   (bfd *);
 extern bfd_boolean _bfd_riscv_elf_final_link

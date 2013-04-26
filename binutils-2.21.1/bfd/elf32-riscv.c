@@ -2093,7 +2093,7 @@ elf32_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define bfd_elf32_new_section_hook	_bfd_riscv_elf_new_section_hook
 #define bfd_elf32_set_section_contents	_bfd_riscv_elf_set_section_contents
 #define bfd_elf32_bfd_get_relocated_section_contents \
-				_bfd_elf_riscv_get_relocated_section_contents
+				bfd_generic_get_relocated_section_contents
 #define bfd_elf32_bfd_link_hash_table_create \
 					_bfd_riscv_elf_link_hash_table_create
 #define bfd_elf32_bfd_final_link	_bfd_riscv_elf_final_link
