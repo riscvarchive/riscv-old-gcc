@@ -216,21 +216,7 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 MINUS_ONE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* Displacement in the global offset table.  */
-  HOWTO (R_RISCV_GOT_DISP,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_GOT_DISP",	/* name */
-	 TRUE,			/* partial_inplace */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (19),
   EMPTY_HOWTO (20),
   EMPTY_HOWTO (21),
 
@@ -264,70 +250,10 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* 64 bit subtraction.  */
-  HOWTO (R_RISCV_SUB,		/* type */
-	 0,			/* rightshift */
-	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_SUB",		/* name */
-	 TRUE,			/* partial_inplace */
-	 MINUS_ONE,		/* src_mask */
-	 MINUS_ONE,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Insert the addend as an instruction.  */
-  /* FIXME: Not handled correctly.  */
-  HOWTO (R_RISCV_INSERT_A,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_INSERT_A",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Insert the addend as an instruction, and change all relocations
-     to refer to the old instruction at the address.  */
-  /* FIXME: Not handled correctly.  */
-  HOWTO (R_RISCV_INSERT_B,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_INSERT_B",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Delete a 32 bit instruction.  */
-  /* FIXME: Not handled correctly.  */
-  HOWTO (R_RISCV_DELETE,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_DELETE",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (24),
+  EMPTY_HOWTO (25),
+  EMPTY_HOWTO (26),
+  EMPTY_HOWTO (27),
   EMPTY_HOWTO (28),
   EMPTY_HOWTO (29),
 
@@ -361,20 +287,7 @@ static reloc_howto_type elf_mips_howto_table_rel[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* Section displacement, used by an associated event location section.  */
-  HOWTO (R_RISCV_SCN_DISP,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_SCN_DISP",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (32),
 
   HOWTO (R_RISCV_REL16,		/* type */
 	 0,			/* rightshift */
@@ -815,21 +728,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 MINUS_ONE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* Displacement in the global offset table.  */
-  HOWTO (R_RISCV_GOT_DISP,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_GOT_DISP",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (19),
   EMPTY_HOWTO (20),
   EMPTY_HOWTO (21),
 
@@ -863,70 +762,10 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* 64 bit subtraction.  */
-  HOWTO (R_RISCV_SUB,		/* type */
-	 0,			/* rightshift */
-	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_SUB",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 MINUS_ONE,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Insert the addend as an instruction.  */
-  /* FIXME: Not handled correctly.  */
-  HOWTO (R_RISCV_INSERT_A,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_INSERT_A",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Insert the addend as an instruction, and change all relocations
-     to refer to the old instruction at the address.  */
-  /* FIXME: Not handled correctly.  */
-  HOWTO (R_RISCV_INSERT_B,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_INSERT_B",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Delete a 32 bit instruction.  */
-  /* FIXME: Not handled correctly.  */
-  HOWTO (R_RISCV_DELETE,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_DELETE",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (24),
+  EMPTY_HOWTO (25),
+  EMPTY_HOWTO (26),
+  EMPTY_HOWTO (27),
   EMPTY_HOWTO (28),
   EMPTY_HOWTO (29),
 
@@ -960,20 +799,7 @@ static reloc_howto_type elf_mips_howto_table_rela[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* Section displacement, used by an associated event location section.  */
-  HOWTO (R_RISCV_SCN_DISP,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_SCN_DISP",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (32),
 
   HOWTO (R_RISCV_REL16,		/* type */
 	 0,			/* rightshift */
@@ -1384,16 +1210,10 @@ static const struct elf_reloc_map mips_reloc_map[] =
   { BFD_RELOC_HI16_S, R_RISCV_HI16 },
   { BFD_RELOC_LO16, R_RISCV_LO16 },
   { BFD_RELOC_MIPS_JMP, R_RISCV_26 },
-  { BFD_RELOC_MIPS_GOT_DISP, R_RISCV_GOT_DISP },
   { BFD_RELOC_MIPS_GOT_HI16, R_RISCV_GOT_HI16 },
   { BFD_RELOC_MIPS_GOT_LO16, R_RISCV_GOT_LO16 },
-  { BFD_RELOC_MIPS_SUB, R_RISCV_SUB },
-  { BFD_RELOC_MIPS_INSERT_A, R_RISCV_INSERT_A },
-  { BFD_RELOC_MIPS_INSERT_B, R_RISCV_INSERT_B },
-  { BFD_RELOC_MIPS_DELETE, R_RISCV_DELETE },
   { BFD_RELOC_MIPS_CALL_HI16, R_RISCV_CALL_HI16 },
   { BFD_RELOC_MIPS_CALL_LO16, R_RISCV_CALL_LO16 },
-  { BFD_RELOC_MIPS_SCN_DISP, R_RISCV_SCN_DISP },
   { BFD_RELOC_MIPS_REL16, R_RISCV_REL16 },
   { BFD_RELOC_MIPS_RELGOT, R_RISCV_RELGOT },
   { BFD_RELOC_MIPS_TLS_DTPMOD32, R_RISCV_TLS_DTPMOD32 },

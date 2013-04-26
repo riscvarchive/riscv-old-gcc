@@ -2392,7 +2392,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
      to need it, get it now.  */
   switch (r_type)
     {
-    case R_RISCV_GOT_DISP:
     case R_RISCV_GOT_HI16:
     case R_RISCV_CALL_HI16:
     case R_RISCV_GOT_LO16:
@@ -2545,7 +2544,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_GD:
     case R_RISCV_TLS_GOTTPREL:
     case R_RISCV_TLS_LDM:
-    case R_RISCV_GOT_DISP:
       value = g;
       overflowed_p = mips_elf_overflow_p (value, RISCV_IMM_BITS);
       value = (value << OP_SH_IMMEDIATE) & howto->dst_mask;
@@ -2568,16 +2566,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_GOT_LO16:
     case R_RISCV_CALL_LO16:
       value = ((g - p) << OP_SH_IMMEDIATE) & howto->dst_mask;
-      break;
-
-    case R_RISCV_SUB:
-      value = symbol - addend;
-      value &= howto->dst_mask;
-      break;
-
-    case R_RISCV_SCN_DISP:
-      value = symbol + addend - sec->output_offset;
-      value &= howto->dst_mask;
       break;
 
     case R_RISCV_PJUMP:
@@ -3413,7 +3401,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_RISCV_CALL_LO16:
 	case R_RISCV_GOT_HI16:
 	case R_RISCV_GOT_LO16:
-	case R_RISCV_GOT_DISP:
 	case R_RISCV_TLS_GOTTPREL:
 	case R_RISCV_TLS_GOT_HI16:
 	case R_RISCV_TLS_GOT_LO16:
@@ -3486,8 +3473,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	}
 
       if ((h == NULL && r_type == R_RISCV_CALL_LO16)
-	       || r_type == R_RISCV_GOT_LO16
-	       || r_type == R_RISCV_GOT_DISP)
+	       || r_type == R_RISCV_GOT_LO16)
 	{
 	  if (!mips_elf_record_local_got_symbol (abfd, r_symndx,
 						 rel->r_addend, info, 0))
@@ -3516,10 +3502,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 						   addend))
 		return FALSE;
 	    }
-	  /* Fall through.  */
-
-	case R_RISCV_GOT_DISP:
-	  if (h && !mips_elf_record_global_got_symbol (h, abfd, info, 0))
+	  else if (!mips_elf_record_global_got_symbol (h, abfd, info, 0))
 	    return FALSE;
 	  break;
 

@@ -1313,7 +1313,6 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 
 	    case BFD_RELOC_UNUSED:
 	    case BFD_RELOC_LO16:
-	    case BFD_RELOC_MIPS_GOT_DISP:
 		  /* Stores have a split immediate field. */
 	      if (OPCODE_IS_STORE(ip->insn_opcode))
 		{
@@ -1381,8 +1380,6 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	      && (reloc_type[0] == BFD_RELOC_32
 		  || reloc_type[0] == BFD_RELOC_64
 		  || reloc_type[0] == BFD_RELOC_CTOR
-		  || reloc_type[0] == BFD_RELOC_MIPS_SUB
-		  || reloc_type[0] == BFD_RELOC_MIPS_SCN_DISP
 		  || reloc_type[0] == BFD_RELOC_MIPS_REL16
 		  || reloc_type[0] == BFD_RELOC_MIPS_RELGOT
 		  || hi16_reloc_p (reloc_type[0])
@@ -1578,7 +1575,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	case 'j':
 	  macro_read_relocs (&args, r);
 	  gas_assert (*r == BFD_RELOC_LO16
-		  || *r == BFD_RELOC_MIPS_GOT_DISP
 		  || *r == BFD_RELOC_MIPS_GOT_LO16
 		  || *r == BFD_RELOC_MIPS_CALL_LO16);
 	  continue;
@@ -2672,9 +2668,7 @@ mips_force_relocation (fixS *fixp)
     return 1;
 
   if (S_GET_SEGMENT (fixp->fx_addsy) == bfd_abs_section_ptr
-      && (fixp->fx_r_type == BFD_RELOC_MIPS_SUB
-	  || hi16_reloc_p (fixp->fx_r_type)
-	  || lo16_reloc_p (fixp->fx_r_type)))
+      && (hi16_reloc_p (fixp->fx_r_type) || lo16_reloc_p (fixp->fx_r_type)))
     return 1;
 
   return 0;
@@ -2698,7 +2692,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
   gas_assert (fixP->fx_size == 4
 	  || fixP->fx_r_type == BFD_RELOC_64
 	  || fixP->fx_r_type == BFD_RELOC_CTOR
-	  || fixP->fx_r_type == BFD_RELOC_MIPS_SUB
 	  || fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
 	  || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY
 	  || fixP->fx_r_type == BFD_RELOC_MIPS_TLS_DTPREL64);
@@ -2746,12 +2739,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
       /* fall through */
 
-    case BFD_RELOC_MIPS_GOT_DISP:
-    case BFD_RELOC_MIPS_SUB:
-    case BFD_RELOC_MIPS_INSERT_A:
-    case BFD_RELOC_MIPS_INSERT_B:
-    case BFD_RELOC_MIPS_DELETE:
-    case BFD_RELOC_MIPS_SCN_DISP:
     case BFD_RELOC_MIPS_REL16:
     case BFD_RELOC_MIPS_RELGOT:
     case BFD_RELOC_HI16:
