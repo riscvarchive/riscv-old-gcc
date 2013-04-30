@@ -1,3 +1,2 @@
-build-*
-build.log
+build*
 *-*-riscv.patch
