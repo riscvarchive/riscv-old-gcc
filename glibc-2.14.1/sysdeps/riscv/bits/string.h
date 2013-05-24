@@ -21,7 +21,7 @@ static inline unsigned long __libc_detect_null(unsigned long w)
 #define _HAVE_STRING_ARCH_memcpy 1
 #define __use_memcpy_align(k, d, s, n) \
   (__builtin_constant_p(n) && (n) % (k) == 0 && (n) <= 64 && \
-   __alignof__(d) >= (k) && __alignof__(s) >= (k))
+   __alignof__(*(d)) >= (k) && __alignof__(*(s)) >= (k))
 #define memcpy(d, s, n) \
   (__use_memcpy_align(8, d, s, n) ? __memcpy_align8(d, s, n) : \
    __use_memcpy_align(4, d, s, n) ? __memcpy_align4(d, s, n) : \
