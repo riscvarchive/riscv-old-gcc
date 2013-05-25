@@ -594,11 +594,7 @@ bool
 riscv_symbol_binds_local_p (const_rtx x)
 {
   if (SYMBOL_REF_DECL (x))
-    {
-      if (DECL_BUILT_IN_CLASS (SYMBOL_REF_DECL (x)))
-	return true; /* Force local binding of memset etc. */
-      return targetm.binds_local_p (SYMBOL_REF_DECL (x));
-    }
+    return targetm.binds_local_p (SYMBOL_REF_DECL (x));
   return SYMBOL_REF_LOCAL_P (x);
 }
 
