@@ -52,6 +52,12 @@ static const char rvc_rs1_regmap[8] = { 20, 21, 2, 3, 4, 5, 6, 7 };
 #define rvc_rs2b_regmap rvc_rs1_regmap
 static const char rvc_rs2_regmap[8] = { 20, 21, 2, 3, 4, 5, 6, 0 };
 
+static inline unsigned int riscv_insn_length (unsigned int insn)
+{
+  /* RVC instructions have insn[1:0] != 3 */
+  return (insn & 0x3) != 0x3 ? 2 : 4;
+}
+
 #define RVC_JUMP_BITS 10
 #define RVC_JUMP_ALIGN_BITS 1
 #define RVC_JUMP_ALIGN (1 << RVC_JUMP_ALIGN_BITS)

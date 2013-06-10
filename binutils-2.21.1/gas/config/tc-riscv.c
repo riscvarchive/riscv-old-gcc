@@ -68,6 +68,8 @@ static int mips_output_flavor (void) { return OUTPUT_FLAVOR; }
 #include "elf/riscv.h"
 #endif
 
+#include "opcode/riscv.h"
+
 #define ZERO 0
 #define SP 14
 
@@ -407,8 +409,9 @@ mips_target_format (void)
 static inline unsigned int
 insn_length (const struct mips_cl_insn *insn)
 {
-  /* RVC instructions have insn[1:0] != 3 */
-  return mips_opts.rvc && (insn->insn_opcode & 0x3) != 0x3 ? 2 : 4;
+  if (!mips_opts.rvc)
+    return 4;
+  return riscv_insn_length (insn->insn_opcode);
 }
 
 static int

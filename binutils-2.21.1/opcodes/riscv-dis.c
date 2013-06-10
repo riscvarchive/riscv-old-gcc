@@ -40,10 +40,6 @@
 
 #include <assert.h>
 
-/* Mips instructions are at maximum this many bytes long.  */
-#define INSNLEN 4
-
-
 /* FIXME: These should be shared with gdb somehow.  */
 
 static const char * const mips_gpr_names_numeric[32] =
@@ -734,12 +730,7 @@ print_insn_mips (bfd_vma memaddr,
       init = 1;
     }
 
-  insnlen = 4;
-#if 0
-  /* this enables rvc disassembly */
-  if ((word & 0x3) < 3)
-    insnlen = 2;
-#endif
+  insnlen = riscv_insn_length (word);
 
   if (insnlen == 2)
     word = riscv_rvc_uncompress(word);
@@ -784,7 +775,6 @@ print_insn_mips (bfd_vma memaddr,
   return insnlen;
 }
 
-
 /* In an environment where we do not know the symbol type of the
    instruction we are forced to assume that the low order bit of the
    instructions' address may mark it as a mips16 instruction.  If we
@@ -796,50 +786,41 @@ _print_insn_mips (bfd_vma memaddr,
 		  struct disassemble_info *info,
 		  enum bfd_endian endianness)
 {
-  bfd_byte buffer[INSNLEN];
+  bfd_byte buffer[sizeof(bfd_vma)];
+  bfd_vma insn = 0, part, n;
   int status;
 
   set_default_mips_dis_options (info);
   parse_mips_dis_options (info->disassembler_options);
 
-  status = (*info->read_memory_func) (memaddr, buffer, 2, info);
-  if(status == 0)
+  /* Instructions are stored as a sequence of 2-byte packets in little-endian
+     order.  (Within a packet, the byte order is the target endianness). */
+  for (n = 0; n < sizeof(buffer) && n < riscv_insn_length (insn); n += 2)
     {
-      unsigned long insn;
+      status = (*info->read_memory_func) (memaddr + n, buffer, 2, info);
+      if (status != 0)
+        break;
 
-      if (endianness == BFD_ENDIAN_BIG)
-	insn = (unsigned long) bfd_getb16 (buffer);
-      else
-	insn = (unsigned long) bfd_getl16 (buffer);
-
-      if ((insn & 0x3) < 3)
-	return print_insn_mips (memaddr, insn, info);
+      part = endianness == BFD_ENDIAN_BIG ? bfd_getb16 (buffer)
+                                          : bfd_getl16 (buffer);
+      insn |= part << (8*n);
     }
 
-  status = (*info->read_memory_func) (memaddr, buffer, INSNLEN, info);
-  if (status == 0)
-    {
-      unsigned long insn;
-
-      if (endianness == BFD_ENDIAN_BIG)
-	insn = (unsigned long) bfd_getb32 (buffer);
-      else
-	insn = (unsigned long) bfd_getl32 (buffer);
-
-      return print_insn_mips (memaddr, insn, info);
-    }
-  else
+  /* Don't fail if we've merely fallen off the end of a section. */
+  if (status != 0 && (*info->read_memory_func) (memaddr, buffer, 1, info) != 0)
     {
       (*info->memory_error_func) (status, memaddr, info);
-      return -1;
+      return status;
     }
+
+  return print_insn_mips (memaddr, insn, info);
 }
 
 int
 print_insn_big_riscv (bfd_vma memaddr ATTRIBUTE_UNUSED,
                       struct disassemble_info *info ATTRIBUTE_UNUSED)
 {
-  assert(0);
+  return _print_insn_mips (memaddr, info, BFD_ENDIAN_BIG);
 }
 
 int
@@ -847,7 +828,7 @@ print_insn_little_riscv (bfd_vma memaddr, struct disassemble_info *info)
 {
   return _print_insn_mips (memaddr, info, BFD_ENDIAN_LITTLE);
 }
-
+
 void
 print_mips_disassembler_options (FILE *stream)
 {
