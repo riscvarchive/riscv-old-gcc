@@ -26,10 +26,14 @@ newlib: busted
 riscv: busted
 endif
 
-# Check that we have gawk installed, rather than mawk etc.
-AWK := $(shell awk -W version 2>&1 | head -n 1 | awk '{print $$1}')
-ifneq ($(AWK),GNU)
-$(error You need to have 'gawk' installed on your system!)
+# Check that we have gawk installed.  Set awk=gawk if necessary.
+SHELL := /bin/sh
+ifeq ($(shell awk --version | grep GNU),)
+ifeq ($(shell gawk --version),)
+$(error You must have gawk installed on your system!)
+else
+SHELL := PATH="$(srcdir)/gawkward:$(PATH)" $(SHELL)
+endif
 endif
 
 # Check that we have the GMP, MPFR, and MPC libraries installed
