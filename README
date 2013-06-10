@@ -11,17 +11,19 @@ toolchain.  The latter is also the basis for the RISC-V Akaros cross-
 compiler, which is kept separately in the Akaros repository.
 
 To build the Newlib cross-compiler, pick an install path.  If you choose,
-say, /opt/riscv-gcc, then add /opt/riscv-gcc/bin to your PATH now.  Then,
-simply run the following command:
+say, /opt/riscv, then add /opt/riscv/bin to your PATH now.  Then, simply
+run the following command:
 
- % ./configure --prefix=/opt/riscv-gcc
+ % ./configure --prefix=/opt/riscv
  % make
 
 You should now be able to use riscv-gcc and its cousins.
 
 
-To build the Linux cross-compiler, riscv-linux-gcc:
+To build the Linux cross-compiler, pick an install path.  If you choose,
+say, /opt/riscv, then add /opt/riscv/bin to your PATH now.  Then, simply
+run the following command:
 
- % ./configure --prefix=/opt/riscv-linux-gcc
+ % ./configure --prefix=/opt/riscv
  % make linux
 
