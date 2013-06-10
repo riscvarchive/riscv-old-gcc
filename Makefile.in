@@ -36,12 +36,6 @@ SHELL := PATH="$(srcdir)/gawkward:$(PATH)" $(SHELL)
 endif
 endif
 
-# Check that we have the GMP, MPFR, and MPC libraries installed
-GMP_OK := $(shell echo "int main() {return 0;}" | gcc -x c - -lgmp -lmpfr -lmpc -o /dev/null > /dev/null && echo OK)
-ifneq ($(GMP_OK),OK)
-$(error You need to have the libraries GMP, MPFR, and MPC installed on your system!)
-endif
-
 newlib: build-gcc-newlib
 
 linux: build-gcc-linux-stage2
