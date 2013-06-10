@@ -1,4 +1,4 @@
-AC_INIT(risc-gcc, 1.0)
+AC_INIT(riscv-gcc, 1.1)
 
 AC_PROG_CC
 AC_PROG_AWK
