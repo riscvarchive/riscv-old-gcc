@@ -98,11 +98,6 @@
 	__tmp;					\
 })
 
-/* Host-Target Interface (HTIF) */
-#define HTIF_DEVICE_CONSOLE 	(1UL << 56)
-#define HTIF_COMMAND_READ	(0UL << 48)
-#define HTIF_COMMAND_WRITE	(1UL << 48)
-
 #endif /* __ASSEMBLY__ */
 
 #endif /* _ASM_RISCV_PCR_H */

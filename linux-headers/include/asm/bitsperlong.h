@@ -9,11 +9,13 @@
  * to decide it, but rather check a compiler provided macro.
  */
 #ifndef __BITS_PER_LONG
-#if 1
+#if defined(__riscv64)
 #define __BITS_PER_LONG 64
-#else
+#elif defined(__riscv32)
 #define __BITS_PER_LONG 32
-#endif /* CONFIG_64BIT */
+#else
+#error Unknown word length
+#endif
 #endif /* __BITS_PER_LONG */
 
 #endif /* __ASM_RISCV_BITS_PER_LONG */
