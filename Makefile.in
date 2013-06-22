@@ -40,6 +40,8 @@ newlib: build-gcc-newlib
 
 linux: build-gcc-linux-stage2
 
+native: build-gcc-native
+
 build-binutils-newlib:
 	rm -rf $@
 	mkdir $@
@@ -59,7 +61,7 @@ build-gcc-newlib-src: build-binutils-newlib
 	cp -r $(srcdir)/newlib-$(NEWLIB_VERSION)/newlib $@
 	cp -r $(srcdir)/newlib-$(NEWLIB_VERSION)/libgloss $@
 
-build-gcc-newlib: build-gcc-newlib-src
+build-gcc-newlib: build-gcc-newlib-src remove-native-libs
 	rm -rf $@
 	mkdir $@
 	cd $@ && ../$</configure \
@@ -92,7 +94,7 @@ build-binutils-linux:
 	$(MAKE) -C $@ -j $(MAKE_JOBS)
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 
-build-gcc-linux-stage1: build-binutils-linux
+build-gcc-linux-stage1: build-binutils-linux remove-native-libs
 	rm -rf $@
 	mkdir $@
 	cd $@ && $(srcdir)/gcc-$(GCC_VERSION)/configure \
@@ -130,7 +132,7 @@ build-glibc-linux: build-gcc-linux-stage1
 	$(MAKE) -C $@ -j $(MAKE_JOBS) cross-compiling=yes
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install cross-compiling=yes
 
-build-gcc-linux-stage2: build-glibc-linux
+build-gcc-linux-stage2: build-glibc-linux remove-native-libs
 	rm -rf $@
 	mkdir $@
 	cd $@ && $(srcdir)/gcc-$(GCC_VERSION)/configure \
@@ -148,6 +150,53 @@ build-gcc-linux-stage2: build-glibc-linux
 		--disable-multilib \
 		--disable-bootstrap \
 		--with-headers=$(LINUX_DIR)/include
+	$(MAKE) -C $@ -j $(MAKE_JOBS)
+	$(MAKE) -C $@ -j $(MAKE_JOBS) install
+
+build-binutils-native:
+	rm -rf $@
+	mkdir $@
+	cd $@ && $(srcdir)/binutils-$(BINUTILS_VERSION)/configure \
+		--host=riscv-linux \
+		--target=riscv-linux \
+		--prefix=$(SYSROOT)/usr/ \
+		--with-sysroot=/ \
+		--disable-multilib \
+		--disable-nls
+	$(MAKE) -C $@ -j $(MAKE_JOBS)
+	$(MAKE) -C $@ -j $(MAKE_JOBS) install
+
+insert-native-libs:
+	-mv $(srcdir)/mpfr $(srcdir)/gcc-$(GCC_VERSION)
+	-mv $(srcdir)/mpc $(srcdir)/gcc-$(GCC_VERSION)
+	-mv $(srcdir)/gmp $(srcdir)/gcc-$(GCC_VERSION)
+
+remove-native-libs:
+	-mv $(srcdir)/gcc-$(GCC_VERSION)/mpfr $(srcdir)
+	-mv $(srcdir)/gcc-$(GCC_VERSION)/mpc $(srcdir)
+	-mv $(srcdir)/gcc-$(GCC_VERSION)/gmp $(srcdir)
+
+build-gcc-native: build-binutils-native insert-native-libs
+	rm -rf $@
+	mkdir $@
+	cd $@ && CFLAGS="-fPIC" $(srcdir)/gcc-$(GCC_VERSION)/configure \
+		--host=riscv-linux \
+		--target=riscv-linux \
+		--prefix=$(SYSROOT)/usr/ \
+		--with-sysroot=/ \
+		--enable-shared \
+		--disable-threads \
+		--enable-tls \
+		--enable-languages=c \
+		--disable-libmudflap \
+		--disable-libssp \
+		--disable-libquadmath \
+		--disable-libgomp \
+		--disable-nls \
+		--disable-multilib \
+		--disable-bootstrap \
+		--with-mpfr-include=$(srcdir)/gcc-$(GCC_VERSION)/mpfr/src \
+		--with-mpfr-lib=$(srcdir)/$@/mpfr/src/.libs
 	$(MAKE) -C $@ -j $(MAKE_JOBS)
 	$(MAKE) -C $@ -j $(MAKE_JOBS) install
 

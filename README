@@ -27,3 +27,18 @@ run the following command:
  % ./configure --prefix=/opt/riscv
  % make linux
 
+
+To build the native RISC-V compiler (to be running on RISC-V systems, e.g.
+Linux/RISC-V), first build the Linux cross-compiler (described above).
+
+Patch GCC to define SSIZE_MAX.
+
+ % patch -p1 < native-host-linux.patch
+
+Build binutils and gcc, specifying the installation directory as your 
+target system root as SYSROOT. If you choose, say, /opt/riscv/sysroot, 
+binaries will be installed into /opt/riscv/sysroot/bin. To build, run
+the following command:
+
+ % make native SYSROOT=/opt/riscv/sysroot
+

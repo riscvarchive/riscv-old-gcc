@@ -788,7 +788,7 @@ _print_insn_mips (bfd_vma memaddr,
 {
   bfd_byte buffer[sizeof(bfd_vma)];
   bfd_vma insn = 0, part, n;
-  int status;
+  int status = 0;
 
   set_default_mips_dis_options (info);
   parse_mips_dis_options (info->disassembler_options);
