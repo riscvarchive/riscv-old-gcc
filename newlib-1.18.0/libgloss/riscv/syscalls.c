@@ -88,18 +88,18 @@
 //------------------------------------------------------------------------
 // Open a file.
 
-#define syscall_errno(n,a,b,c,d) \
-        __syscall_errno(n,(long)(a),(long)(b),(long)(c),(long)(d))
+#define syscall_errno(n, a, b, c, d) \
+        __syscall_errno(n, (long)(a), (long)(b), (long)(c), (long)(d))
 static inline long __syscall_errno(long n, long a, long b, long c, long d)
 {
-  sysret_t s = __internal_syscall(n,a,b,c,d);
+  sysret_t s = __internal_syscall(n, a, b, c, d);
   errno = s.err;
   return s.result;
 }
 
-int open( const char* name, int flags, int mode )
+int open(const char* name, int flags, int mode)
 {
-  return syscall_errno(SYS_open,name,1+strlen(name),flags,mode);
+  return syscall_errno(SYS_open, name, flags, mode, 0);
 }
 
 //------------------------------------------------------------------------
@@ -107,9 +107,9 @@ int open( const char* name, int flags, int mode )
 //------------------------------------------------------------------------
 // Set position in a file.
 
-off_t lseek( int file, off_t ptr, int dir )
+off_t lseek(int file, off_t ptr, int dir)
 {
-  return syscall_errno(SYS_lseek,file,ptr,dir,0);
+  return syscall_errno(SYS_lseek, file, ptr, dir, 0);
 }
 
 //----------------------------------------------------------------------
@@ -117,9 +117,9 @@ off_t lseek( int file, off_t ptr, int dir )
 //----------------------------------------------------------------------
 // Read from a file.
 
-ssize_t read( int file, void* ptr, size_t len )
+ssize_t read(int file, void* ptr, size_t len)
 {
-  return syscall_errno(SYS_read,file,ptr,len,0);
+  return syscall_errno(SYS_read, file, ptr, len, 0);
 }
 
 //------------------------------------------------------------------------
@@ -127,9 +127,9 @@ ssize_t read( int file, void* ptr, size_t len )
 //------------------------------------------------------------------------
 // Write to a file.
 
-ssize_t write( int file, const void* ptr, size_t len )
+ssize_t write(int file, const void* ptr, size_t len)
 {
-  return syscall_errno(SYS_write,file,ptr,len,0);
+  return syscall_errno(SYS_write, file, ptr, len, 0);
 }
 
 //------------------------------------------------------------------------
@@ -138,9 +138,9 @@ ssize_t write( int file, const void* ptr, size_t len )
 // Status of an open file. The sys/stat.h header file required is
 // distributed in the include subdirectory for this C library.
 
-int fstat( int file, struct stat* st )
+int fstat(int file, struct stat* st)
 {
-  return syscall_errno(SYS_fstat,file,st,0,0);
+  return syscall_errno(SYS_fstat, file, st, 0, 0);
 }
 
 //------------------------------------------------------------------------
@@ -148,9 +148,9 @@ int fstat( int file, struct stat* st )
 //------------------------------------------------------------------------
 // Status of a file (by name).
 
-int stat( const char* file, struct stat* st )
+int stat(const char* file, struct stat* st)
 {
-  return syscall_errno(SYS_stat,file,1+strlen(file),st,0);
+  return syscall_errno(SYS_stat, file, st, 0, 0);
 }
 
 //------------------------------------------------------------------------
@@ -158,9 +158,9 @@ int stat( const char* file, struct stat* st )
 //------------------------------------------------------------------------
 // Status of a link (by name).
 
-int lstat( const char* file, struct stat* st )
+int lstat(const char* file, struct stat* st)
 {
-  return syscall_errno(SYS_lstat,file,1+strlen(file),st,0);
+  return syscall_errno(SYS_lstat, file, st, 0, 0);
 }
 
 //------------------------------------------------------------------------
@@ -168,9 +168,9 @@ int lstat( const char* file, struct stat* st )
 //------------------------------------------------------------------------
 // Close a file.
 
-int close( int file ) 
+int close(int file) 
 {
-  return syscall_errno(SYS_close,file,0,0,0);
+  return syscall_errno(SYS_close, file, 0, 0, 0);
 }
 
 //------------------------------------------------------------------------
@@ -178,10 +178,9 @@ int close( int file )
 //------------------------------------------------------------------------
 // Establish a new name for an existing file.
 
-int link( const char* old_name, const char* new_name )
+int link(const char* old_name, const char* new_name)
 {
-  return syscall_errno(SYS_link,old_name,1+strlen(old_name),
-                                new_name,1+strlen(new_name));
+  return syscall_errno(SYS_link, old_name, new_name);
 }
 
 //------------------------------------------------------------------------
@@ -189,9 +188,9 @@ int link( const char* old_name, const char* new_name )
 //------------------------------------------------------------------------
 // Remove a file's directory entry.
 
-int unlink( const char* name )
+int unlink(const char* name)
 {
-  return syscall_errno(SYS_unlink,name,1+strlen(name),0,0);
+  return syscall_errno(SYS_unlink, name, 0, 0, 0);
 }
 
 //------------------------------------------------------------------------
@@ -200,7 +199,7 @@ int unlink( const char* name )
 // Transfer control to a new process. Minimal implementation for a
 // system without processes from newlib documentation.
 
-int execve( const char* name, char* const argv[], char* const env[] )
+int execve(const char* name, char* const argv[], char* const env[])
 {
   errno = ENOMEM;
   return -1;
@@ -236,7 +235,7 @@ int getpid()
 // Send a signal. Minimal implementation for a system without processes
 // just causes an error.
 
-int kill( int pid, int sig )
+int kill(int pid, int sig)
 {
   errno = EINVAL;
   return -1;
@@ -248,7 +247,7 @@ int kill( int pid, int sig )
 // Wait for a child process. Minimal implementation for a system without
 // processes just causes an error.
 
-int wait( int* status )
+int wait(int* status)
 {
   errno = ECHILD;
   return -1;
@@ -261,7 +260,7 @@ int wait( int* status )
 // other minimal implementations, which only support output to stdout,
 // this minimal implementation is suggested by the newlib docs.
 
-int isatty( int file )
+int isatty(int file)
 {
   struct stat s;
   int ret = fstat(file,&s);
@@ -284,7 +283,7 @@ int isatty( int file )
 // account for user vs system time, but for now we just return the total
 // number of cycles since starting the program.
 
-clock_t times( struct tms* buf )
+clock_t times(struct tms* buf)
 {
   // when called for the first time, initialize t0
   static struct timeval t0;
@@ -397,14 +396,14 @@ long sysconf(int name)
 // is suggested by the newlib docs and suffices for a standalone
 // system.
 
-void* sbrk( ptrdiff_t incr )
+void* sbrk(ptrdiff_t incr)
 {
   extern unsigned char _end; // Defined by linker
   static unsigned char* heap_end;
 
   if(heap_end == 0)
     heap_end = &_end;
-  if(incr && syscall_errno(SYS_brk, heap_end + incr, 0, 0, 0))
+  if(incr && syscall_errno(SYS_brk, heap_end+incr, 0, 0, 0) != heap_end+incr)
     return (void*)-1;
 
   heap_end += incr;
@@ -416,9 +415,9 @@ void* sbrk( ptrdiff_t incr )
 //------------------------------------------------------------------------
 // Exit a program without cleaning up files.
 
-void _exit( int exit_status )
+void _exit(int exit_status)
 {
-  syscall_errno(SYS_exit,exit_status,0,0,0);
-  while(1);
+  syscall_errno(SYS_exit, exit_status, 0, 0, 0);
+  while (1);
 }
 

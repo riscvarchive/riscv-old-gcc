@@ -26,18 +26,58 @@ struct	stat
 {
   dev_t		st_dev;
   ino_t		st_ino;
-  nlink_t	st_nlink;
   mode_t	st_mode;
+  nlink_t	st_nlink;
   uid_t		st_uid;
   gid_t		st_gid;
   dev_t		st_rdev;
+#if defined(__riscv__)
+  dev_t		__pad1;
+#endif
   off_t		st_size;
-  long long	st_blksize;
-  long long	st_blocks;
+#if defined(__riscv__)
+  unsigned int	st_blksize;
+  unsigned int	__pad2;
+  unsigned long long	st_blocks;
+  time_t	st_atime;
+  time_t	__pad3;
+  time_t	st_mtime;
+  time_t	__pad4;
+  time_t	st_ctime;
+  time_t	__pad5;
+  unsigned int	__unused4;
+  unsigned int	__unused5;
+#elif defined(__rtems__)
+  struct timespec st_atim;
+  struct timespec st_mtim;
+  struct timespec st_ctim;
+  blksize_t     st_blksize;
+  blkcnt_t	st_blocks;
+#else
+  /* SysV/sco doesn't have the rest... But Solaris, eabi does.  */
+#if defined(__svr4__) && !defined(__PPC__) && !defined(__sun__)
   time_t	st_atime;
   time_t	st_mtime;
   time_t	st_ctime;
+#else
+  time_t	st_atime;
+  long		st_spare1;
+  time_t	st_mtime;
+  long		st_spare2;
+  time_t	st_ctime;
+  long		st_spare3;
+  long		st_blksize;
+  long		st_blocks;
+  long	st_spare4[2];
+#endif
+#endif
 };
+
+#if defined(__rtems__)
+#define st_atime st_atim.tv_sec
+#define st_ctime st_ctim.tv_sec
+#define st_mtime st_mtim.tv_sec
+#endif
 
 #endif
 

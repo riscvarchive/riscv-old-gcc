@@ -97,26 +97,14 @@
         .global _start
 _start:
 
-#ifdef __riscv64
-# define REGBYTES 8
-# define LR ld
-#else
-# define REGBYTES 4
-# define LR lw
-#endif
+        jal     _init                   # Run global initialization functions
 
-#ifndef __riscv64
-        move    a0, sp
-        jal     _fix_args
-#endif
-        jal     _init               # Run global initialization functions
+        la      a0, _fini               # Register global termination functions
+        jal     atexit                  #  to be called upon exit
 
-        la      a0, _fini           # Register global termination functions
-        jal     atexit              #  to be called upon exit
-
-        LR      a0, 0(sp)           # a0 = argc
-        addi    a1, sp, REGBYTES    # a1 = argv
+        lw      a0, 0(sp)               # a0 = argc
+        addi    a1, sp, _RISCV_SZPTR/8  # a1 = argv
         jal     main
         
-        move    a0, v0              # Call exit function with return value
-        jal     exit                #  from main as exit code
+        move    a0, v0                  # Call exit function with return value
+        jal     exit                    #  from main as exit code

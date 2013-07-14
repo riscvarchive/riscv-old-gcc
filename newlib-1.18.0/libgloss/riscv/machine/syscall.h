@@ -1,24 +1,31 @@
 #ifndef _MACHINE_SYSCALL_H
 #define _MACHINE_SYSCALL_H
 
-#define	SYS_exit	1
-#define	SYS_getpid	20
-#define	SYS_kill	37
-#define	SYS_read	3
-#define	SYS_write	4
-#define	SYS_open	5
-#define	SYS_close	6
-#define	SYS_lseek	19
-#define	SYS_brk		17
-#define	SYS_link	9
-#define	SYS_unlink	10
-#define	SYS_chdir	12
-#define SYS_stat	18
-#define SYS_fstat	28
-#define	SYS_lstat	84
-#define	SYS_pread 180
-#define	SYS_pwrite 181
-#define SYS_getmainvars 201
+#define SYS_exit 93
+#define SYS_exit_group 94
+#define SYS_getpid 172
+#define SYS_kill 129
+#define SYS_read 63
+#define SYS_write 64
+#define SYS_open 1024
+#define SYS_close 57
+#define SYS_lseek 62
+#define SYS_brk 214
+#define SYS_link 1025
+#define SYS_unlink 1026
+#define SYS_chdir 49
+#define SYS_stat 1038
+#define SYS_fstat 80
+#define SYS_lstat 1039
+#define SYS_pread 67
+#define SYS_pwrite 68
+#define SYS_uname 160
+#define SYS_getuid 174
+#define SYS_geteuid 175
+#define SYS_getgid 176
+#define SYS_getegid 177
+#define SYS_mmap 222
+#define SYS_getmainvars 2011
 
 typedef struct
 {
@@ -30,7 +37,7 @@ static inline sysret_t
 __internal_syscall(long n, long _a0, long _a1, long _a2, long _a3)
 {
   register long result asm("v0");
-  register long err asm("v1");
+  register long err asm("a3");
   register long a0 asm("a0") = _a0;
   register long a1 asm("a1") = _a1;
   register long a2 asm("a2") = _a2;
