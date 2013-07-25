@@ -618,11 +618,9 @@ riscv_rvc_uncompress(unsigned long rvc_insn)
     if(crd == 0)
     {
       if(imm6 & 0x20)
-        return MATCH_JALR_C | (LINK_REG << OP_SH_RD) | (crs1 << OP_SH_RS);
-      else if(crs1 == 1)
-        return MATCH_JALR_R | (crs1 << OP_SH_RS);
+        return MATCH_JALR | (LINK_REG << OP_SH_RD) | (crs1 << OP_SH_RS);
       else
-        return MATCH_JALR_J | (crs1 << OP_SH_RS);
+        return MATCH_JALR | (crs1 << OP_SH_RS);
     }
     return MATCH_ADDI | (crd << OP_SH_RD) | (crd << OP_SH_RS) |
            (imm6 << OP_SH_IMMEDIATE);

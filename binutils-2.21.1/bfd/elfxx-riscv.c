@@ -536,12 +536,12 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value, bfd_vma addr,
   entry[i++] = RISCV_ITYPE(LREG(abfd), 16, 16, 0);
   entry[i++] = RISCV_ITYPE(SLLI, 19, 19, 1);
   entry[i++] = RISCV_ITYPE(ADDI, 19, 19, -4*regbytes);
-  entry[i++] = RISCV_ITYPE(JALR_C, LINK_REG, 16, 0);
+  entry[i++] = RISCV_ITYPE(JALR, LINK_REG, 16, 0);
   entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, 14, 0);
   for (j = 0; j < 14; j++)
     entry[i++] = RISCV_ITYPE(LREG(abfd), 18+j, 14, (j+1)*regbytes);
   entry[i++] = RISCV_ITYPE(ADDI, 14, 14, 16*regbytes);
-  entry[i++] = RISCV_ITYPE(JALR_J, 0, 16, 0);
+  entry[i++] = RISCV_ITYPE(JALR, 0, 16, 0);
 
   BFD_ASSERT(i <= RISCV_PLT0_ENTRY_INSNS);
   while (i < RISCV_PLT0_ENTRY_INSNS)
@@ -565,7 +565,7 @@ riscv_make_plt_entry(bfd* abfd, bfd_vma got_address, bfd_vma addr,
   entry[0] = RISCV_LTYPE(AUIPC, 17, RISCV_LUI_HIGH_PART(got_address));
   entry[1] = RISCV_ITYPE(LREG(abfd),  16, 17, RISCV_CONST_LOW_PART(got_address));
   entry[2] = RISCV_ITYPE(ADDI, 17, 17, RISCV_CONST_LOW_PART(got_address));
-  entry[3] = RISCV_ITYPE(JALR_J, 0, 16, 0);
+  entry[3] = RISCV_ITYPE(JALR, 0, 16, 0);
 }
 
 /* Look up an entry in a MIPS ELF linker hash table.  */

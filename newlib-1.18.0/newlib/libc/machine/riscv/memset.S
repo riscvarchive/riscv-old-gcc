@@ -59,7 +59,7 @@ memset:
 .set norvc
   rdpc a4
   add a3, a3, a4
-  jalr.j x0, a3, 12
+  jalr x0, a3, 12
 
   sb a1, 6(a0)
   sb a1, 5(a0)
@@ -89,7 +89,7 @@ memset:
 .set norvc
   rdpc a4
   add a3, a3, a4
-  jalr.j x0, a3, 8
+  jalr x0, a3, 8
 
   sb a1, 6(a0)
   sb a1, 5(a0)

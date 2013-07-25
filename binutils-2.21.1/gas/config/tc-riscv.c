@@ -469,21 +469,15 @@ riscv_rvc_compress(struct mips_cl_insn* insn)
     INSERT_OPERAND(CRD, *insn, rd);
     INSERT_OPERAND(CIMM6, *insn, imm);
   }
-  else if(INSN_MATCHES(*insn, JALR_J) && rd == 0 && rs1 != 1 && imm == 0)
+  else if(INSN_MATCHES(*insn, JALR) && rd == 0 && imm == 0)
   {
-    // jalr.j rd=0, rs1 != 1, imm=0 is encoded as c.addi rd=0, imm={1'b0,rs1}
+    // jalr rd=0, imm=0 is encoded as c.addi rd=0, imm={1'b0,rs1}
     insn->insn_opcode = MATCH_C_ADDI;
     INSERT_OPERAND(CIMM6, *insn, rs1);
   }
-  else if(INSN_MATCHES(*insn, JALR_R) && rd == 0 && rs1 == 1 && imm == 0)
+  else if(INSN_MATCHES(*insn, JALR) && rd == 1 && imm == 0)
   {
-    // jalr.r rd=0, rs1=1, imm=0 is encoded as c.addi rd=0, imm={1'b0,rs1}
-    insn->insn_opcode = MATCH_C_ADDI;
-    INSERT_OPERAND(CIMM6, *insn, rs1);
-  }
-  else if(INSN_MATCHES(*insn, JALR_C) && rd == 1 && imm == 0)
-  {
-    // jalr.c rd=1, rs1, imm=0 is encoded as c.addi rd=0, imm={1'b1,rs1}
+    // jalr rd=1, rs1, imm=0 is encoded as c.addi rd=0, imm={1'b1,rs1}
     insn->insn_opcode = MATCH_C_ADDI;
     INSERT_OPERAND(CIMM6, *insn, 0x20 | rs1);
   }

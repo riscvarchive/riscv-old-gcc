@@ -180,7 +180,7 @@ int close(int file)
 
 int link(const char* old_name, const char* new_name)
 {
-  return syscall_errno(SYS_link, old_name, new_name);
+  return syscall_errno(SYS_link, old_name, new_name, 0, 0);
 }
 
 //------------------------------------------------------------------------
