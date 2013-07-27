@@ -26,7 +26,7 @@ long __syscall_error()
   register long v0 asm("v0");
 
   /* Referencing errno may call a function, clobbering v0. */
-  long errno_val = v0;
+  long errno_val = -v0;
 
 #if defined (EWOULDBLOCK_sys) && EWOULDBLOCK_sys != EAGAIN
 	/* We translate the system's EWOULDBLOCK error into EAGAIN.

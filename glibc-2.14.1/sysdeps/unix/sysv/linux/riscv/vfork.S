@@ -39,7 +39,7 @@ LEAF(__vfork)
 
 	SAVE_PID
 
-	li		a0, 0x4112	/* CLONE_VM | CLONE_VFORK | SIGCHLD */
+	li		a0, 0x4111	/* CLONE_VM | CLONE_VFORK | SIGCHLD */
 	move		a1, sp
 	li		a2, 0
 	li		a3, 0
