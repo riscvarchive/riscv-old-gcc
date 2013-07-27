@@ -238,8 +238,9 @@ enum
   M_LA_AB,
   M_LA_TLS_GD,
   M_LA_TLS_IE,
-  M_J,
   M_LI,
+  M_FMV_S,
+  M_FMV_D,
   M_NUM_MACROS
 };
 

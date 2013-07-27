@@ -1784,11 +1784,11 @@ load_const (int reg, expressionS *ep)
 static void
 macro (struct mips_cl_insn *ip)
 {
-  unsigned int sreg, dreg, breg;
+  unsigned int rd, rs1;
   int mask;
 
-  dreg = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
-  breg = sreg = (ip->insn_opcode >> OP_SH_RS) & OP_MASK_RS;
+  rd = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
+  rs1 = (ip->insn_opcode >> OP_SH_RS) & OP_MASK_RS;
   mask = ip->insn_mo->mask;
 
   switch (mask)
@@ -1797,40 +1797,41 @@ macro (struct mips_cl_insn *ip)
       /* Load the address of a symbol into a register. */
       if (!IS_SEXT_32BIT_NUM (offset_expr.X_add_number))
         as_bad(_("offset too large"));
-      if (breg == dreg && breg != ZERO)
+      if (rs1 == rd && rs1 != ZERO)
         as_bad(_("expression too complex: dest and base regs must differ"));
 
       if (offset_expr.X_op == O_constant)
-        load_const (dreg, &offset_expr);
+        load_const (rd, &offset_expr);
       else if (is_pic) /* O_symbol */
-	load_got_addr (dreg, &offset_expr, LOAD_ADDRESS_INSN,
+	load_got_addr (rd, &offset_expr, LOAD_ADDRESS_INSN,
 	               BFD_RELOC_MIPS_GOT_HI16, BFD_RELOC_MIPS_GOT_LO16);
       else /* non-PIC O_symbol */
-	load_static_addr (dreg, &offset_expr);
+	load_static_addr (rd, &offset_expr);
 
-      if (breg != ZERO)
-        macro_build (NULL, "add", "d,s,t", dreg, dreg, breg);
+      if (rs1 != ZERO)
+        macro_build (NULL, "add", "d,s,t", rd, rd, rs1);
       break;
 
     case M_LA_TLS_GD: 
-      load_got_addr(dreg, &offset_expr, "addi",
+      load_got_addr(rd, &offset_expr, "addi",
                     BFD_RELOC_RISCV_TLS_GD_HI16, BFD_RELOC_RISCV_TLS_GD_LO16);
       break;
 
     case M_LA_TLS_IE: 
-      load_got_addr(dreg, &offset_expr, LOAD_ADDRESS_INSN,
+      load_got_addr(rd, &offset_expr, LOAD_ADDRESS_INSN,
                     BFD_RELOC_RISCV_TLS_GOT_HI16, BFD_RELOC_RISCV_TLS_GOT_LO16);
       break;
 
-    case M_J: /* replace "j $rs" with "ret" if rs=ra, else with "jr $rs" */
-      if (sreg == LINK_REG)
-        macro_build (NULL, "ret", "");
-      else
-        macro_build (NULL, "jr", "s", sreg);
+    case M_LI:
+      load_const (rd, &imm_expr);
       break;
 
-    case M_LI:
-      load_const (dreg, &imm_expr);
+    case M_FMV_S:
+      macro_build (NULL, "fsgnj.s", "D,S,T", rd, rs1, rs1);
+      break;
+
+    case M_FMV_D:
+      macro_build (NULL, "fsgnj.d", "D,S,T", rd, rs1, rs1);
       break;
 
     default:

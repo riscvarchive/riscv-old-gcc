@@ -2476,7 +2476,7 @@
 (define_insn "indirect_jump<mode>"
   [(set (pc) (match_operand:P 0 "register_operand" "d"))]
   ""
-  "j\t%0"
+  "jr\t%0"
   [(set_attr "type" "jump")
    (set_attr "mode" "none")])
 
@@ -2498,7 +2498,7 @@
 	(match_operand:P 0 "register_operand" "d"))
    (use (label_ref (match_operand 1 "" "")))]
   ""
-  "j\t%0"
+  "jr\t%0"
   [(set_attr "type" "jump")
    (set_attr "mode" "none")])
 
@@ -2561,7 +2561,7 @@
   [(return)
    (use (match_operand 0 "pmode_register_operand" ""))]
   ""
-  "j\t%0"
+  "jr\t%0"
   [(set_attr "type"	"jump")
    (set_attr "mode"	"none")])
 
