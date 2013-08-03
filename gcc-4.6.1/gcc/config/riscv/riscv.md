@@ -1672,7 +1672,7 @@
 (define_insn "fix_truncdfdi2"
   [(set (match_operand:DI 0 "register_operand" "=d")
 	(fix:DI (match_operand:DF 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT"
+  "TARGET_HARD_FLOAT && TARGET_64BIT"
   "fcvt.l.d %0,%1,rtz"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
@@ -1682,7 +1682,7 @@
 (define_insn "fix_truncsfdi2"
   [(set (match_operand:DI 0 "register_operand" "=d")
 	(fix:DI (match_operand:SF 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT"
+  "TARGET_HARD_FLOAT && TARGET_64BIT"
   "fcvt.l.s %0,%1,rtz"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
@@ -1702,7 +1702,7 @@
 (define_insn "floatdidf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
 	(float:DF (match_operand:DI 1 "register_operand" "d")))]
-  "TARGET_HARD_FLOAT"
+  "TARGET_HARD_FLOAT && TARGET_64BIT"
   "fcvt.d.l\t%0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
@@ -1722,7 +1722,7 @@
 (define_insn "floatdisf2"
   [(set (match_operand:SF 0 "register_operand" "=f")
 	(float:SF (match_operand:DI 1 "register_operand" "d")))]
-  "TARGET_HARD_FLOAT"
+  "TARGET_HARD_FLOAT && TARGET_64BIT"
   "fcvt.s.l\t%0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
@@ -1742,7 +1742,7 @@
 (define_insn "floatunsdidf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
 	(unsigned_float:DF (match_operand:DI 1 "register_operand" "d")))]
-  "TARGET_HARD_FLOAT"
+  "TARGET_HARD_FLOAT && TARGET_64BIT"
   "fcvt.d.lu\t%0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
@@ -1762,7 +1762,7 @@
 (define_insn "floatunsdisf2"
   [(set (match_operand:SF 0 "register_operand" "=f")
 	(unsigned_float:SF (match_operand:DI 1 "register_operand" "d")))]
-  "TARGET_HARD_FLOAT"
+  "TARGET_HARD_FLOAT && TARGET_64BIT"
   "fcvt.s.lu\t%0,%1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
@@ -1792,7 +1792,7 @@
 (define_insn "fixuns_truncdfdi2"
   [(set (match_operand:DI 0 "register_operand" "=d")
 	(unsigned_fix:DI (match_operand:DF 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT"
+  "TARGET_HARD_FLOAT && TARGET_64BIT"
   "fcvt.lu.d %0,%1,rtz"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
@@ -1802,7 +1802,7 @@
 (define_insn "fixuns_truncsfdi2"
   [(set (match_operand:DI 0 "register_operand" "=d")
 	(unsigned_fix:DI (match_operand:SF 1 "register_operand" "f")))]
-  "TARGET_HARD_FLOAT"
+  "TARGET_HARD_FLOAT && TARGET_64BIT"
   "fcvt.lu.s %0,%1,rtz"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
