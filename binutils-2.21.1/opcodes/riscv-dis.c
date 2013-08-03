@@ -365,6 +365,30 @@ print_insn_args (const char *d,
     {
       switch (*d)
 	{
+        /* Xcustom */
+        case '^':
+          switch (*++d)
+            {
+            case 'd':
+              (*info->fprintf_func)
+                ( info->stream, "%d", ((l >> OP_SH_RD) & OP_MASK_RD));
+              break;
+            case 's':
+              (*info->fprintf_func)
+                ( info->stream, "%d", ((l >> OP_SH_RS) & OP_MASK_RS));
+              break;
+            case 't':
+              (*info->fprintf_func)
+                ( info->stream, "%d", ((l >> OP_SH_RT) & OP_MASK_RT));
+              break;
+            case 'j':
+              (*info->fprintf_func)
+                ( info->stream, "%d", ((l >> OP_SH_CUSTOM_IMM) & OP_MASK_CUSTOM_IMM));
+              break;
+            }
+          break;
+
+        /* Xhwacha */
         case '#':
           switch ( *++d ) {
             case 'g':

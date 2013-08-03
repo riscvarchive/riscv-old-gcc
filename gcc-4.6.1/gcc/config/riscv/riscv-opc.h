@@ -67,7 +67,7 @@
 #define  MASK_SRLW 0x1ffff
 #define MATCH_DIV 0x633
 #define  MASK_DIV 0x1ffff
-#define MATCH_J 0x67
+#define MATCH_J 0x6b
 #define  MASK_J 0x7f
 #define MATCH_FENCE 0x12f
 #define  MASK_FENCE 0x3ff
@@ -295,7 +295,7 @@
 #define  MASK_DIVU 0x1ffff
 #define MATCH_AMOSWAP_W 0x52b
 #define  MASK_AMOSWAP_W 0x1ffff
-#define MATCH_JALR 0x6b
+#define MATCH_JALR 0x67
 #define  MASK_JALR 0x3ff
 #define MATCH_FADD_S 0x53
 #define  MASK_FADD_S 0x1f1ff

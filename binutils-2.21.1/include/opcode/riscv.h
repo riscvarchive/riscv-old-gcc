@@ -141,6 +141,8 @@ static const char * const riscv_rm[8] =
 #define OP_SH_IMMSEGNELM        17
 #define OP_MASK_IMMSEGSTNELM    0x1f
 #define OP_SH_IMMSEGSTNELM      12
+#define OP_MASK_CUSTOM_IMM      0x7f
+#define OP_SH_CUSTOM_IMM        10
 
 #define LINK_REG 1
 
@@ -180,6 +182,8 @@ struct riscv_opcode
 {
   /* The name of the instruction.  */
   const char *name;
+  /* The ISA subset name (I, M, A, F, D, Xextension). */
+  const char *subset;
   /* A string describing the arguments for this instruction.  */
   const char *args;
   /* The basic opcode for the instruction.  When assembling, this

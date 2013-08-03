@@ -102,6 +102,117 @@ static bfd_boolean rv64 = TRUE; /* RV64 (true) or RV32 (false) */
 #define LOAD_ADDRESS_INSN (HAVE_32BIT_ADDRESSES ? "lw" : "ld")
 #define ADD32_INSN (rv64 ? "addiw" : "addi")
 
+struct riscv_subset
+{
+  const char* name;
+  int version_major;
+  int version_minor;
+
+  struct riscv_subset* next;
+};
+
+static struct riscv_subset* riscv_subsets;
+
+static int
+riscv_subset_supports(const char* feature)
+{
+  struct riscv_subset* s;
+
+  if (strncmp(feature, "64", 2) == 0)
+    {
+      if (!rv64)
+        return 0;
+      feature += 2;
+    }
+
+  for (s = riscv_subsets; s != NULL; s = s->next)
+    if (strcmp(s->name, feature) == 0)
+      /* FIXME: once we support version numbers:
+         return major == s->version_major && minor <= s->version_minor; */
+      return 1;
+
+  return 0;
+}
+
+static void
+riscv_add_subset(const char* subset)
+{
+  struct riscv_subset* s = xmalloc(sizeof(struct riscv_subset));
+  s->name = xstrdup(subset);
+  s->version_major = 1;
+  s->version_minor = 0;
+  s->next = riscv_subsets;
+  riscv_subsets = s;
+}
+
+static void
+riscv_set_arch(const char* arg)
+{
+  /* Formally, ISA subset names begin with RV, RV32, or RV64, but we allow the
+     prefix to be omitted.  We also allow all-lowercase names if version
+     numbers and eXtensions are omitted (i.e. only some combination of imafd
+     is supported in this case).
+     
+     FIXME: Version numbers are not supported yet. */
+  const char* subsets = "IMAFD";
+  const char* p;
+  
+  for (p = arg; *p; p++)
+    if (!ISLOWER(*p) || strchr(subsets, TOUPPER(*p)) == NULL)
+      break;
+
+  if (!*p)
+    {
+      /* Legal all-lowercase name. */
+      for (p = arg; *p; p++)
+        {
+          char subset[2] = {TOUPPER(*p), 0};
+          riscv_add_subset(subset);
+        }
+      return;
+    }
+
+  if (strncmp(arg, "RV32", 4) == 0)
+    {
+      rv64 = FALSE;
+      arg += 4;
+    }
+  else if (strncmp(arg, "RV64", 4) == 0)
+    {
+      rv64 = TRUE;
+      arg += 4;
+    }
+  else if (strncmp(arg, "RV", 2) == 0)
+    arg += 2;
+
+  if (*arg && *arg != 'I')
+    as_fatal("`I' must be the first ISA subset name specified (got %c)", *arg);
+
+  for (p = arg; *p; p++)
+    {
+      if (*p == 'X')
+        {
+          const char* q = p+1;
+          while (ISLOWER(*q))
+            q++;
+
+          char subset[q-p+1];
+          memcpy(subset, p, q-p);
+          subset[q-p] = 0;
+
+          riscv_add_subset(subset);
+          p = q-1;
+        }
+      else if (strchr(subsets, *p) != NULL)
+        {
+          char subset[2] = {*p, 0};
+          riscv_add_subset(subset);
+        }
+      else
+        as_fatal("unsupported ISA subset %c", *p);
+    }
+}
+
 /* This is the set of options which may be modified by the .set
    pseudo-op.  We use a struct so that .set push and .set pop are more
    reliable.  */
@@ -1111,7 +1222,9 @@ md_begin (void)
     {
       const char *name = riscv_opcodes[i].name;
 
-      retval = hash_insert (op_hash, name, (void *) &riscv_opcodes[i]);
+      if (riscv_subset_supports(riscv_opcodes[i].subset))
+        retval = hash_insert (op_hash, name, (void *) &riscv_opcodes[i]);
+
       if (retval != NULL)
 	{
 	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
@@ -1461,7 +1574,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	{
 	case '\0':
 	  break;
-
         case '#':
           switch ( *fmt++ ) {
             case 'g':
@@ -1860,6 +1972,17 @@ validate_mips_insn (const struct riscv_opcode *opc)
   while (*p)
     switch (c = *p++)
       {
+      /* Xcustom */
+      case '^':
+      switch (c = *p++)
+        {
+        case 'd': USE_BITS (OP_MASK_RD, OP_SH_RD); break;
+        case 's': USE_BITS (OP_MASK_RS, OP_SH_RS); break;
+        case 't': USE_BITS (OP_MASK_RT, OP_SH_RT); break;
+        case 'j': USE_BITS (OP_MASK_CUSTOM_IMM, OP_SH_CUSTOM_IMM); break;
+        }
+      break;
+      /* Xhwacha */
       case '#':
     	switch (c = *p++)
 	  {
@@ -2011,7 +2134,37 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      if (*s == '\0')
 		return;
 	      break;
+            /* Xcustom */
+            case '^':
+            {
+              unsigned long max = OP_MASK_RD;
+              my_getExpression (&imm_expr, s);
+              check_absolute_expr (ip, &imm_expr);
+              switch (*++args)
+                {
+                case 'j':
+                  max = OP_MASK_CUSTOM_IMM;
+                  INSERT_OPERAND (CUSTOM_IMM, *ip, imm_expr.X_add_number);
+                  break;
+                case 'd':
+                  INSERT_OPERAND (RD, *ip, imm_expr.X_add_number);
+                  break;
+                case 's':
+                  INSERT_OPERAND (RS, *ip, imm_expr.X_add_number);
+                  break;
+                case 't':
+                  INSERT_OPERAND (RT, *ip, imm_expr.X_add_number);
+                  break;
+                }
+              imm_expr.X_op = O_absent;
+              s = expr_end;
+              if ((unsigned long) imm_expr.X_add_number > max)
+                  as_warn ("Bad custom immediate (%lu), must be at most %lu",
+                           (unsigned long)imm_expr.X_add_number, max);
+              continue;
+            }
 
+            /* Xhwacha */
             case '#':
               switch ( *++args )
                 {
@@ -2561,6 +2714,7 @@ enum options
   {
     OPTION_M32 = OPTION_MD_BASE,
     OPTION_M64,
+    OPTION_MARCH,
     OPTION_PIC,
     OPTION_NO_PIC,
     OPTION_EB,
@@ -2574,6 +2728,7 @@ struct option md_longopts[] =
 {
   {"m32", no_argument, NULL, OPTION_M32},
   {"m64", no_argument, NULL, OPTION_M64},
+  {"march", required_argument, NULL, OPTION_MARCH},
   {"fPIC", no_argument, NULL, OPTION_PIC},
   {"fpic", no_argument, NULL, OPTION_PIC},
   {"fno-pic", no_argument, NULL, OPTION_NO_PIC},
@@ -2622,6 +2777,9 @@ md_parse_option (int c, char *arg)
       rv64 = TRUE;
       break;
 
+    case OPTION_MARCH:
+      riscv_set_arch(arg);
+
     case OPTION_NO_PIC:
       is_pic = FALSE;
       break;
@@ -2640,6 +2798,8 @@ md_parse_option (int c, char *arg)
 void
 mips_after_parse_args (void)
 {
+  if (riscv_subsets == NULL)
+    riscv_set_arch("RVIMAFDXcustom");
 }
 
 void
