@@ -214,9 +214,9 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"remuw",     "64M", "d,s,t",  MATCH_REMUW, MASK_REMUW,  WR_xd|RD_xs1|RD_xs2 },
 
 /* Single-precision floating-point instruction subset */
-{"mffsr",     "F",   "d",  MATCH_MFFSR, MASK_MFFSR,  WR_xd },
-{"mtfsr",     "F",   "s",  MATCH_MTFSR, MASK_MTFSR | MASK_RD,  RD_xs1 },
-{"mtfsr",     "F",   "d,s",  MATCH_MTFSR, MASK_MTFSR,  WR_xd|RD_xs1 },
+{"frsr",      "F",   "d",  MATCH_FRSR, MASK_FRSR,  WR_xd },
+{"fssr",      "F",   "s",  MATCH_FSSR, MASK_FSSR | MASK_RD,  RD_xs1 },
+{"fssr",      "F",   "d,s",  MATCH_FSSR, MASK_FSSR,  WR_xd|RD_xs1 },
 {"flw",       "F",   "D,o(b)",  MATCH_FLW, MASK_FLW,   WR_fd|RD_xs1 },
 {"fsw",       "F",   "T,q(b)",  MATCH_FSW, MASK_FSW,   RD_xs1|RD_fs2 },
 {"fmv.x.s",   "F",   "d,S",  MATCH_FMV_X_S, MASK_FMV_X_S,  WR_xd|RD_fs1 },

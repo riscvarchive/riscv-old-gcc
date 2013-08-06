@@ -1,14 +1,14 @@
 #include <ieeefp.h>
 
-static void mtfsr(int value)
+static void fssr(int value)
 {
-  asm volatile ("mtfsr %0" :: "r"(value));
+  asm volatile ("fssr %0" :: "r"(value));
 }
 
-static int mffsr()
+static int frsr()
 {
   int value;
-  asm volatile ("mffsr %0" : "=r"(value));
+  asm volatile ("frsr %0" : "=r"(value));
   return value;
 }
 
@@ -19,13 +19,13 @@ fp_except fpgetmask(void)
 
 fp_rnd fpgetround(void)
 {
-  int rm = mffsr() >> 5;
+  int rm = frsr() >> 5;
   return rm == 0 ? FP_RN : rm == 1 ? FP_RZ : rm == 2 ? FP_RM : FP_RP;
 }
 
 fp_except fpgetsticky(void)
 {
-  return mffsr() & 0x1f;
+  return frsr() & 0x1f;
 }
 
 fp_except fpsetmask(fp_except mask)
@@ -35,16 +35,16 @@ fp_except fpsetmask(fp_except mask)
 
 fp_rnd fpsetround(fp_rnd rnd_dir)
 {
-  int fsr = mffsr();
+  int fsr = frsr();
   int rm = fsr >> 5;
   int new_rm = rnd_dir == FP_RN ? 0 : rnd_dir == FP_RZ ? 1 : rnd_dir == FP_RM ? 2 : 3;
-  mtfsr(new_rm << 5 | fsr & 0x1f);
+  fssr(new_rm << 5 | fsr & 0x1f);
   return rm == 0 ? FP_RN : rm == 1 ? FP_RZ : rm == 2 ? FP_RM : FP_RP;
 }
 
 fp_except fpsetsticky(fp_except sticky)
 {
-  int fsr = mffsr();
-  mtfsr(sticky & 0x1f | fsr & ~0x1f);
+  int fsr = frsr();
+  fssr(sticky & 0x1f | fsr & ~0x1f);
   return fsr & 0x1f;
 }

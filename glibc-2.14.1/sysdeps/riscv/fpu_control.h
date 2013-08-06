@@ -101,8 +101,8 @@ extern fpu_control_t __fpu_control;
 typedef unsigned int fpu_control_t __attribute__ ((__mode__ (__SI__)));
 
 /* Macros for accessing the hardware control word.  */
-#define _FPU_GETCW(cw) __asm__ volatile ("mffsr %0" : "=r" (cw))
-#define _FPU_SETCW(cw) __asm__ volatile ("mtfsr %0" : : "r" (cw))
+#define _FPU_GETCW(cw) __asm__ volatile ("frsr %0" : "=r" (cw))
+#define _FPU_SETCW(cw) __asm__ volatile ("fssr %0" : : "r" (cw))
 
 /* Default control word set at startup.  */
 extern fpu_control_t __fpu_control;

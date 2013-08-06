@@ -28,7 +28,7 @@ setjmp:
 	REG_S tp, 14*SZREG(a0)
 
 #ifdef __riscv_hard_float
-	mffsr a3
+	frsr a3
 
 	fsd   fs0, 16*SZREG+ 0*8(a0)
 	fsd   fs1, 16*SZREG+ 1*8(a0)
@@ -92,7 +92,7 @@ longjmp:
 	fld   fs14,16*SZREG+14*8(a0)
 	fld   fs15,16*SZREG+15*8(a0)
 
-	mtfsr a3
+	fssr a3
 #endif
 
   sltiu v0, a1, 1    # v0 = (a1 == 0)

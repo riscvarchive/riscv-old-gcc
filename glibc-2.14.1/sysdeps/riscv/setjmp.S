@@ -46,7 +46,7 @@ ENTRY (__sigsetjmp)
 	REG_S tp, 14*SZREG(a0)
 
 #ifdef __riscv_hard_float
-	mffsr a3
+	frsr a3
 
 	fsd  fs0, 16*SZREG+ 0*8(a0)
 	fsd  fs1, 16*SZREG+ 1*8(a0)

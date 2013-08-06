@@ -21,6 +21,8 @@
 #define  MASK_FCVT_D_L 0x3ff1ff
 #define MATCH_LH 0x83
 #define  MASK_LH 0x3ff
+#define MATCH_FRSR 0x1d053
+#define  MASK_FRSR 0x7ffffff
 #define MATCH_FCVT_D_W 0xe0d3
 #define  MASK_FCVT_D_W 0x3ff1ff
 #define MATCH_LW 0x103
@@ -79,8 +81,6 @@
 #define  MASK_FLE_S 0x1ffff
 #define MATCH_FENCE_V_L 0x22f
 #define  MASK_FENCE_V_L 0x3ff
-#define MATCH_MFFSR 0x1d053
-#define  MASK_MFFSR 0x7ffffff
 #define MATCH_FDIV_S 0x3053
 #define  MASK_FDIV_S 0x1f1ff
 #define MATCH_FLE_D 0x170d3
@@ -101,8 +101,6 @@
 #define  MASK_ERET 0xffffffff
 #define MATCH_BLT 0x263
 #define  MASK_BLT 0x3ff
-#define MATCH_MTFSR 0x1f053
-#define  MASK_MTFSR 0x3fffff
 #define MATCH_SC_W 0x1052b
 #define  MASK_SC_W 0x1ffff
 #define MATCH_REM 0x733
@@ -261,6 +259,8 @@
 #define  MASK_MULHU 0x1ffff
 #define MATCH_FENCE_V_G 0x2af
 #define  MASK_FENCE_V_G 0x3ff
+#define MATCH_FSSR 0x1f053
+#define  MASK_FSSR 0x3fffff
 #define MATCH_SETPCR 0x173
 #define  MASK_SETPCR 0x3ff
 #define MATCH_FCVT_LU_S 0x9053

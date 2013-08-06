@@ -48,7 +48,7 @@ LEAF (__swapcontext)
 	REG_S	tp, (15 * SZREG + MCONTEXT_GREGS)(a0)
 
 #ifdef __riscv_hard_float
-  mffsr v1
+  frsr v1
 
 	fsd	fs0, ( 0 * 8 + MCONTEXT_FPREGS)(a0)
 	fsd	fs1, ( 1 * 8 + MCONTEXT_FPREGS)(a0)
@@ -106,7 +106,7 @@ LEAF (__swapcontext)
 	fld	fs14,(14 * 8 + MCONTEXT_FPREGS)(v0)
 	fld	fs15,(15 * 8 + MCONTEXT_FPREGS)(v0)
 
-	mtfsr	v1
+	fssr	v1
 #endif /* __mips_hard_float */
 
 	/* Note the contents of argument registers will be random

@@ -69,7 +69,7 @@ LEAF (__setcontext)
 	fld	fs14,(14 * 8 + MCONTEXT_FPREGS)(v0)
 	fld	fs15,(15 * 8 + MCONTEXT_FPREGS)(v0)
 
-	mtfsr	v1
+	fssr	v1
 #endif /* __mips_hard_float */
 
 	/* Note the contents of argument registers will be random

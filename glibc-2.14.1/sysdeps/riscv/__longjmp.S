@@ -57,7 +57,7 @@ ENTRY (__longjmp)
 	fld  fs14,16*SZREG+14*8(a0)
 	fld  fs15,16*SZREG+15*8(a0)
 
-	mtfsr a3
+	fssr a3
 #endif
 
 	sltu a3, a1, 1    # a3 = (a1 == 0)
