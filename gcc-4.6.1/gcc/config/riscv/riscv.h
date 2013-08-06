@@ -969,11 +969,6 @@ enum reg_class
 
 #define RETURN_ADDR_RTX mips_return_addr
 
-/* Similarly, don't use the least-significant bit to tell pointers to
-   code from vtable index.  */
-
-#define TARGET_PTRMEMFUNC_VBIT_LOCATION ptrmemfunc_vbit_in_delta
-
 /* The eliminations to $17 are only used for mips16 code.  See the
    definition of HARD_FRAME_POINTER_REGNUM.  */
 
