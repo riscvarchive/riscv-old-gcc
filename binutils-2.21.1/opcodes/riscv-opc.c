@@ -70,6 +70,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"li",        "I",   "d,j",      MATCH_ADDI, MASK_ADDI | MASK_RS,  WR_xd }, /* addi */
 {"li",        "I",   "d,I",  0,    (int) M_LI,  INSN_MACRO },
 {"move",      "I",   "d,s",  MATCH_ADDI, MASK_ADDI | MASK_IMM,   WR_xd|RD_xs1 },
+{"mv",        "I",   "d,s",  MATCH_ADDI, MASK_ADDI | MASK_IMM,   WR_xd|RD_xs1 },
 {"b",         "I",   "p",  MATCH_BEQ, MASK_BEQ | MASK_RS | MASK_RT,   0 },/* beq 0,0 */
 {"and",       "I",   "d,s,t",  MATCH_AND, MASK_AND,   WR_xd|RD_xs1|RD_xs2 },
 {"and",       "I",   "d,s,j",  MATCH_ANDI, MASK_ANDI,   WR_xd|RD_xs1 },
@@ -221,6 +222,8 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"fmv.x.s",   "F",   "d,S",  MATCH_FMV_X_S, MASK_FMV_X_S,  WR_xd|RD_fs1 },
 {"fmv.s.x",   "F",   "D,s",  MATCH_FMV_S_X, MASK_FMV_S_X,  WR_fd|RD_xs1 },
 {"fmv.s",     "F",   "D,S",  0,    (int) M_FMV_S, INSN_MACRO }, /* fsgnj.s */
+{"fneg.s",    "F",   "D,S",  0,    (int) M_FNEG_S, INSN_MACRO }, /* fsgnjn.d */
+{"fabs.s",    "F",   "D,S",  0,    (int) M_FABS_S, INSN_MACRO }, /* fsgnjx.d */
 {"fsgnj.s",   "F",   "D,S,T",  MATCH_FSGNJ_S, MASK_FSGNJ_S,   WR_fd|RD_fs1|RD_fs2 },
 {"fsgnjn.s",  "F",   "D,S,T",  MATCH_FSGNJN_S, MASK_FSGNJN_S,   WR_fd|RD_fs1|RD_fs2 },
 {"fsgnjx.s",  "F",   "D,S,T",  MATCH_FSGNJX_S, MASK_FSGNJX_S,   WR_fd|RD_fs1|RD_fs2 },
@@ -268,6 +271,8 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"fld",       "D",   "D,o(b)",  MATCH_FLD, MASK_FLD,  WR_fd|RD_xs1 },
 {"fsd",       "D",   "T,q(b)",  MATCH_FSD, MASK_FSD,  RD_xs1|RD_fs2 },
 {"fmv.d",     "D",   "D,S",  0,    (int) M_FMV_D, INSN_MACRO }, /* fsgnj.d */
+{"fneg.d",    "D",   "D,S",  0,    (int) M_FNEG_D, INSN_MACRO }, /* fsgnjn.d */
+{"fabs.d",    "D",   "D,S",  0,    (int) M_FABS_D, INSN_MACRO }, /* fsgnjx.d */
 {"fsgnj.d",   "D",   "D,S,T",  MATCH_FSGNJ_D, MASK_FSGNJ_D,   WR_fd|RD_fs1|RD_fs2 },
 {"fsgnjn.d",  "D",   "D,S,T",  MATCH_FSGNJN_D, MASK_FSGNJN_D,   WR_fd|RD_fs1|RD_fs2 },
 {"fsgnjx.d",  "D",   "D,S,T",  MATCH_FSGNJX_D, MASK_FSGNJX_D,   WR_fd|RD_fs1|RD_fs2 },

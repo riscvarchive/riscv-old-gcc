@@ -244,7 +244,11 @@ enum
   M_LA_TLS_IE,
   M_LI,
   M_FMV_S,
+  M_FABS_S,
+  M_FNEG_S,
   M_FMV_D,
+  M_FABS_D,
+  M_FNEG_D,
   M_NUM_MACROS
 };
 

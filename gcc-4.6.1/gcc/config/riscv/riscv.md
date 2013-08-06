@@ -1213,8 +1213,8 @@
 (define_insn "abs<mode>2"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
 	(abs:ANYF (match_operand:ANYF 1 "register_operand" "f")))]
-  ""
-  "fsgnjx.<fmt>\t%0,%1,%1"
+  "TARGET_HARD_FLOAT"
+  "fabs.<fmt>\t%0,%1"
   [(set_attr "type" "fabs")
    (set_attr "mode" "<UNITMODE>")])
 
@@ -1230,7 +1230,7 @@
   [(set (match_operand:ANYF 0 "register_operand" "=f")
 		   (smin:ANYF (match_operand:ANYF 1 "register_operand" "f")
 			    (match_operand:ANYF 2 "register_operand" "f")))]
-  ""
+  "TARGET_HARD_FLOAT"
   "fmin.<fmt>\t%0,%1,%2"
   [(set_attr "type" "fabs")
    (set_attr "mode" "<UNITMODE>")])
@@ -1239,7 +1239,7 @@
   [(set (match_operand:ANYF 0 "register_operand" "=f")
 		   (smax:ANYF (match_operand:ANYF 1 "register_operand" "f")
 			    (match_operand:ANYF 2 "register_operand" "f")))]
-  ""
+  "TARGET_HARD_FLOAT"
   "fmax.<fmt>\t%0,%1,%2"
   [(set_attr "type" "fabs")
    (set_attr "mode" "<UNITMODE>")])
@@ -1271,8 +1271,8 @@
 (define_insn "neg<mode>2"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
 	(neg:ANYF (match_operand:ANYF 1 "register_operand" "f")))]
-  ""
-  "fsgnjn.<fmt>\t%0,%1,%1"
+  "TARGET_HARD_FLOAT"
+  "fneg.<fmt>\t%0,%1"
   [(set_attr "type" "fneg")
    (set_attr "mode" "<UNITMODE>")])
 

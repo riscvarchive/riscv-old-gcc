@@ -1898,6 +1898,7 @@ macro (struct mips_cl_insn *ip)
 {
   unsigned int rd, rs1;
   int mask;
+  const char* fmv_name;
 
   rd = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
   rs1 = (ip->insn_opcode >> OP_SH_RS) & OP_MASK_RS;
@@ -1938,12 +1939,14 @@ macro (struct mips_cl_insn *ip)
       load_const (rd, &imm_expr);
       break;
 
-    case M_FMV_S:
-      macro_build (NULL, "fsgnj.s", "D,S,T", rd, rs1, rs1);
-      break;
-
-    case M_FMV_D:
-      macro_build (NULL, "fsgnj.d", "D,S,T", rd, rs1, rs1);
+    case M_FMV_S:  fmv_name = "fsgnj.s";  goto fmv_macro;
+    case M_FMV_D:  fmv_name = "fsgnj.d";  goto fmv_macro;
+    case M_FNEG_S: fmv_name = "fsgnjn.s"; goto fmv_macro;
+    case M_FNEG_D: fmv_name = "fsgnjn.d"; goto fmv_macro;
+    case M_FABS_S: fmv_name = "fsgnjx.s"; goto fmv_macro;
+    case M_FABS_D: fmv_name = "fsgnjx.d"; goto fmv_macro;
+fmv_macro:
+      macro_build (NULL, fmv_name, "D,S,T", rd, rs1, rs1);
       break;
 
     default:
