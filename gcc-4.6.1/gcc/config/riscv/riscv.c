@@ -2514,21 +2514,9 @@ mips_get_arg_info (struct mips_arg_info *info, const CUMULATIVE_ARGS *cum,
 		     || GET_MODE_CLASS (mode) == MODE_VECTOR_FLOAT)
 		 && GET_MODE_UNIT_SIZE (mode) <= UNITS_PER_FPVALUE);
 
-  /* ??? According to the ABI documentation, the real and imaginary
-     parts of complex floats should be passed in individual registers.
-     The real and imaginary parts of stack arguments are supposed
-     to be contiguous and there should be an extra word of padding
-     at the end.
-
-     This has two problems.  First, it makes it impossible to use a
-     single "void *" va_list type, since register and stack arguments
-     are passed differently.  (At the time of writing, MIPSpro cannot
-     handle complex float varargs correctly.)  Second, it's unclear
-     what should happen when there is only one register free.
-
-     For now, we assume that named complex floats should go into FPRs
-     if there are two FPRs free, otherwise they should be passed in the
-     same way as a struct containing two floats.  */
+  /* Complex floats should only go into FPRs if there are two FPRs free,
+     otherwise they should be passed in the same way as a struct
+     containing two floats.  */
   if (info->fpr_p
       && GET_MODE_CLASS (mode) == MODE_COMPLEX_FLOAT
       && GET_MODE_UNIT_SIZE (mode) < UNITS_PER_FPVALUE)
@@ -2819,26 +2807,6 @@ mips_fpr_return_fields (const_tree valtype, tree *fields)
   return i;
 }
 
-/* Implement TARGET_RETURN_IN_MSB.  For n32 & n64, we should return
-   a value in the most significant part of $2/$3 if:
-
-      - the target is big-endian;
-
-      - the value has a structure or union type (we generalize this to
-	cover aggregates from other languages too); and
-
-      - the structure is not returned in floating-point registers.  */
-
-static bool
-mips_return_in_msb (const_tree valtype)
-{
-  tree fields[2];
-
-  return (TARGET_BIG_ENDIAN
-	  && AGGREGATE_TYPE_P (valtype)
-	  && mips_fpr_return_fields (valtype, fields) == 0);
-}
-
 /* Return true if the function return value MODE will get returned in a
    floating-point register.  */
 
@@ -2935,18 +2903,6 @@ mips_function_value (const_tree valtype, const_tree func, enum machine_mode mode
 				       int_byte_position (fields[1]));
 	}
 
-      /* If a value is passed in the most significant part of a register, see
-	 whether we have to round the mode up to a whole number of words.  */
-      if (mips_return_in_msb (valtype))
-	{
-	  HOST_WIDE_INT size = int_size_in_bytes (valtype);
-	  if (size % UNITS_PER_WORD != 0)
-	    {
-	      size += UNITS_PER_WORD - size % UNITS_PER_WORD;
-	      mode = mode_for_size (size * BITS_PER_UNIT, MODE_INT, 0);
-	    }
-	}
-
       /* Only use FPRs for scalar, complex or vector types.  */
       if (!FLOAT_TYPE_P (valtype))
 	return gen_rtx_REG (mode, GP_RETURN);
@@ -2979,6 +2935,18 @@ static bool
 mips_return_in_memory (const_tree type, const_tree fndecl ATTRIBUTE_UNUSED)
 {
   return !IN_RANGE (int_size_in_bytes (type), 0, 2 * UNITS_PER_WORD);
+}
+
+/* Implement TARGET_PASS_BY_REFERENCE. */
+
+static bool
+riscv_pass_by_reference (CUMULATIVE_ARGS *cum ATTRIBUTE_UNUSED,
+			  enum machine_mode mode, const_tree type,
+			  bool named ATTRIBUTE_UNUSED)
+{
+  if (type && mips_return_in_memory (type, NULL_TREE))
+    return true;
+  return targetm.calls.must_pass_in_stack (mode, type);
 }
 
 /* Implement TARGET_SETUP_INCOMING_VARARGS.  */
@@ -5837,8 +5805,6 @@ mips_function_rodata_section (tree decl)
 
 #undef TARGET_RETURN_IN_MEMORY
 #define TARGET_RETURN_IN_MEMORY mips_return_in_memory
-#undef TARGET_RETURN_IN_MSB
-#define TARGET_RETURN_IN_MSB mips_return_in_msb
 
 #undef TARGET_ASM_OUTPUT_MI_THUNK
 #define TARGET_ASM_OUTPUT_MI_THUNK mips_output_mi_thunk
@@ -5857,7 +5823,7 @@ mips_function_rodata_section (tree decl)
 #undef TARGET_MUST_PASS_IN_STACK
 #define TARGET_MUST_PASS_IN_STACK must_pass_in_stack_var_size
 #undef TARGET_PASS_BY_REFERENCE
-#define TARGET_PASS_BY_REFERENCE hook_pass_by_reference_must_pass_in_stack
+#define TARGET_PASS_BY_REFERENCE riscv_pass_by_reference
 #undef TARGET_ARG_PARTIAL_BYTES
 #define TARGET_ARG_PARTIAL_BYTES mips_arg_partial_bytes
 #undef TARGET_FUNCTION_ARG
