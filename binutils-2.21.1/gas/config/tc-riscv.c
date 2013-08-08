@@ -1007,12 +1007,12 @@ struct regname {
   { "a5",	23 | RTYPE_GP }, \
   { "a6",	24 | RTYPE_GP }, \
   { "a7",	25 | RTYPE_GP }, \
-  { "a8",	26 | RTYPE_GP }, \
-  { "a9",	27 | RTYPE_GP }, \
-  { "a10",	28 | RTYPE_GP }, \
-  { "a11",	29 | RTYPE_GP }, \
-  { "a12",	30 | RTYPE_GP }, \
-  { "a13",	31 | RTYPE_GP }
+  { "t0",	26 | RTYPE_GP }, \
+  { "t1",	27 | RTYPE_GP }, \
+  { "t2",	28 | RTYPE_GP }, \
+  { "t3",	29 | RTYPE_GP }, \
+  { "t4",	30 | RTYPE_GP }, \
+  { "t5",	31 | RTYPE_GP }
 
 #define FP_SYMBOLIC_REGISTER_NAMES  \
   { "fs0",	 0 | RTYPE_FPU }, \
@@ -1041,12 +1041,12 @@ struct regname {
   { "fa5",	23 | RTYPE_FPU }, \
   { "fa6",	24 | RTYPE_FPU }, \
   { "fa7",	25 | RTYPE_FPU }, \
-  { "fa8",	26 | RTYPE_FPU }, \
-  { "fa9",	27 | RTYPE_FPU }, \
-  { "fa10",	28 | RTYPE_FPU }, \
-  { "fa11",	29 | RTYPE_FPU }, \
-  { "fa12",	30 | RTYPE_FPU }, \
-  { "fa13",	31 | RTYPE_FPU }
+  { "ft0",	26 | RTYPE_FPU }, \
+  { "ft1",	27 | RTYPE_FPU }, \
+  { "ft2",	28 | RTYPE_FPU }, \
+  { "ft3",	29 | RTYPE_FPU }, \
+  { "ft4",	30 | RTYPE_FPU }, \
+  { "ft5",	31 | RTYPE_FPU }
 
 #define RISCV_VEC_GR_REGISTER_NAMES \
     {"vx0",	RTYPE_VGR_REG | 0}, \

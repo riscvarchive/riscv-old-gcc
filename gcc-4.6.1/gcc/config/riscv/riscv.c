@@ -343,19 +343,16 @@ static const char *mips_lo_relocs[NUM_SYMBOL_TYPES];
 /* Likewise for HIGHs.  */
 static const char *mips_hi_relocs[NUM_SYMBOL_TYPES];
 
-/* Target state for MIPS16.  */
-struct target_globals *mips16_globals;
-
 /* Index R is the smallest register class that contains register R.  */
 const enum reg_class mips_regno_to_class[FIRST_PSEUDO_REGISTER] = {
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
-  GR_REGS,	V1_REG, 	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS, 	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
-  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
-  GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
+  GR_REGS,	GR_REGS,	T_REGS,		T_REGS,
+  T_REGS,	T_REGS,		T_REGS,		T_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
@@ -3045,7 +3042,7 @@ mips_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
 
   if (!call_insn_operand (addr, VOIDmode))
     {
-      rtx reg = MIPS_EPILOGUE_TEMP (Pmode, true);
+      rtx reg = MIPS_EPILOGUE_TEMP (Pmode);
       mips_emit_move (reg, addr);
       addr = reg;
     }
@@ -4155,13 +4152,7 @@ mips_expand_prologue (void)
 static void
 mips_restore_reg (rtx reg, rtx mem)
 {
-  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg), false));
-}
-
-static void
-mips_restore_reg_sibcall (rtx reg, rtx mem)
-{
-  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg), true));
+  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg)));
 }
 
 /* Expand an "epilogue" or "sibcall_epilogue" pattern; SIBCALL_P
@@ -4199,8 +4190,8 @@ mips_expand_epilogue (bool sibcall_p)
       rtx adjust = GEN_INT (-frame->hard_frame_pointer_offset);
       if (!SMALL_INT (adjust))
 	{
-	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode, sibcall_p), adjust);
-	  adjust = MIPS_EPILOGUE_TEMP (Pmode, sibcall_p);
+	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
+	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
 	}
 
       emit_insn (gen_add3_insn (stack_pointer_rtx, hard_frame_pointer_rtx, adjust));
@@ -4221,16 +4212,15 @@ mips_expand_epilogue (bool sibcall_p)
       rtx adjust = GEN_INT (step1);
       if (!SMALL_OPERAND (step1))
 	{
-	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode, sibcall_p), adjust);
-	  adjust = MIPS_EPILOGUE_TEMP (Pmode, sibcall_p);
+	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
+	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
 	}
 
       emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx, adjust));
     }
 
   /* Restore the registers.  */
-  mips_for_each_saved_gpr_and_fpr (frame->total_size - step2, 
-    sibcall_p ? mips_restore_reg_sibcall : mips_restore_reg);
+  mips_for_each_saved_gpr_and_fpr (frame->total_size - step2, mips_restore_reg);
 
   /* Deallocate the final bit of the frame.  */
   if (step2 > 0)
@@ -5492,8 +5482,6 @@ mips_option_override (void)
   targetm.const_anchor = RISCV_IMM_REACH/2;
 
   mips_init_relocs ();
-
-  restore_target_globals (&default_target_globals);
 }
 
 /* Implement TARGET_OPTION_OPTIMIZATION_TABLE.  */

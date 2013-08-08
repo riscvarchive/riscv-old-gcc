@@ -81,14 +81,14 @@ $as_echo X/"$0" |
 }
 
 # This file is generated from configure.in by Autoconf.  DO NOT EDIT!
- # Local configure fragment for sysdeps/mips/elf.
+ # Local configure fragment for sysdeps/riscv/elf.
 
 if test "$usetls" != no; then
 # Check for support of thread-local storage handling in assembler and
 # linker.
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for MIPS TLS support" >&5
-$as_echo_n "checking for MIPS TLS support... " >&6; }
-if ${libc_cv_mips_tls+:} false; then :
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for RISC-V TLS support" >&5
+$as_echo_n "checking for RISC-V TLS support... " >&6; }
+if ${libc_cv_riscv_tls+:} false; then :
   $as_echo_n "(cached) " >&6
 else
   cat > conftest.s <<\EOF
@@ -110,15 +110,15 @@ if { ac_try='${CC-cc} -c $CFLAGS conftest.s 1>&5'
   ac_status=$?
   $as_echo "$as_me:${as_lineno-$LINENO}: \$? = $ac_status" >&5
   test $ac_status = 0; }; }; then
-  libc_cv_mips_tls=yes
+  libc_cv_riscv_tls=yes
 else
-  libc_cv_mips_tls=no
+  libc_cv_riscv_tls=no
 fi
 rm -f conftest*
 fi
-{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libc_cv_mips_tls" >&5
-$as_echo "$libc_cv_mips_tls" >&6; }
-if test $libc_cv_mips_tls = yes; then
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libc_cv_riscv_tls" >&5
+$as_echo "$libc_cv_riscv_tls" >&6; }
+if test $libc_cv_riscv_tls = yes; then
   $as_echo "#define HAVE_TLS_SUPPORT 1" >>confdefs.h
 
 fi

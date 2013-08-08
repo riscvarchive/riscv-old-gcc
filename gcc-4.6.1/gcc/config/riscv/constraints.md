@@ -40,7 +40,7 @@
 (define_register_constraint "b" "ALL_REGS"
   "@internal")
 
-(define_register_constraint "j" "V1_REG"
+(define_register_constraint "j" "T_REGS"
   "@internal")
 
 (define_register_constraint "z" "GR_REGS"

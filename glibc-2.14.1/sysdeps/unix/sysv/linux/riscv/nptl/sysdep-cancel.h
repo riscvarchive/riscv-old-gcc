@@ -124,14 +124,14 @@
 # define RESTORESTK 	addi sp, sp, STKSPACE; cfi_adjust_cfa_offset(-STKSPACE)
 
 # ifdef IS_IN_libpthread
-#  define CENABLE  j __pthread_enable_asynccancel
-#  define CDISABLE j __pthread_disable_asynccancel
+#  define CENABLE  jal __pthread_enable_asynccancel
+#  define CDISABLE jal __pthread_disable_asynccancel
 # elif defined IS_IN_librt
-#  define CENABLE  j __librt_enable_asynccancel
-#  define CDISABLE j __librt_disable_asynccancel
+#  define CENABLE  jal __librt_enable_asynccancel
+#  define CDISABLE jal __librt_disable_asynccancel
 # else
-#  define CENABLE  j __libc_enable_asynccancel
-#  define CDISABLE j __libc_disable_asynccancel
+#  define CENABLE  jal __libc_enable_asynccancel
+#  define CDISABLE jal __libc_disable_asynccancel
 # endif
 
 # ifndef __ASSEMBLER__

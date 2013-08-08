@@ -784,13 +784,11 @@ struct mips_cpu_info {
    The epilogue temporary mustn't conflict with the return registers,
    the frame pointer, the EH stack adjustment, or the EH data registers. */
 
-#define MIPS_PROLOGUE_TEMP_REGNUM (GP_RETURN + 1)
-#define MIPS_EPILOGUE_TEMP_REGNUM(SIBCALL_P) \
-  ((SIBCALL_P) ? MIPS_PROLOGUE_TEMP_REGNUM : (GP_ARG_FIRST + 5))
+#define MIPS_PROLOGUE_TEMP_REGNUM GP_TEMP_FIRST
+#define MIPS_EPILOGUE_TEMP_REGNUM GP_TEMP_FIRST
 
 #define MIPS_PROLOGUE_TEMP(MODE) gen_rtx_REG (MODE, MIPS_PROLOGUE_TEMP_REGNUM)
-#define MIPS_EPILOGUE_TEMP(MODE, SIBCALL_P) \
-  gen_rtx_REG (MODE, MIPS_EPILOGUE_TEMP_REGNUM (SIBCALL_P))
+#define MIPS_EPILOGUE_TEMP(MODE) gen_rtx_REG (MODE, MIPS_EPILOGUE_TEMP_REGNUM)
 
 #define FUNCTION_PROFILER(STREAM, LABELNO)	\
 {						\
@@ -824,7 +822,7 @@ struct mips_cpu_info {
 enum reg_class
 {
   NO_REGS,			/* no registers in set */
-  V1_REG,			/* register used by indirect sibcalls */
+  T_REGS,			/* registers used by indirect sibcalls */
   GR_REGS,			/* integer registers */
   FP_REGS,			/* floating point registers */
   VEC_GR_REGS,			/* vector integer registers */
@@ -845,7 +843,7 @@ enum reg_class
 #define REG_CLASS_NAMES							\
 {									\
   "NO_REGS",								\
-  "V1_REG",								\
+  "T_REGS",								\
   "GR_REGS",								\
   "FP_REGS",								\
   "VEC_GR_REGS",							\
@@ -868,7 +866,7 @@ enum reg_class
 #define REG_CLASS_CONTENTS									\
 {												\
   { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* NO_REGS */		\
-  { 0x00020000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* V1_REG */		\
+  { 0xfc000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* T_REGS */		\
   { 0xffffffff, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* GR_REGS */		\
   { 0x00000000, 0xffffffff, 0x00000000, 0x00000000, 0x00000000 },	/* FP_REGS */		\
   { 0x00000000, 0x00000000, 0xffffffff, 0x00000000, 0x00000000 },	/* VEC_GR_REGS */	\
@@ -1004,12 +1002,13 @@ enum reg_class
 #define GP_RETURN (GP_REG_FIRST + 16)
 #define FP_RETURN ((TARGET_SOFT_FLOAT) ? GP_RETURN : (FP_REG_FIRST + 16))
 
-#define MAX_ARGS_IN_REGISTERS 14
+#define MAX_ARGS_IN_REGISTERS 8
 
 /* Symbolic macros for the first/last argument registers.  */
 
 #define GP_ARG_FIRST (GP_REG_FIRST + 18)
 #define GP_ARG_LAST  (GP_ARG_FIRST + MAX_ARGS_IN_REGISTERS - 1)
+#define GP_TEMP_FIRST (GP_ARG_LAST + 1)
 #define FP_ARG_FIRST (FP_REG_FIRST + 18)
 #define FP_ARG_LAST  (FP_ARG_FIRST + MAX_ARGS_IN_REGISTERS - 1)
 
@@ -1087,8 +1086,8 @@ typedef struct mips_args {
 
 #define EPILOGUE_USES(REGNO)	mips_epilogue_uses (REGNO)
 
-/* Even on RV32, provide 8-byte alignment for 64b floats. */
-#define MIPS_STACK_ALIGN(LOC) (((LOC) + 7) & -8)
+/* ABI requires 16-byte alignment, even on ven on RV32. */
+#define MIPS_STACK_ALIGN(LOC) (((LOC) + 15) & -16)
 
 /* No mips port has ever used the profiler counter word, so don't emit it
    or the label for it.  */
@@ -1312,12 +1311,12 @@ typedef struct mips_args {
   { "a5",	23 + GP_REG_FIRST },					\
   { "a6",	24 + GP_REG_FIRST },					\
   { "a7",	25 + GP_REG_FIRST },					\
-  { "a8",	26 + GP_REG_FIRST },					\
-  { "a9",	27 + GP_REG_FIRST },					\
-  { "a10",	28 + GP_REG_FIRST },					\
-  { "a11",	29 + GP_REG_FIRST },					\
-  { "a12",	30 + GP_REG_FIRST },					\
-  { "a13",	31 + GP_REG_FIRST },					\
+  { "t0",	26 + GP_REG_FIRST },					\
+  { "t1",	27 + GP_REG_FIRST },					\
+  { "t2",	28 + GP_REG_FIRST },					\
+  { "t3",	29 + GP_REG_FIRST },					\
+  { "t4",	30 + GP_REG_FIRST },					\
+  { "t5",	31 + GP_REG_FIRST },					\
   { "fs0",	 0 + FP_REG_FIRST },					\
   { "fs1",	 1 + FP_REG_FIRST },					\
   { "fs2",	 2 + FP_REG_FIRST },					\
@@ -1344,12 +1343,12 @@ typedef struct mips_args {
   { "fa5",	23 + FP_REG_FIRST },					\
   { "fa6",	24 + FP_REG_FIRST },					\
   { "fa7",	25 + FP_REG_FIRST },					\
-  { "fa8",	26 + FP_REG_FIRST },					\
-  { "fa9",	27 + FP_REG_FIRST },					\
-  { "fa10",	28 + FP_REG_FIRST },					\
-  { "fa11",	29 + FP_REG_FIRST },					\
-  { "fa12",	30 + FP_REG_FIRST },					\
-  { "fa13",	31 + FP_REG_FIRST },					\
+  { "ft0",	26 + FP_REG_FIRST },					\
+  { "ft1",	27 + FP_REG_FIRST },					\
+  { "ft2",	28 + FP_REG_FIRST },					\
+  { "ft3",	29 + FP_REG_FIRST },					\
+  { "ft4",	30 + FP_REG_FIRST },					\
+  { "ft5",	31 + FP_REG_FIRST },					\
 }
 
 /* This is meant to be redefined in the host dependent files.  It is a
@@ -1627,7 +1626,6 @@ extern int mips_dwarf_regno[];
 extern bool mips_split_p[];
 extern enum processor mips_arch;        /* which cpu to codegen for */
 extern enum processor mips_tune;        /* which cpu to schedule for */
-extern GTY(()) struct target_globals *mips16_globals;
 #endif
 
 /* As on most targets, we want the .eh_frame section to be read-only where
@@ -1656,6 +1654,3 @@ extern GTY(()) struct target_globals *mips16_globals;
    support this feature.  */
 #define ASM_PREFERRED_EH_DATA_FORMAT(CODE,GLOBAL) \
   (((GLOBAL) ? DW_EH_PE_indirect : 0) | DW_EH_PE_absptr)
-
-/* For switching between MIPS16 and non-MIPS16 modes.  */
-#define SWITCHABLE_TARGET 1

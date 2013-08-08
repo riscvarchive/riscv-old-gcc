@@ -54,7 +54,7 @@ static const char* mips_gpr_names_abi[32] = {
   "zero", "ra", "s0", "s1",  "s2",  "s3",  "s4",  "s5",
   "s6",   "s7", "s8", "s9", "s10", "s11",  "sp",  "tp",
   "v0",   "v1", "a0", "a1",  "a2",  "a3",  "a4",  "a5",
-  "a6",   "a7", "a8", "a9", "a10", "a11", "a12", "a13"
+  "a6",   "a7", "t0", "t1",  "t2",  "t3",  "t4",  "t5"
 };
 
 
@@ -70,7 +70,7 @@ static const char* mips_fpr_names_abi[32] = {
   "fs0", "fs1",  "fs2",  "fs3",  "fs4",  "fs5",  "fs6",  "fs7",
   "fs8", "fs9", "fs10", "fs11", "fs12", "fs13", "fs14", "fs15",
   "fv0", "fv1", "fa0",   "fa1",  "fa2",  "fa3",  "fa4",  "fa5",
-  "fa6", "fa7", "fa8",   "fa9", "fa10", "fa11", "fa12", "fa13"
+  "fa6", "fa7", "ft0",   "ft1",  "ft2",  "ft3",  "ft4",  "ft5"
 };
 
 static const char * const mips_cp0_names_numeric[32] =
@@ -86,7 +86,7 @@ static const char * const mips_vgr_reg_names_riscv[32] =
   "vzero","vra",  "vs0",  "vs1",  "vs2",  "vs3",  "vs4",  "vs5",
   "vs6",  "vs7",  "vs8",  "vs9",  "vs10", "vs11", "vsp",  "vtp",
   "vv0",  "vv1",  "va0",  "va1",  "va2",  "va3",  "va4",  "va5",
-  "va6",  "va7",  "va8",  "va9",  "va10", "va11", "va12", "va13"
+  "va6",  "va7",  "vt0",  "vt1",  "vt2",  "vt3",  "vt4",  "vt5"
 };
 
 static const char * const mips_vfp_reg_names_riscv[32] =
