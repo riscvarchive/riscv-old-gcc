@@ -1497,8 +1497,7 @@ do {									\
 #define ASM_OUTPUT_REG_PUSH(STREAM,REGNO)				\
 do									\
   {									\
-    fprintf (STREAM, "\t%s\t%s,%s,-8\n\t%s\t%s,0(%s)\n",		\
-	     TARGET_64BIT ? "daddiu" : "addiu",				\
+    fprintf (STREAM, "\taddi\t%s,%s,-8\n\t%s\t%s,0(%s)\n",		\
 	     reg_names[STACK_POINTER_REGNUM],				\
 	     reg_names[STACK_POINTER_REGNUM],				\
 	     TARGET_64BIT ? "sd" : "sw",				\
@@ -1510,11 +1509,10 @@ while (0)
 #define ASM_OUTPUT_REG_POP(STREAM,REGNO)				\
 do									\
   {									\
-    fprintf (STREAM, "\t%s\t%s,0(%s)\n\t%s\t%s,%s,8\n",			\
+    fprintf (STREAM, "\t%s\t%s,0(%s)\n\taddi\t%s,%s,8\n",		\
 	     TARGET_64BIT ? "ld" : "lw",				\
 	     reg_names[REGNO],						\
 	     reg_names[STACK_POINTER_REGNUM],				\
-	     TARGET_64BIT ? "daddu" : "addu",				\
 	     reg_names[STACK_POINTER_REGNUM],				\
 	     reg_names[STACK_POINTER_REGNUM]);				\
   }									\

@@ -242,6 +242,8 @@ enum
   M_LA_AB,
   M_LA_TLS_GD,
   M_LA_TLS_IE,
+  M_JALF,
+  M_JF,
   M_LI,
   M_FMV_S,
   M_FABS_S,

@@ -2393,9 +2393,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
   switch (r_type)
     {
     case R_RISCV_GOT_HI16:
-    case R_RISCV_CALL_HI16:
     case R_RISCV_GOT_LO16:
-    case R_RISCV_CALL_LO16:
     case R_RISCV_TLS_GD:
     case R_RISCV_TLS_GD_HI16:
     case R_RISCV_TLS_GD_LO16:
@@ -2488,6 +2486,16 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value &= howto->dst_mask;
       break;
 
+    case R_RISCV_CALL_HI16:
+      value = mips_elf_high (addend + symbol - p) << OP_SH_BIGIMMEDIATE;
+      value &= howto->dst_mask;
+      break;
+
+    case R_RISCV_CALL_LO16:
+      value = (addend + symbol - p) << OP_SH_IMMEDIATE;
+      value &= howto->dst_mask;
+      break;
+
     case R_RISCV_26:
       if (symbol == 0)
 	{
@@ -2553,7 +2561,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_GD_HI16:
     case R_RISCV_TLS_LDM_HI16:
     case R_RISCV_GOT_HI16:
-    case R_RISCV_CALL_HI16:
       /* We're allowed to handle these two relocations identically.
 	 The dynamic linker is allowed to handle the CALL relocations
 	 differently by creating a lazy evaluation stub.  */
@@ -2564,7 +2571,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_GD_LO16:
     case R_RISCV_TLS_LDM_LO16:
     case R_RISCV_GOT_LO16:
-    case R_RISCV_CALL_LO16:
       value = ((g - p) << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
 
@@ -3397,8 +3403,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
       can_make_dynamic_p = FALSE;
       switch (r_type)
 	{
-	case R_RISCV_CALL_HI16:
-	case R_RISCV_CALL_LO16:
 	case R_RISCV_GOT_HI16:
 	case R_RISCV_GOT_LO16:
 	case R_RISCV_TLS_GOTTPREL:
@@ -3466,14 +3470,14 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	case R_RISCV_26:
 	case R_RISCV_PC16:
-	case R_MIPS16_26:
+	case R_RISCV_CALL_HI16:
+	case R_RISCV_CALL_LO16:
 	  if (h)
 	    ((struct mips_elf_link_hash_entry *) h)->has_static_relocs = TRUE;
 	  break;
 	}
 
-      if ((h == NULL && r_type == R_RISCV_CALL_LO16)
-	       || r_type == R_RISCV_GOT_LO16)
+      if (r_type == R_RISCV_GOT_LO16)
 	{
 	  if (!mips_elf_record_local_got_symbol (abfd, r_symndx,
 						 rel->r_addend, info, 0))

@@ -2724,7 +2724,9 @@
   [(call (mem:SI (match_operand 0 "call_insn_operand" "j,S"))
 	 (match_operand 1 "" ""))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[0]) ? "jr\t%0" : "j\t%0"; }
+  { return REG_P (operands[0]) ? "jr\t%0" :
+           SYMBOL_REF_LONG_CALL_P (operands[0]) ? "jf\t%0, t0" :
+	   "j\t%0"; }
   [(set_attr "type" "call")])
 
 (define_expand "sibcall_value"
@@ -2743,7 +2745,9 @@
         (call (mem:SI (match_operand 1 "call_insn_operand" "j,S"))
               (match_operand 2 "" "")))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1"; }
+  { return REG_P (operands[1]) ? "jr\t%1" :
+           SYMBOL_REF_LONG_CALL_P (operands[1]) ? "jf\t%1, t0" :
+	   "j\t%1"; }
   [(set_attr "type" "call")])
 
 (define_insn "sibcall_value_multiple_internal"
@@ -2754,7 +2758,9 @@
 	(call (mem:SI (match_dup 1))
 	      (match_dup 2)))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1"; }
+  { return REG_P (operands[1]) ? "jr\t%1" :
+           SYMBOL_REF_LONG_CALL_P (operands[1]) ? "jf\t%1, t0" :
+	   "j\t%1"; }
   [(set_attr "type" "call")])
 
 (define_expand "call"
@@ -2773,21 +2779,10 @@
 	 (match_operand 1 "" ""))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[0]) ? "jalr\t%0" : "jal\t%0"; }
+  { return REG_P (operands[0]) ? "jalr\t%0" :
+           SYMBOL_REF_LONG_CALL_P (operands[0]) ? "jalf\t%0, t0" :
+	   "jal\t%0"; }
   [(set_attr "jal" "indirect,direct")])
-
-;; A pattern for calls that must be made directly.  It is used for
-;; MIPS16 calls that the linker may need to redirect to a hard-float
-;; stub; the linker relies on the call relocation type to detect when
-;; such redirection is needed.
-(define_insn "call_internal_direct"
-  [(call (mem:SI (match_operand 0 "const_call_insn_operand"))
-	 (match_operand 1))
-   (const_int 1)
-   (clobber (reg:SI RETURN_ADDR_REGNUM))]
-  ""
-  "jal\t%0"
-  [(set_attr "type" "call")])
 
 (define_expand "call_value"
   [(parallel [(set (match_operand 0 "")
@@ -2807,19 +2802,10 @@
               (match_operand 2 "" "")))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" : "jal\t%1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1" :
+           SYMBOL_REF_LONG_CALL_P (operands[1]) ? "jalf\t%1, t0" :
+	   "jal\t%1"; }
   [(set_attr "jal" "indirect,direct")])
-
-;; See call_internal_direct.
-(define_insn "call_value_internal_direct"
-  [(set (match_operand 0 "register_operand")
-        (call (mem:SI (match_operand 1 "const_call_insn_operand"))
-              (match_operand 2)))
-   (const_int 1)
-   (clobber (reg:SI RETURN_ADDR_REGNUM))]
-  ""
-  "jal\t%1"
-  [(set_attr "type" "call")])
 
 ;; See comment for call_internal.
 (define_insn "call_value_multiple_internal"
@@ -2831,7 +2817,9 @@
 	      (match_dup 2)))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" : "jal\t%1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1" :
+           SYMBOL_REF_LONG_CALL_P (operands[1]) ? "jalf\t%1, t0" :
+	   "jal\t%1"; }
   [(set_attr "jal" "indirect,direct")])
 
 ;; Call subroutine returning any type.

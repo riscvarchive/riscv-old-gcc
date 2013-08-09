@@ -1676,9 +1676,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	case 'O': /* An off-by-4 PC-relative address for PIC. */
 	  INSERT_OPERAND (IMMEDIATE, insn, 4);
 	  macro_read_relocs (&args, r);
-	  gas_assert (*r == BFD_RELOC_RISCV_TLS_GD_LO16
-		  || *r == BFD_RELOC_RISCV_TLS_GOT_LO16
-		  || *r == BFD_RELOC_MIPS_GOT_LO16);
 	  continue;
 
 	case 'j':
@@ -1814,12 +1811,12 @@ load_static_addr (int destreg, expressionS *ep)
 
 /* Load an entry from the GOT. */
 static void
-load_got_addr (int destreg, expressionS *ep, const char* lo_insn,
+load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
                bfd_reloc_code_real_type hi_reloc,
 	       bfd_reloc_code_real_type lo_reloc)
 {
-  macro_build_lui ("auipc", ep, destreg, hi_reloc);
-  macro_build (ep, lo_insn, "d,O(b)", destreg, lo_reloc, destreg);
+  macro_build_lui ("auipc", ep, tempreg, hi_reloc);
+  macro_build (ep, lo_insn, "d,O(b)", destreg, lo_reloc, tempreg);
 }
 
 /* Warn if an expression is not a constant.  */
@@ -1916,7 +1913,7 @@ macro (struct mips_cl_insn *ip)
       if (offset_expr.X_op == O_constant)
         load_const (rd, &offset_expr);
       else if (is_pic) /* O_symbol */
-	load_got_addr (rd, &offset_expr, LOAD_ADDRESS_INSN,
+	load_got_addr (rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
 	               BFD_RELOC_MIPS_GOT_HI16, BFD_RELOC_MIPS_GOT_LO16);
       else /* non-PIC O_symbol */
 	load_static_addr (rd, &offset_expr);
@@ -1926,13 +1923,23 @@ macro (struct mips_cl_insn *ip)
       break;
 
     case M_LA_TLS_GD: 
-      load_got_addr(rd, &offset_expr, "addi",
+      load_got_addr(rd, rd, &offset_expr, "addi",
                     BFD_RELOC_RISCV_TLS_GD_HI16, BFD_RELOC_RISCV_TLS_GD_LO16);
       break;
 
     case M_LA_TLS_IE: 
-      load_got_addr(rd, &offset_expr, LOAD_ADDRESS_INSN,
+      load_got_addr(rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
                     BFD_RELOC_RISCV_TLS_GOT_HI16, BFD_RELOC_RISCV_TLS_GOT_LO16);
+      break;
+
+    case M_JALF:
+      load_got_addr(LINK_REG, rs1, &offset_expr, "jalr",
+		    BFD_RELOC_MIPS_CALL_HI16, BFD_RELOC_MIPS_CALL_LO16);
+      break;
+
+    case M_JF:
+      load_got_addr(ZERO, rs1, &offset_expr, "jalr",
+		    BFD_RELOC_MIPS_CALL_HI16, BFD_RELOC_MIPS_CALL_LO16);
       break;
 
     case M_LI:

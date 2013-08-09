@@ -69,12 +69,8 @@
   if (symbol_type == SYMBOL_ABSOLUTE)
     {
       if (GET_CODE (op) == SYMBOL_REF)
-	{
-	  if (flag_pic && !riscv_symbol_binds_local_p (op))
-	    return false;
-	  if (SYMBOL_REF_LONG_CALL_P (op))
-	    return false;
-	}
+	if (flag_pic && !riscv_symbol_binds_local_p (op))
+	  return false;
       return true;
     }
 
