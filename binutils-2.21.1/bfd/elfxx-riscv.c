@@ -540,7 +540,7 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value, bfd_vma addr,
   entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, 14, 0);
   for (j = 0; j < 8; j++)
     entry[i++] = RISCV_ITYPE(LREG(abfd), 18+j, 14, (j+1)*regbytes);
-  entry[i++] = RISCV_ITYPE(ADDI, 14, 14, 16*regbytes);
+  entry[i++] = RISCV_ITYPE(ADDI, 14, 14, 12*regbytes);
   entry[i++] = RISCV_ITYPE(JALR, 0, 16, 0);
 
   BFD_ASSERT(i <= RISCV_PLT0_ENTRY_INSNS);
