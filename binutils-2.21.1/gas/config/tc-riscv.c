@@ -379,7 +379,6 @@ static void s_change_sec (int);
 static void s_change_section (int);
 static void s_cons (int);
 static void s_float_cons (int);
-static void s_mips_globl (int);
 static void s_mipsset (int);
 static void s_dtprelword (int);
 static void s_dtpreldword (int);
@@ -432,8 +431,8 @@ static const pseudo_typeS mips_pseudo_table[] =
   {"data", s_change_sec, 'd'},
   {"double", s_float_cons, 'd'},
   {"float", s_float_cons, 'f'},
-  {"globl", s_mips_globl, 0},
-  {"global", s_mips_globl, 0},
+  {"globl", s_globl, 0},
+  {"global", s_globl, 0},
   {"hword", s_cons, 1},
   {"int", s_cons, 2},
   {"long", s_cons, 2},
@@ -3285,67 +3284,6 @@ s_float_cons (int type)
   mips_clear_insn_labels ();
 
   float_cons (type);
-}
-
-/* Handle .globl.  We need to override it because on Irix 5 you are
-   permitted to say
-       .globl foo .text
-   where foo is an undefined symbol, to mean that foo should be
-   considered to be the address of a function.  */
-
-static void
-s_mips_globl (int x ATTRIBUTE_UNUSED)
-{
-  char *name;
-  int c;
-  symbolS *symbolP;
-  flagword flag;
-
-  do
-    {
-      name = input_line_pointer;
-      c = get_symbol_end ();
-      symbolP = symbol_find_or_make (name);
-      S_SET_EXTERNAL (symbolP);
-
-      *input_line_pointer = c;
-      SKIP_WHITESPACE ();
-
-      /* On Irix 5, every global symbol that is not explicitly labelled as
-         being a function is apparently labelled as being an object.  */
-      flag = BSF_OBJECT;
-
-      if (!is_end_of_line[(unsigned char) *input_line_pointer]
-	  && (*input_line_pointer != ','))
-	{
-	  char *secname;
-	  asection *sec;
-
-	  secname = input_line_pointer;
-	  c = get_symbol_end ();
-	  sec = bfd_get_section_by_name (stdoutput, secname);
-	  if (sec == NULL)
-	    as_bad (_("%s: no such section"), secname);
-	  *input_line_pointer = c;
-
-	  if (sec != NULL && (sec->flags & SEC_CODE) != 0)
-	    flag = BSF_FUNCTION;
-	}
-
-      symbol_get_bfdsym (symbolP)->flags |= flag;
-
-      c = *input_line_pointer;
-      if (c == ',')
-	{
-	  input_line_pointer++;
-	  SKIP_WHITESPACE ();
-	  if (is_end_of_line[(unsigned char) *input_line_pointer])
-	    c = '\n';
-	}
-    }
-  while (c == ',');
-
-  demand_empty_rest_of_line ();
 }
 
 /* This structure is used to hold a stack of .set values.  */
