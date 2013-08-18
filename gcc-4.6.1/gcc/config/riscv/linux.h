@@ -24,9 +24,6 @@ along with GCC; see the file COPYING3.  If not see
 #undef WCHAR_TYPE_SIZE
 #define WCHAR_TYPE_SIZE 32
 
-#undef ASM_DECLARE_OBJECT_NAME
-#define ASM_DECLARE_OBJECT_NAME mips_declare_object_name
-
 #undef TARGET_VERSION
 #if TARGET_ENDIAN_DEFAULT == 0
 #define TARGET_VERSION fprintf (stderr, " (RISC-V LE Linux/ELF)");

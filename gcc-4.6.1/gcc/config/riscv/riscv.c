@@ -3227,36 +3227,6 @@ mips_print_operand_reloc (FILE *file, rtx op, const char **relocs)
       fputc (')', file);
 }
 
-/* PRINT_OPERAND prefix LETTER refers to the integer branch instruction
-   associated with condition CODE.  Print the condition part of the
-   opcode to FILE.  */
-
-static void
-mips_print_int_branch_condition (FILE *file, enum rtx_code code, int letter)
-{
-  switch (code)
-    {
-    case EQ:
-    case NE:
-    case GT:
-    case GE:
-    case LT:
-    case LE:
-    case GTU:
-    case GEU:
-    case LTU:
-    case LEU:
-      /* Conveniently, the MIPS names for these conditions are the same
-	 as their RTL equivalents.  */
-      fputs (GET_RTX_NAME (code), file);
-      break;
-
-    default:
-      output_operand_lossage ("'%%%c' is not a valid operand prefix", letter);
-      break;
-    }
-}
-
 /* Implement TARGET_PRINT_OPERAND.  The MIPS-specific operand codes are:
 
    'h'	Print the high-part relocation associated with OP, after stripping
@@ -3291,15 +3261,16 @@ mips_print_operand (FILE *file, rtx op, int letter)
       break;
 
     case 'C':
-      mips_print_int_branch_condition (file, code, letter);
+      /* The RTL names match the instruction names. */
+      fputs (GET_RTX_NAME (code), file);
       break;
 
     case 'N':
-      mips_print_int_branch_condition (file, reverse_condition (code), letter);
+      fputs (GET_RTX_NAME (reverse_condition (code)), file);
       break;
 
     case 'S':
-      mips_print_int_branch_condition (file, swap_condition (code), letter);
+      fputs (GET_RTX_NAME (swap_condition (code)), file);
       break;
 
     default:
@@ -3479,78 +3450,6 @@ mips_output_ascii (FILE *stream, const char *string, size_t len)
     }
   fprintf (stream, "\"\n");
 }
-
-/* Emit either a label, .comm, or .lcomm directive.  When using assembler
-   macros, mark the symbol as written so that mips_asm_output_external
-   won't emit an .extern for it.  STREAM is the output file, NAME is the
-   name of the symbol, INIT_STRING is the string that should be written
-   before the symbol and FINAL_STRING is the string that should be
-   written after it.  FINAL_STRING is a printf format that consumes the
-   remaining arguments.  */
-
-void
-mips_declare_object (FILE *stream, const char *name, const char *init_string,
-		     const char *final_string, ...)
-{
-  va_list ap;
-
-  fputs (init_string, stream);
-  assemble_name (stream, name);
-  va_start (ap, final_string);
-  vfprintf (stream, final_string, ap);
-  va_end (ap);
-}
-
-#ifdef ASM_OUTPUT_SIZE_DIRECTIVE
-extern int size_directive_output;
-
-/* Implement ASM_DECLARE_OBJECT_NAME.  This is like most of the standard ELF
-   definitions except that it uses mips_declare_object to emit the label.  */
-
-void
-mips_declare_object_name (FILE *stream, const char *name,
-			  tree decl ATTRIBUTE_UNUSED)
-{
-#ifdef ASM_OUTPUT_TYPE_DIRECTIVE
-  ASM_OUTPUT_TYPE_DIRECTIVE (stream, name, "object");
-#endif
-
-  size_directive_output = 0;
-  if (!flag_inhibit_size_directive && DECL_SIZE (decl))
-    {
-      HOST_WIDE_INT size;
-
-      size_directive_output = 1;
-      size = int_size_in_bytes (TREE_TYPE (decl));
-      ASM_OUTPUT_SIZE_DIRECTIVE (stream, name, size);
-    }
-
-  mips_declare_object (stream, name, "", ":\n");
-}
-
-/* Implement ASM_FINISH_DECLARE_OBJECT.  This is generic ELF stuff.  */
-
-void
-mips_finish_declare_object (FILE *stream, tree decl, int top_level, int at_end)
-{
-  const char *name;
-
-  name = XSTR (XEXP (DECL_RTL (decl), 0), 0);
-  if (!flag_inhibit_size_directive
-      && DECL_SIZE (decl) != 0
-      && !at_end
-      && top_level
-      && DECL_INITIAL (decl) == error_mark_node
-      && !size_directive_output)
-    {
-      HOST_WIDE_INT size;
-
-      size_directive_output = 1;
-      size = int_size_in_bytes (TREE_TYPE (decl));
-      ASM_OUTPUT_SIZE_DIRECTIVE (stream, name, size);
-    }
-}
-#endif
 
 /* Make the last instruction frame-related and note that it performs
    the operation described by FRAME_PATTERN.  */

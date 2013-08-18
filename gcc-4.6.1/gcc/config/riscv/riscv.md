@@ -2705,9 +2705,7 @@
 ;; constraints.
 
 ;; When we use an indirect jump, we need a register that will be
-;; preserved by the epilogue.  Since TARGET_ABICALLS forces us to use
-;; t7 for this purpose, which the epilogue never clobbers, we may
-;; as well use it in general.
+;; preserved by the epilogue (constraint j).
 
 (define_expand "sibcall"
   [(parallel [(call (match_operand 0 "")

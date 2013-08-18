@@ -91,10 +91,6 @@ extern HOST_WIDE_INT mips_debugger_offset (rtx, HOST_WIDE_INT);
 
 extern void mips_output_external (FILE *, tree, const char *);
 extern void mips_output_ascii (FILE *, const char *, size_t);
-extern void mips_declare_object (FILE *, const char *, const char *,
-				 const char *, ...) ATTRIBUTE_PRINTF_4;
-extern void mips_declare_object_name (FILE *, const char *, tree);
-extern void mips_finish_declare_object (FILE *, tree, int, int);
 
 extern HOST_WIDE_INT mips_initial_elimination_offset (int, int);
 extern rtx mips_return_addr (int, rtx);

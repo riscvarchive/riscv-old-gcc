@@ -32,12 +32,6 @@ along with GCC; see the file COPYING3.  If not see
     }								\
   while (0)
 
-#undef ASM_DECLARE_OBJECT_NAME
-#define ASM_DECLARE_OBJECT_NAME mips_declare_object_name
-
-#undef ASM_FINISH_DECLARE_OBJECT
-#define ASM_FINISH_DECLARE_OBJECT mips_finish_declare_object
-
 /* Leave the linker script to choose the appropriate libraries.  */
 #undef  LIB_SPEC
 #define LIB_SPEC ""

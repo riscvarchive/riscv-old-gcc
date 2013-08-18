@@ -34,11 +34,6 @@ extern int target_flags_explicit;
 
 /* MIPS external variables defined in mips.c.  */
 
-/* Which ABI to use. */
-
-#define ABI_32  1
-#define ABI_64  3
-
 /* Information about one recognized processor.  Defined here for the
    benefit of TARGET_CPU_CPP_BUILTINS.  */
 struct mips_cpu_info {
@@ -55,13 +50,6 @@ struct mips_cpu_info {
   /* A mask of PTF_* values.  */
   unsigned int tune_flags;
 };
-
-/* Macros to silence warnings about numbers being signed in traditional
-   C and unsigned in ISO C when compiled on 32-bit hosts.  */
-
-#define BITMASK_HIGH	(((unsigned long)1) << 31)	/* 0x80000000 */
-#define BITMASK_UPPER16	((unsigned long)0xffff << 16)	/* 0xffff0000 */
-#define BITMASK_LOWER16	((unsigned long)0xffff)		/* 0x0000ffff */
 
 /* True if we need to use a global offset table to access some symbols.  */
 #define TARGET_USE_GOT TARGET_ABICALLS
@@ -1325,33 +1313,6 @@ typedef struct mips_args {
   { "ft5",	31 + FP_REG_FIRST },					\
 }
 
-/* This is meant to be redefined in the host dependent files.  It is a
-   set of alternative names and regnums for mips coprocessors.  */
-
-#define ALL_COP_ADDITIONAL_REGISTER_NAMES
-
-#define DBR_OUTPUT_SEQEND(STREAM)					\
-do									\
-  {									\
-    /* Emit a blank line after the delay slot for emphasis.  */		\
-    fputs ("\n", STREAM);						\
-  }									\
-while (0)
-
-/* The MIPS implementation uses some labels for its own purpose.  The
-   following lists what labels are created, and are all formed by the
-   pattern $L[a-z].*.  The machine independent portion of GCC creates
-   labels matching:  $L[A-Z][0-9]+ and $L[0-9]+.
-
-	LM[0-9]+	Silicon Graphics/ECOFF stabs label before each stmt.
-	$Lb[0-9]+	Begin blocks for MIPS debug support
-	$Lc[0-9]+	Label for use in s<xx> operation.
-	$Le[0-9]+	End blocks for MIPS debug support  */
-
-#undef ASM_DECLARE_OBJECT_NAME
-#define ASM_DECLARE_OBJECT_NAME(STREAM, NAME, DECL) \
-  mips_declare_object (STREAM, NAME, "", ":\n")
-
 /* Globalizing directive for a label.  */
 #define GLOBAL_ASM_OP "\t.globl\t"
 
@@ -1498,12 +1459,7 @@ while (0)
 #define MIPS_MAX_MOVE_BYTES_STRAIGHT \
   (MIPS_MAX_MOVE_BYTES_PER_LOOP_ITER * 2)
 
-/* The base cost of a memcpy call, for MOVE_RATIO and friends.  These
-   values were determined experimentally by benchmarking with CSiBE.
-   In theory, the call overhead is higher for TARGET_ABICALLS (especially
-   for o32 where we have to restore $gp afterwards as well as make an
-   indirect call), but in practice, bumping this up higher for
-   TARGET_ABICALLS doesn't make much difference to code size.  */
+/* The base cost of a memcpy call, for MOVE_RATIO and friends. */
 
 #define MIPS_CALL_RATIO 8
 
