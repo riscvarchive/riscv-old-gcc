@@ -390,10 +390,6 @@ static hashval_t mips_elf_got_entry_hash
 /* This will be used when we sort the dynamic relocation records.  */
 static bfd *reldyn_sorting_bfd;
 
-/* True if ABFD is a PIC object.  */
-#define PIC_OBJECT_P(abfd) \
-  ((elf_elfheader (abfd)->e_flags & EF_MIPS_PIC) != 0)
-
 /* Nonzero if ABFD is using the RV64 ABI.  */
 #define ABI_64_P(abfd) \
   (get_elf_backend_data (abfd)->s->elfclass == ELFCLASS64)
@@ -2825,55 +2821,13 @@ mips_elf_create_dynamic_relocation (bfd *output_bfd,
 
   return TRUE;
 }
-
-/* Return the MACH for a MIPS e_flags value.  */
-
-unsigned long
-_bfd_elf_riscv_mach (flagword flags)
-{
-  switch (flags & EF_MIPS_MACH)
-    {
-    case E_RISCV_MACH_ROCKET32:
-      return bfd_mach_riscv_rocket32;
-
-    case E_RISCV_MACH_ROCKET64:
-      return bfd_mach_riscv_rocket64;
-
-    default:
-      switch (flags & EF_MIPS_ARCH)
-	{
-	case E_RISCV_ARCH_RV32:
-	  return bfd_mach_riscv_rocket32;
-
-	default:
-	case E_RISCV_ARCH_RV64:
-	  return bfd_mach_riscv_rocket64;
-	}
-    }
-
-  return 0;
-}
 
 /* Return printable name for ABI.  */
 
 static INLINE char *
 elf_mips_abi_name (bfd *abfd)
 {
-  flagword flags;
-
-  flags = elf_elfheader (abfd)->e_flags;
-  switch (flags & EF_MIPS_ABI)
-    {
-    case 0:
-      if (ABI_32_P (abfd))
-	return "32";
-      else if (ABI_64_P (abfd))
-	return "64";
-      else
-	return "none";
-    default:
-      return "unknown abi";
-    }
+  return ABI_32_P (abfd) ? "rv32" : "rv64";
 }
 
 /* This is used for both the 32-bit and the 64-bit ABI.  */
@@ -2913,136 +2867,6 @@ _bfd_riscv_elf_eh_frame_address_size (bfd *abfd, asection *sec ATTRIBUTE_UNUSED)
   if (elf_elfheader (abfd)->e_ident[EI_CLASS] == ELFCLASS64)
     return 8;
   return 4;
-}
-
-/* Handle a MIPS specific section when reading an object file.  This
-   is called when elfcode.h finds a section with an unknown type.
-   This routine supports both the 32-bit and 64-bit ELF ABI. */
-
-bfd_boolean
-_bfd_riscv_elf_section_from_shdr (bfd *abfd,
-				 Elf_Internal_Shdr *hdr,
-				 const char *name,
-				 int shindex)
-{
-  flagword flags = 0;
-
-  /* There ought to be a place to keep ELF backend specific flags, but
-     at the moment there isn't one.  We just keep track of the
-     sections by their name, instead.  Fortunately, the ABI gives
-     suggested names for all the MIPS specific sections, so we will
-     probably get away with this.  */
-  switch (hdr->sh_type)
-    {
-    case SHT_MIPS_LIBLIST:
-      if (strcmp (name, ".liblist") != 0)
-	return FALSE;
-      break;
-    case SHT_MIPS_MSYM:
-      if (strcmp (name, ".msym") != 0)
-	return FALSE;
-      break;
-    case SHT_MIPS_CONFLICT:
-      if (strcmp (name, ".conflict") != 0)
-	return FALSE;
-      break;
-    case SHT_MIPS_GPTAB:
-      BFD_ASSERT (FALSE);
-    case SHT_MIPS_UCODE:
-      if (strcmp (name, ".ucode") != 0)
-	return FALSE;
-      break;
-    case SHT_MIPS_IFACE:
-      if (strcmp (name, ".MIPS.interfaces") != 0)
-	return FALSE;
-      break;
-    case SHT_MIPS_CONTENT:
-      if (! CONST_STRNEQ (name, ".MIPS.content"))
-	return FALSE;
-      break;
-    case SHT_MIPS_DWARF:
-      if (! CONST_STRNEQ (name, ".debug_")
-          && ! CONST_STRNEQ (name, ".zdebug_"))
-	return FALSE;
-      break;
-    case SHT_MIPS_SYMBOL_LIB:
-      if (strcmp (name, ".MIPS.symlib") != 0)
-	return FALSE;
-      break;
-    case SHT_MIPS_EVENTS:
-      if (! CONST_STRNEQ (name, ".MIPS.events")
-	  && ! CONST_STRNEQ (name, ".MIPS.post_rel"))
-	return FALSE;
-      break;
-    default:
-      break;
-    }
-
-  if (! _bfd_elf_make_section_from_shdr (abfd, hdr, name, shindex))
-    return FALSE;
-
-  if (flags)
-    {
-      if (! bfd_set_section_flags (abfd, hdr->bfd_section,
-				   (bfd_get_section_flags (abfd,
-							   hdr->bfd_section)
-				    | flags)))
-	return FALSE;
-    }
-
-  return TRUE;
-}
-
-/* Set the correct type for a MIPS ELF section.  We do this by the
-   section name, which is a hack, but ought to work.  This routine is
-   used by both the 32-bit and the 64-bit ABI.  */
-
-bfd_boolean
-_bfd_riscv_elf_fake_sections (bfd *abfd ATTRIBUTE_UNUSED,
-                              Elf_Internal_Shdr *hdr, asection *sec)
-{
-  const char *name = bfd_get_section_name (abfd, sec);
-
-  if (strcmp (name, ".liblist") == 0)
-    {
-      hdr->sh_type = SHT_MIPS_LIBLIST;
-      hdr->sh_info = sec->size / sizeof (Elf32_Lib);
-      /* The sh_link field is set in final_write_processing.  */
-    }
-  else if (strcmp (name, ".conflict") == 0)
-    hdr->sh_type = SHT_MIPS_CONFLICT;
-  else if (CONST_STRNEQ (name, ".debug_")
-           || CONST_STRNEQ (name, ".zdebug_"))
-    {
-      hdr->sh_type = SHT_MIPS_DWARF;
-    }
-  else if (strcmp (name, ".MIPS.symlib") == 0)
-    {
-      hdr->sh_type = SHT_MIPS_SYMBOL_LIB;
-      /* The sh_link and sh_info fields are set in
-         final_write_processing.  */
-    }
-  else if (CONST_STRNEQ (name, ".MIPS.events")
-	   || CONST_STRNEQ (name, ".MIPS.post_rel"))
-    {
-      hdr->sh_type = SHT_MIPS_EVENTS;
-      hdr->sh_flags |= SHF_MIPS_NOSTRIP;
-      /* The sh_link field is set in final_write_processing.  */
-    }
-  else if (strcmp (name, ".msym") == 0)
-    {
-      hdr->sh_type = SHT_MIPS_MSYM;
-      hdr->sh_flags |= SHF_ALLOC;
-      hdr->sh_entsize = 8;
-    }
-
-  /* The generic elf_fake_sections will set up REL_HDR using the default
-   kind of relocations.  We used to set up a second header for the
-   non-default kind of relocations here, but only NewABI would use
-   these, and the IRIX ld doesn't like resulting empty RELA sections.
-   Thus we create those header only on demand now.  */
-
-  return TRUE;
 }
 
 /* Hook called by the linker routine which adds symbols from an object
@@ -3430,9 +3254,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	     against a read-only section.  */
 	  if ((info->shared
 	       || (h != NULL
-		   && !(!info->nocopyreloc
-			&& !PIC_OBJECT_P (abfd)
-			&& MIPS_ELF_READONLY_SECTION (sec))))
+		   && !(!info->nocopyreloc && MIPS_ELF_READONLY_SECTION (sec))))
 	      && (sec->flags & SEC_ALLOC) != 0)
 	    {
 	      can_make_dynamic_p = TRUE;
@@ -4845,110 +4667,6 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
   return TRUE;
 }
 
-
-/* Set ABFD's EF_MIPS_ARCH and EF_MIPS_MACH flags.  */
-
-static void
-mips_set_isa_flags (bfd *abfd)
-{
-  flagword val;
-
-  switch (bfd_get_mach (abfd))
-    {
-    default:
-    case bfd_mach_riscv_rocket64:
-      val = E_RISCV_ARCH_RV64 | E_RISCV_MACH_ROCKET64;
-      break;
-
-    case bfd_mach_riscv_rocket32:
-      val = E_RISCV_ARCH_RV32 | E_RISCV_MACH_ROCKET32;
-      break;
-    }
-
-  elf_elfheader (abfd)->e_flags &= ~(EF_MIPS_ARCH | EF_MIPS_MACH);
-  elf_elfheader (abfd)->e_flags |= val;
-}
-
-
-/* The final processing done just before writing out a MIPS ELF object
-   file.  This gets the MIPS architecture right based on the machine
-   number.  This is used by both the 32-bit and the 64-bit ABI.  */
-
-void
-_bfd_riscv_elf_final_write_processing (bfd *abfd,
-				      bfd_boolean linker ATTRIBUTE_UNUSED)
-{
-  unsigned int i;
-  Elf_Internal_Shdr **hdrpp;
-  const char *name;
-  asection *sec;
-
-  /* Keep the existing EF_MIPS_MACH and EF_MIPS_ARCH flags if the former
-     is nonzero.  This is for compatibility with old objects, which used
-     a combination of a 32-bit EF_MIPS_ARCH and a 64-bit EF_MIPS_MACH.  */
-  if ((elf_elfheader (abfd)->e_flags & EF_MIPS_MACH) == 0)
-    mips_set_isa_flags (abfd);
-
-  /* Set the sh_info field for .gptab sections and other appropriate
-     info for each special section.  */
-  for (i = 1, hdrpp = elf_elfsections (abfd) + 1;
-       i < elf_numsections (abfd);
-       i++, hdrpp++)
-    {
-      switch ((*hdrpp)->sh_type)
-	{
-	case SHT_MIPS_MSYM:
-	case SHT_MIPS_LIBLIST:
-	  sec = bfd_get_section_by_name (abfd, ".dynstr");
-	  if (sec != NULL)
-	    (*hdrpp)->sh_link = elf_section_data (sec)->this_idx;
-	  break;
-
-	case SHT_MIPS_GPTAB:
-          BFD_ASSERT (FALSE);
-
-	case SHT_MIPS_CONTENT:
-	  BFD_ASSERT ((*hdrpp)->bfd_section != NULL);
-	  name = bfd_get_section_name (abfd, (*hdrpp)->bfd_section);
-	  BFD_ASSERT (name != NULL
-		      && CONST_STRNEQ (name, ".MIPS.content"));
-	  sec = bfd_get_section_by_name (abfd,
-					 name + sizeof ".MIPS.content" - 1);
-	  BFD_ASSERT (sec != NULL);
-	  (*hdrpp)->sh_link = elf_section_data (sec)->this_idx;
-	  break;
-
-	case SHT_MIPS_SYMBOL_LIB:
-	  sec = bfd_get_section_by_name (abfd, ".dynsym");
-	  if (sec != NULL)
-	    (*hdrpp)->sh_link = elf_section_data (sec)->this_idx;
-	  sec = bfd_get_section_by_name (abfd, ".liblist");
-	  if (sec != NULL)
-	    (*hdrpp)->sh_info = elf_section_data (sec)->this_idx;
-	  break;
-
-	case SHT_MIPS_EVENTS:
-	  BFD_ASSERT ((*hdrpp)->bfd_section != NULL);
-	  name = bfd_get_section_name (abfd, (*hdrpp)->bfd_section);
-	  BFD_ASSERT (name != NULL);
-	  if (CONST_STRNEQ (name, ".MIPS.events"))
-	    sec = bfd_get_section_by_name (abfd,
-					   name + sizeof ".MIPS.events" - 1);
-	  else
-	    {
-	      BFD_ASSERT (CONST_STRNEQ (name, ".MIPS.post_rel"));
-	      sec = bfd_get_section_by_name (abfd,
-					     (name
-					      + sizeof ".MIPS.post_rel" - 1));
-	    }
-	  BFD_ASSERT (sec != NULL);
-	  (*hdrpp)->sh_link = elf_section_data (sec)->this_idx;
-	  break;
-
-	}
-    }
-}
-
 int
 _bfd_riscv_elf_additional_program_headers (bfd *abfd,
 					  struct bfd_link_info *info ATTRIBUTE_UNUSED)
@@ -5309,17 +5027,6 @@ mips_mach_extends_p (unsigned long base, unsigned long extension)
 }
 
 
-/* Return true if the given ELF header flags describe a 32-bit binary.  */
-
-static bfd_boolean
-mips_32bit_flags_p (flagword flags)
-{
-  return ((flags & EF_MIPS_32BITMODE) != 0
-	  || (flags & EF_MIPS_ABI) == E_RISCV_ABI_32
-	  || (flags & EF_MIPS_ARCH) == E_RISCV_ARCH_RV32);
-}
-
-
 /* Merge object attributes from IBFD into OBFD.  Raise an error if
    there are conflicting attributes.  */
 static bfd_boolean
@@ -5379,7 +5086,6 @@ _bfd_riscv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
     return FALSE;
 
   new_flags = elf_elfheader (ibfd)->e_flags;
-  elf_elfheader (obfd)->e_flags |= new_flags & EF_MIPS_NOREORDER;
   old_flags = elf_elfheader (obfd)->e_flags;
 
   if (! elf_flags_init (obfd))
@@ -5403,23 +5109,6 @@ _bfd_riscv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
     }
 
   /* Check flag compatibility.  */
-
-  new_flags &= ~EF_MIPS_NOREORDER;
-  old_flags &= ~EF_MIPS_NOREORDER;
-
-  /* Some IRIX 6 BSD-compatibility objects have this bit set.  It
-     doesn't seem to matter.  */
-  new_flags &= ~EF_MIPS_XGOT;
-  old_flags &= ~EF_MIPS_XGOT;
-
-  /* MIPSpro generates ucode info in n64 objects.  Again, we should
-     just be able to ignore this.  */
-  new_flags &= ~EF_MIPS_UCODE;
-  old_flags &= ~EF_MIPS_UCODE;
-
-  /* DSOs should only be linked with CPIC code.  */
-  if ((ibfd->flags & DYNAMIC) != 0)
-    new_flags |= EF_MIPS_PIC | EF_MIPS_CPIC;
 
   if (new_flags == old_flags)
     return TRUE;
@@ -5448,86 +5137,16 @@ _bfd_riscv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
 
   ok = TRUE;
 
-  if (new_flags & (EF_MIPS_PIC | EF_MIPS_CPIC))
-    elf_elfheader (obfd)->e_flags |= EF_MIPS_CPIC;
-  if (! (new_flags & EF_MIPS_PIC))
-    elf_elfheader (obfd)->e_flags &= ~EF_MIPS_PIC;
-
-  new_flags &= ~ (EF_MIPS_PIC | EF_MIPS_CPIC);
-  old_flags &= ~ (EF_MIPS_PIC | EF_MIPS_CPIC);
-
-  /* Compare the ISAs.  */
-  if (mips_32bit_flags_p (old_flags) != mips_32bit_flags_p (new_flags))
+  /* Don't link RV32 and RV64. */
+  if (elf_elfheader (ibfd)->e_ident[EI_CLASS]
+      != elf_elfheader (obfd)->e_ident[EI_CLASS])
     {
       (*_bfd_error_handler)
-	(_("%B: linking 32-bit code with 64-bit code"),
-	 ibfd);
+	(_("%B: ABI mismatch: linking %s module with previous %s modules"),
+	  ibfd,
+	  elf_mips_abi_name (ibfd),
+	  elf_mips_abi_name (obfd));
       ok = FALSE;
-    }
-  else if (!mips_mach_extends_p (bfd_get_mach (ibfd), bfd_get_mach (obfd)))
-    {
-      /* OBFD's ISA isn't the same as, or an extension of, IBFD's.  */
-      if (mips_mach_extends_p (bfd_get_mach (obfd), bfd_get_mach (ibfd)))
-	{
-	  /* Copy the architecture info from IBFD to OBFD.  Also copy
-	     the 32-bit flag (if set) so that we continue to recognise
-	     OBFD as a 32-bit binary.  */
-	  bfd_set_arch_info (obfd, bfd_get_arch_info (ibfd));
-	  elf_elfheader (obfd)->e_flags &= ~(EF_MIPS_ARCH | EF_MIPS_MACH);
-	  elf_elfheader (obfd)->e_flags
-	    |= new_flags & (EF_MIPS_ARCH | EF_MIPS_MACH | EF_MIPS_32BITMODE);
-
-	  /* Copy across the ABI flags if OBFD doesn't use them
-	     and if that was what caused us to treat IBFD as 32-bit.  */
-	  if ((old_flags & EF_MIPS_ABI) == 0
-	      && mips_32bit_flags_p (new_flags)
-	      && !mips_32bit_flags_p (new_flags & ~EF_MIPS_ABI))
-	    elf_elfheader (obfd)->e_flags |= new_flags & EF_MIPS_ABI;
-	}
-      else
-	{
-	  /* The ISAs aren't compatible.  */
-	  (*_bfd_error_handler)
-	    (_("%B: linking %s module with previous %s modules"),
-	     ibfd,
-	     bfd_printable_name (ibfd),
-	     bfd_printable_name (obfd));
-	  ok = FALSE;
-	}
-    }
-
-  new_flags &= ~(EF_MIPS_ARCH | EF_MIPS_MACH | EF_MIPS_32BITMODE);
-  old_flags &= ~(EF_MIPS_ARCH | EF_MIPS_MACH | EF_MIPS_32BITMODE);
-
-  /* Compare ABIs.  The 64-bit ABI does not use EF_MIPS_ABI.  But, it
-     does set EI_CLASS differently from any 32-bit ABI.  */
-  if ((new_flags & EF_MIPS_ABI) != (old_flags & EF_MIPS_ABI)
-      || (elf_elfheader (ibfd)->e_ident[EI_CLASS]
-	  != elf_elfheader (obfd)->e_ident[EI_CLASS]))
-    {
-      /* Only error if both are set (to different values).  */
-      if (((new_flags & EF_MIPS_ABI) && (old_flags & EF_MIPS_ABI))
-	  || (elf_elfheader (ibfd)->e_ident[EI_CLASS]
-	      != elf_elfheader (obfd)->e_ident[EI_CLASS]))
-	{
-	  (*_bfd_error_handler)
-	    (_("%B: ABI mismatch: linking %s module with previous %s modules"),
-	     ibfd,
-	     elf_mips_abi_name (ibfd),
-	     elf_mips_abi_name (obfd));
-	  ok = FALSE;
-	}
-      new_flags &= ~EF_MIPS_ABI;
-      old_flags &= ~EF_MIPS_ABI;
-    }
-
-  /* For now, allow arbitrary mixing of ASEs (retain the union).  */
-  if ((new_flags & EF_MIPS_ARCH_ASE) != (old_flags & EF_MIPS_ARCH_ASE))
-    {
-      elf_elfheader (obfd)->e_flags |= new_flags & EF_MIPS_ARCH_ASE;
-
-      new_flags &= ~ EF_MIPS_ARCH_ASE;
-      old_flags &= ~ EF_MIPS_ARCH_ASE;
     }
 
   /* Warn about any other mismatches */
@@ -5546,19 +5165,6 @@ _bfd_riscv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
       return FALSE;
     }
 
-  return TRUE;
-}
-
-/* Function to keep MIPS specific file flags like as EF_MIPS_PIC.  */
-
-bfd_boolean
-_bfd_riscv_elf_set_private_flags (bfd *abfd, flagword flags)
-{
-  BFD_ASSERT (!elf_flags_init (abfd)
-	      || elf_elfheader (abfd)->e_flags == flags);
-
-  elf_elfheader (abfd)->e_flags = flags;
-  elf_flags_init (abfd) = TRUE;
   return TRUE;
 }
 
@@ -5675,27 +5281,11 @@ _bfd_riscv_elf_print_private_bfd_data (bfd *abfd, void *ptr)
   fprintf (file, _("private flags = %lx:"), elf_elfheader (abfd)->e_flags);
 
   if (ABI_32_P (abfd))
-    fprintf (file, _(" [abi=32]"));
+    fprintf (file, _(" [rv32]"));
   else if (ABI_64_P (abfd))
-    fprintf (file, _(" [abi=64]"));
+    fprintf (file, _(" [rv64]"));
   else
     fprintf (file, _(" [no abi set]"));
-
-  if ((elf_elfheader (abfd)->e_flags & EF_MIPS_ARCH) == E_MIPS_ARCH_32)
-    fprintf (file, " [rv32]");
-  else if ((elf_elfheader (abfd)->e_flags & EF_MIPS_ARCH) == E_MIPS_ARCH_64)
-    fprintf (file, " [rv64]");
-  else
-    fprintf (file, _(" [unknown ISA]"));
-
-  if (elf_elfheader (abfd)->e_flags & EF_MIPS_PIC)
-    fprintf (file, " [PIC]");
-
-  if (elf_elfheader (abfd)->e_flags & EF_MIPS_CPIC)
-    fprintf (file, " [CPIC]");
-
-  if (elf_elfheader (abfd)->e_flags & EF_MIPS_XGOT)
-    fprintf (file, " [XGOT]");
 
   fputc ('\n', file);
 

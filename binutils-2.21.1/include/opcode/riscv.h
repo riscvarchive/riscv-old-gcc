@@ -225,10 +225,6 @@ struct riscv_opcode
 #define       ISA_RV32        1
 #define       ISA_RV64        2
 
-#define CPU_UNKNOWN    0
-#define CPU_ROCKET32 132
-#define CPU_ROCKET64 164
-
 /* This is a list of macro expanded instructions.
 
    _I appended means immediate

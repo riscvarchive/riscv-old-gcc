@@ -1920,8 +1920,8 @@ enum bfd_architecture
 #define bfd_mach_ppc_e500mc64  5005
 #define bfd_mach_ppc_titan     83
   bfd_arch_riscv, /* RISC-V */
-#define bfd_mach_riscv_rocket32 132
-#define bfd_mach_riscv_rocket64 164
+#define bfd_mach_riscv32 132
+#define bfd_mach_riscv64 164
   bfd_arch_rs6000,    /* IBM RS/6000 */
 #define bfd_mach_rs6k          6000
 #define bfd_mach_rs6k_rs1      6001

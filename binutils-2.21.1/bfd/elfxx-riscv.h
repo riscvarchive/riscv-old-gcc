@@ -29,8 +29,6 @@ extern void _bfd_riscv_elf_symbol_processing
   (bfd *, asymbol *);
 extern unsigned int _bfd_riscv_elf_eh_frame_address_size
   (bfd *, asection *);
-extern bfd_boolean _bfd_riscv_elf_section_from_shdr
-  (bfd *, Elf_Internal_Shdr *, const char *, int);
 extern bfd_boolean _bfd_riscv_elf_fake_sections
   (bfd *, Elf_Internal_Shdr *, asection *);
 extern bfd_boolean _bfd_riscv_elf_add_symbol_hook
@@ -54,8 +52,6 @@ extern bfd_boolean _bfd_riscv_elf_finish_dynamic_symbol
    Elf_Internal_Sym *);
 extern bfd_boolean _bfd_riscv_elf_finish_dynamic_sections
   (bfd *, struct bfd_link_info *);
-extern void _bfd_riscv_elf_final_write_processing
-  (bfd *, bfd_boolean);
 extern int _bfd_riscv_elf_additional_program_headers
   (bfd *, struct bfd_link_info *);
 extern bfd_boolean _bfd_riscv_elf_modify_segment_map
@@ -83,8 +79,6 @@ extern bfd_boolean _bfd_riscv_elf_final_link
   (bfd *, struct bfd_link_info *);
 extern bfd_boolean _bfd_riscv_elf_merge_private_bfd_data
   (bfd *, bfd *);
-extern bfd_boolean _bfd_riscv_elf_set_private_flags
-  (bfd *, flagword);
 extern bfd_boolean _bfd_riscv_elf_print_private_bfd_data
   (bfd *, void *);
 extern bfd_boolean _bfd_riscv_elf_discard_info
@@ -100,8 +94,6 @@ extern bfd_reloc_status_type _bfd_riscv_elf_lo16_reloc
   (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 extern bfd_reloc_status_type _bfd_riscv_elf_generic_reloc
   (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
-extern unsigned long _bfd_elf_riscv_mach
-  (flagword);
 extern bfd_boolean _bfd_riscv_relax_section
   (bfd *, asection *, struct bfd_link_info *, bfd_boolean *);
 extern bfd_vma _bfd_riscv_elf_sign_extend

@@ -60,19 +60,19 @@ mips_compatible (const bfd_arch_info_type *a, const bfd_arch_info_type *b)
 
 enum
 {
-  I_riscv_rocket64,
-  I_riscv_rocket32
+  I_riscv64,
+  I_riscv32
 };
 
 #define NN(index) (&arch_info_struct[(index) + 1])
 
 static const bfd_arch_info_type arch_info_struct[] =
 {
-  N (64, 64, bfd_mach_riscv_rocket64, "riscv:rocket64", FALSE, NN(I_riscv_rocket64)),
-  N (32, 32, bfd_mach_riscv_rocket32, "riscv:rocket32", FALSE, 0)
+  N (64, 64, bfd_mach_riscv64, "riscv:rv64", FALSE, NN(I_riscv64)),
+  N (32, 32, bfd_mach_riscv32, "riscv:rv32", FALSE, 0)
 };
 
-/* The default architecture is riscv:rocket64. */
+/* The default architecture is riscv:rv64. */
 
 const bfd_arch_info_type bfd_riscv_arch =
 N (64, 64, 0, "riscv", TRUE, &arch_info_struct[0]);

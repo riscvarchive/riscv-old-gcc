@@ -2135,10 +2135,7 @@ mips_elf64_write_rela (bfd *abfd, asection *sec,
 static bfd_boolean
 mips_elf64_object_p (bfd *abfd)
 {
-  unsigned long mach;
-
-  mach = _bfd_elf_riscv_mach (elf_elfheader (abfd)->e_flags);
-  bfd_default_set_arch_mach (abfd, bfd_arch_riscv, mach);
+  bfd_default_set_arch_mach (abfd, bfd_arch_riscv, bfd_mach_riscv64);
   return TRUE;
 }
 
@@ -2250,8 +2247,6 @@ const struct elf_size_info mips_elf64_size_info =
 #define elf_info_to_howto_rel		mips_elf64_info_to_howto_rel
 #define elf_backend_object_p		mips_elf64_object_p
 #define elf_backend_symbol_processing	_bfd_riscv_elf_symbol_processing
-#define elf_backend_section_from_shdr	_bfd_riscv_elf_section_from_shdr
-#define elf_backend_fake_sections	_bfd_riscv_elf_fake_sections
 #define elf_backend_add_symbol_hook	_bfd_riscv_elf_add_symbol_hook
 #define elf_backend_create_dynamic_sections \
 				_bfd_riscv_elf_create_dynamic_sections
@@ -2271,8 +2266,6 @@ const struct elf_size_info mips_elf64_size_info =
 				_bfd_riscv_elf_finish_dynamic_symbol
 #define elf_backend_finish_dynamic_sections \
 				_bfd_riscv_elf_finish_dynamic_sections
-#define elf_backend_final_write_processing \
-				_bfd_riscv_elf_final_write_processing
 #define elf_backend_additional_program_headers \
 				_bfd_riscv_elf_additional_program_headers
 #define elf_backend_modify_segment_map	_bfd_riscv_elf_modify_segment_map
@@ -2317,7 +2310,6 @@ const struct elf_size_info mips_elf64_size_info =
 #define bfd_elf64_bfd_final_link	_bfd_riscv_elf_final_link
 #define bfd_elf64_bfd_merge_private_bfd_data \
 				_bfd_riscv_elf_merge_private_bfd_data
-#define bfd_elf64_bfd_set_private_flags	_bfd_riscv_elf_set_private_flags
 #define bfd_elf64_bfd_print_private_bfd_data \
 				_bfd_riscv_elf_print_private_bfd_data
 

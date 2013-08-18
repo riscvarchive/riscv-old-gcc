@@ -133,19 +133,6 @@ END_RELOC_NUMBERS (R_RISCV_maxext)
 /* The 64-bit abi. */
 #define E_RISCV_ABI_64          0x00002000
 
-/* Machine variant if we know it.  This field was invented at Cygnus,
-   but it is hoped that other vendors will adopt it.  If some standard
-   is developed, this code should be changed to follow it. */
-
-#define EF_RISCV_MACH		0x00ff0000
-
-/* Cygnus is choosing values between 80 and 9F;
-   00 - 7F should be left for a future standard;
-   the rest are open. */
-
-#define E_RISCV_MACH_ROCKET32 0x00810000
-#define E_RISCV_MACH_ROCKET64 0x00820000
-
 /* Processor specific section indices.  These sections do not actually
    exist.  Symbols with a st_shndx field corresponding to one of these
    values have a special meaning.  */

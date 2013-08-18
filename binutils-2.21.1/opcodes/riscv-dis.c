@@ -99,15 +99,13 @@ struct mips_arch_choice
   const char *name;
   int bfd_mach_valid;
   unsigned long bfd_mach;
-  int processor;
-  int isa;
 };
 
 const struct mips_arch_choice mips_arch_choices[] =
 {
-  { "numeric",	0, 0, 0, 0 },
-  { "rv32",	1, bfd_mach_riscv_rocket32, CPU_ROCKET32, ISA_RV32 },
-  { "rv64",	1, bfd_mach_riscv_rocket64, CPU_ROCKET64, ISA_RV64 },
+  { "numeric",	0, 0 },
+  { "rv32",	1, bfd_mach_riscv32 },
+  { "rv64",	1, bfd_mach_riscv64 },
 };
 
 /* ISA and processor type to disassemble for, and register names to use.

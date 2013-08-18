@@ -1233,7 +1233,7 @@ md_begin (void)
   const char *retval = NULL;
   int i = 0;
 
-  if (! bfd_set_arch_mach (stdoutput, bfd_arch_riscv, CPU_UNKNOWN))
+  if (! bfd_set_arch_mach (stdoutput, bfd_arch_riscv, 0))
     as_warn (_("Could not set architecture and machine"));
 
   op_hash = hash_new ();
@@ -3238,22 +3238,6 @@ s_change_section (int ignore ATTRIBUTE_UNUSED)
 
   section_name = xstrdup (section_name);
 
-  /* When using the generic form of .section (as implemented by obj-elf.c),
-     there's no way to set the section type to SHT_MIPS_DWARF.  Users have
-     traditionally had to fall back on the more common @progbits instead.
-
-     There's nothing really harmful in this, since bfd will correct
-     SHT_PROGBITS to SHT_MIPS_DWARF before writing out the file.  But it
-     means that, for backwards compatibility, the special_section entries
-     for dwarf sections must use SHT_PROGBITS rather than SHT_MIPS_DWARF.
-
-     Even so, we shouldn't force users of the MIPS .section syntax to
-     incorrectly label the sections as SHT_PROGBITS.  The best compromise
-     seems to be to map SHT_MIPS_DWARF to SHT_PROGBITS before calling the
-     generic type-checking code.  */
-  if (section_type == SHT_MIPS_DWARF)
-    section_type = SHT_PROGBITS;
-
   obj_elf_change_section (section_name, section_type, section_flag,
 			  section_entry_size, 0, 0, 0);
 
@@ -3710,26 +3694,6 @@ mips_define_label (symbolS *sym)
   dwarf2_emit_label (sym);
 #endif
 }
-
-#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
-
-/* Some special processing for a MIPS ELF file.  */
-
-void
-mips_elf_final_processing (void)
-{
-  /* Set the MIPS ELF flag bits.  FIXME: There should probably be some
-     sort of BFD interface for this.  */
-  if (is_pic)
-    {
-      elf_elfheader (stdoutput)->e_flags |= EF_MIPS_PIC;
-      elf_elfheader (stdoutput)->e_flags |= EF_MIPS_CPIC;
-    }
-
-  elf_elfheader (stdoutput)->e_flags |= rv64 ? E_RISCV_ABI_64 : E_RISCV_ABI_32;
-}
-
-#endif /* OBJ_ELF || OBJ_MAYBE_ELF */
 
 void
 mips_handle_align (fragS *fragp)

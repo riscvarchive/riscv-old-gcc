@@ -103,18 +103,6 @@ extern int mips_force_relocation (struct fix *);
 #define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG) \
   (! SEG_NORMAL (SEG) || mips_force_relocation (FIX))
 
-/* Register mask variables.  These are set by the MIPS assembly code
-   and used by ECOFF and possibly other object file formats.  */
-extern unsigned long mips_gprmask;
-extern unsigned long mips_cprmask[4];
-
-#if defined (OBJ_ELF) || defined (OBJ_MAYBE_ELF)
-
-#define elf_tc_final_processing mips_elf_final_processing
-extern void mips_elf_final_processing (void);
-
-#endif
-
 extern void mips_pop_insert (void);
 #define md_pop_insert()		mips_pop_insert()
 
