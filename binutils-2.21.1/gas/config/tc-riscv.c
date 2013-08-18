@@ -1881,12 +1881,12 @@ macro (struct mips_cl_insn *ip)
 
     case M_LA_TLS_GD: 
       load_got_addr(rd, rd, &offset_expr, "addi",
-                    BFD_RELOC_RISCV_TLS_GD_HI16, BFD_RELOC_RISCV_TLS_GD_LO16);
+                    BFD_RELOC_RISCV_TLS_GD_HI20, BFD_RELOC_RISCV_TLS_GD_LO12);
       break;
 
     case M_LA_TLS_IE: 
       load_got_addr(rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
-                    BFD_RELOC_RISCV_TLS_GOT_HI16, BFD_RELOC_RISCV_TLS_GOT_LO16);
+                    BFD_RELOC_RISCV_TLS_GOT_HI20, BFD_RELOC_RISCV_TLS_GOT_LO12);
       break;
 
     case M_JALF:
@@ -2839,18 +2839,18 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
   switch (fixP->fx_r_type)
     {
     case BFD_RELOC_MIPS_TLS_GD:
-    case BFD_RELOC_RISCV_TLS_GD_HI16:
-    case BFD_RELOC_RISCV_TLS_GD_LO16:
+    case BFD_RELOC_RISCV_TLS_GD_HI20:
+    case BFD_RELOC_RISCV_TLS_GD_LO12:
     case BFD_RELOC_MIPS_TLS_LDM:
-    case BFD_RELOC_RISCV_TLS_LDM_HI16:
-    case BFD_RELOC_RISCV_TLS_LDM_LO16:
+    case BFD_RELOC_RISCV_TLS_LDM_HI20:
+    case BFD_RELOC_RISCV_TLS_LDM_LO12:
     case BFD_RELOC_MIPS_TLS_DTPREL32:
     case BFD_RELOC_MIPS_TLS_DTPREL64:
     case BFD_RELOC_MIPS_TLS_DTPREL_HI16:
     case BFD_RELOC_MIPS_TLS_DTPREL_LO16:
     case BFD_RELOC_MIPS_TLS_GOTTPREL:
-    case BFD_RELOC_RISCV_TLS_GOT_HI16:
-    case BFD_RELOC_RISCV_TLS_GOT_LO16:
+    case BFD_RELOC_RISCV_TLS_GOT_HI20:
+    case BFD_RELOC_RISCV_TLS_GOT_LO12:
     case BFD_RELOC_MIPS_TLS_TPREL_HI16:
     case BFD_RELOC_MIPS_TLS_TPREL_LO16:
       S_SET_THREAD_LOCAL (fixP->fx_addsy);

@@ -4765,12 +4765,12 @@ value in a word.  The relocation is relative offset from  */
   BFD_RELOC_MICROBLAZE_32_GOTOFF,
 
   /* RISC-V relocations */
-  BFD_RELOC_RISCV_TLS_GOT_HI16,
-  BFD_RELOC_RISCV_TLS_GOT_LO16,
-  BFD_RELOC_RISCV_TLS_GD_HI16,
-  BFD_RELOC_RISCV_TLS_GD_LO16,
-  BFD_RELOC_RISCV_TLS_LDM_HI16,
-  BFD_RELOC_RISCV_TLS_LDM_LO16,
+  BFD_RELOC_RISCV_TLS_GOT_HI20,
+  BFD_RELOC_RISCV_TLS_GOT_LO12,
+  BFD_RELOC_RISCV_TLS_GD_HI20,
+  BFD_RELOC_RISCV_TLS_GD_LO12,
+  BFD_RELOC_RISCV_TLS_LDM_HI20,
+  BFD_RELOC_RISCV_TLS_LDM_LO12,
 
 /* This is used to tell the dynamic linker to copy the value out of
 the dynamic object into the runtime process image.  */

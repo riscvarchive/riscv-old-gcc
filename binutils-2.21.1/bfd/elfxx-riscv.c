@@ -343,18 +343,18 @@ struct mips_htab_traverse_info
 
 #define TLS_GOTTPREL_RELOC_P(r_type) \
   ((r_type) == R_RISCV_TLS_GOTTPREL		\
-   || (r_type) == R_RISCV_TLS_GOT_HI16		\
-   || (r_type) == R_RISCV_TLS_GOT_LO16)
+   || (r_type) == R_RISCV_TLS_GOT_HI20		\
+   || (r_type) == R_RISCV_TLS_GOT_LO12)
 
 #define TLS_GD_RELOC_P(r_type) \
   ((r_type) == R_RISCV_TLS_GD			\
-   || (r_type) == R_RISCV_TLS_GD_HI16		\
-   || (r_type) == R_RISCV_TLS_GD_LO16)
+   || (r_type) == R_RISCV_TLS_GD_HI20		\
+   || (r_type) == R_RISCV_TLS_GD_LO12)
 
 #define TLS_LDM_RELOC_P(r_type) \
   ((r_type) == R_RISCV_TLS_LDM			\
-   || (r_type) == R_RISCV_TLS_LDM_HI16		\
-   || (r_type) == R_RISCV_TLS_LDM_LO16)
+   || (r_type) == R_RISCV_TLS_LDM_HI20		\
+   || (r_type) == R_RISCV_TLS_LDM_LO12)
 
 /* The structure of the runtime procedure descriptor created by the
    loader for use by the static exception system.  */
@@ -2387,14 +2387,14 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_GOT_HI16:
     case R_RISCV_GOT_LO16:
     case R_RISCV_TLS_GD:
-    case R_RISCV_TLS_GD_HI16:
-    case R_RISCV_TLS_GD_LO16:
+    case R_RISCV_TLS_GD_HI20:
+    case R_RISCV_TLS_GD_LO12:
     case R_RISCV_TLS_GOTTPREL:
-    case R_RISCV_TLS_GOT_HI16:
-    case R_RISCV_TLS_GOT_LO16:
+    case R_RISCV_TLS_GOT_HI20:
+    case R_RISCV_TLS_GOT_LO12:
     case R_RISCV_TLS_LDM:
-    case R_RISCV_TLS_LDM_HI16:
-    case R_RISCV_TLS_LDM_LO16:
+    case R_RISCV_TLS_LDM_HI20:
+    case R_RISCV_TLS_LDM_LO12:
       /* Find the index into the GOT where this value is located.  */
       if (TLS_LDM_RELOC_P(r_type))
 	{
@@ -2549,9 +2549,9 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = (value << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
 
-    case R_RISCV_TLS_GOT_HI16:
-    case R_RISCV_TLS_GD_HI16:
-    case R_RISCV_TLS_LDM_HI16:
+    case R_RISCV_TLS_GOT_HI20:
+    case R_RISCV_TLS_GD_HI20:
+    case R_RISCV_TLS_LDM_HI20:
     case R_RISCV_GOT_HI16:
       /* We're allowed to handle these two relocations identically.
 	 The dynamic linker is allowed to handle the CALL relocations
@@ -2559,9 +2559,9 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = (mips_elf_high (g - p) << OP_SH_BIGIMMEDIATE);
       break;
 
-    case R_RISCV_TLS_GOT_LO16:
-    case R_RISCV_TLS_GD_LO16:
-    case R_RISCV_TLS_LDM_LO16:
+    case R_RISCV_TLS_GOT_LO12:
+    case R_RISCV_TLS_GD_LO12:
+    case R_RISCV_TLS_LDM_LO12:
     case R_RISCV_GOT_LO16:
       value = ((g - p) << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
@@ -3192,14 +3192,14 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_RISCV_GOT_HI16:
 	case R_RISCV_GOT_LO16:
 	case R_RISCV_TLS_GOTTPREL:
-	case R_RISCV_TLS_GOT_HI16:
-	case R_RISCV_TLS_GOT_LO16:
+	case R_RISCV_TLS_GOT_HI20:
+	case R_RISCV_TLS_GOT_LO12:
 	case R_RISCV_TLS_GD:
-	case R_RISCV_TLS_GD_HI16:
-	case R_RISCV_TLS_GD_LO16:
+	case R_RISCV_TLS_GD_HI20:
+	case R_RISCV_TLS_GD_LO12:
 	case R_RISCV_TLS_LDM:
-	case R_RISCV_TLS_LDM_HI16:
-	case R_RISCV_TLS_LDM_LO16:
+	case R_RISCV_TLS_LDM_HI20:
+	case R_RISCV_TLS_LDM_LO12:
 	  if (dynobj == NULL)
 	    elf_hash_table (info)->dynobj = dynobj = abfd;
 	  if (!mips_elf_create_got_section (dynobj, info))
@@ -3295,15 +3295,15 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  break;
 
 	case R_RISCV_TLS_GOTTPREL:
-	case R_RISCV_TLS_GOT_HI16:
-	case R_RISCV_TLS_GOT_LO16:
+	case R_RISCV_TLS_GOT_HI20:
+	case R_RISCV_TLS_GOT_LO12:
 	  if (info->shared)
 	    info->flags |= DF_STATIC_TLS;
 	  /* Fall through */
 
 	case R_RISCV_TLS_LDM:
-	case R_RISCV_TLS_LDM_HI16:
-	case R_RISCV_TLS_LDM_LO16:
+	case R_RISCV_TLS_LDM_HI20:
+	case R_RISCV_TLS_LDM_LO12:
 	  if (TLS_LDM_RELOC_P(r_type))
 	    {
 	      r_symndx = STN_UNDEF;
@@ -3312,8 +3312,8 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  /* Fall through */
 
 	case R_RISCV_TLS_GD:
-	case R_RISCV_TLS_GD_HI16:
-	case R_RISCV_TLS_GD_LO16:
+	case R_RISCV_TLS_GD_HI20:
+	case R_RISCV_TLS_GD_LO12:
 	  /* This symbol requires a global offset table entry, or two
 	     for TLS GD relocations.  */
 	  {
