@@ -335,11 +335,7 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
       }
 #endif
 
-#if _RISCV_SIM == _ABI64
-    case (R_MIPS_64 << 8) | R_MIPS_REL32:
-#else
     case R_MIPS_REL32:
-#endif
       {
 	int symidx = ELFW(R_SYM) (r_info);
 	ElfW(Addr) reloc_value;
@@ -400,11 +396,7 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
       }
       break;
 #ifndef RTLD_BOOTSTRAP
-#if _RISCV_SIM == _ABI64
-    case (R_MIPS_64 << 8) | R_MIPS_GLOB_DAT:
-#else
     case R_MIPS_GLOB_DAT:
-#endif
       {
 	int symidx = ELFW(R_SYM) (r_info);
 	const ElfW(Word) gotsym
@@ -477,20 +469,6 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
 	break;
       }
 
-#if _RISCV_SIM == _ABI64
-    case R_MIPS_64:
-      /* For full compliance with the ELF64 ABI, one must precede the
-	 _REL32/_64 pair of relocations with a _64 relocation, such
-	 that the in-place addend is read as a 64-bit value.  IRIX
-	 didn't pick up on this requirement, so we treat the
-	 _REL32/_64 relocation as a 64-bit relocation even if it's by
-	 itself.  For ABI compliance, we ignore such _64 dummy
-	 relocations.  For RELA, this may be simply removed, since
-	 it's totally unnecessary.  */
-      if (ELFW(R_SYM) (r_info) == 0)
-	break;
-      /* Fall through.  */
-#endif
     default:
       _dl_reloc_bad_type (map, r_type, 0);
       break;

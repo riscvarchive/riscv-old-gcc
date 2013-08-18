@@ -872,22 +872,22 @@ sort_dynamic_relocs_64 (const void *arg1 ATTRIBUTE_UNUSED,
 			const void *arg2 ATTRIBUTE_UNUSED)
 {
 #ifdef BFD64
-  Elf_Internal_Rela int_reloc1[3];
-  Elf_Internal_Rela int_reloc2[3];
+  Elf_Internal_Rela int_reloc1;
+  Elf_Internal_Rela int_reloc2;
 
   (*get_elf_backend_data (reldyn_sorting_bfd)->s->swap_reloc_in)
-    (reldyn_sorting_bfd, arg1, int_reloc1);
+    (reldyn_sorting_bfd, arg1, &int_reloc1);
   (*get_elf_backend_data (reldyn_sorting_bfd)->s->swap_reloc_in)
-    (reldyn_sorting_bfd, arg2, int_reloc2);
+    (reldyn_sorting_bfd, arg2, &int_reloc2);
 
-  if (ELF64_R_SYM (int_reloc1[0].r_info) < ELF64_R_SYM (int_reloc2[0].r_info))
+  if (ELF64_R_SYM (int_reloc1.r_info) < ELF64_R_SYM (int_reloc2.r_info))
     return -1;
-  if (ELF64_R_SYM (int_reloc1[0].r_info) > ELF64_R_SYM (int_reloc2[0].r_info))
+  if (ELF64_R_SYM (int_reloc1.r_info) > ELF64_R_SYM (int_reloc2.r_info))
     return 1;
 
-  if (int_reloc1[0].r_offset < int_reloc2[0].r_offset)
+  if (int_reloc1.r_offset < int_reloc2.r_offset)
     return -1;
-  if (int_reloc1[0].r_offset > int_reloc2[0].r_offset)
+  if (int_reloc1.r_offset > int_reloc2.r_offset)
     return 1;
   return 0;
 #else
@@ -1093,25 +1093,21 @@ mips_elf_output_dynamic_relocation (bfd *output_bfd,
 				    int r_type,
 				    bfd_vma offset)
 {
-  Elf_Internal_Rela rel[3];
+  Elf_Internal_Rela rel;
 
-  memset (rel, 0, sizeof (rel));
+  memset (&rel, 0, sizeof (rel));
 
-  rel[0].r_info = ELF_R_INFO (output_bfd, indx, r_type);
-  rel[0].r_offset = rel[1].r_offset = rel[2].r_offset = offset;
+  rel.r_info = ELF_R_INFO (output_bfd, indx, r_type);
+  rel.r_offset = offset;
 
   if (ABI_64_P (output_bfd))
-    {
-      (*get_elf_backend_data (output_bfd)->s->swap_reloc_out)
-	(output_bfd, &rel[0],
-	 (sreloc->contents
-	  + reloc_index * sizeof (Elf64_RISCV_External_Rel)));
-    }
+    bfd_elf64_swap_reloc_out
+      (output_bfd, &rel,
+       (sreloc->contents + reloc_index * sizeof (Elf64_External_Rel)));
   else
     bfd_elf32_swap_reloc_out
-      (output_bfd, &rel[0],
-       (sreloc->contents
-	+ reloc_index * sizeof (Elf32_External_Rel)));
+      (output_bfd, &rel,
+       (sreloc->contents + reloc_index * sizeof (Elf32_External_Rel)));
 }
 
 /* Initialize a set of TLS GOT entries for one symbol.  */
@@ -2659,7 +2655,7 @@ mips_elf_create_dynamic_relocation (bfd *output_bfd,
 				    asection *sec, bfd_vma symbol,
 				    bfd_vma *addendp, asection *input_section)
 {
-  Elf_Internal_Rela outrel[3];
+  Elf_Internal_Rela outrel;
   asection *sreloc;
   int r_type;
   long indx;
@@ -2676,21 +2672,14 @@ mips_elf_create_dynamic_relocation (bfd *output_bfd,
   BFD_ASSERT (sreloc->reloc_count * MIPS_ELF_REL_SIZE (output_bfd)
 	      < sreloc->size);
 
-  outrel[0].r_offset =
+  outrel.r_offset =
     _bfd_elf_section_offset (output_bfd, info, input_section, rel[0].r_offset);
-  if (ABI_64_P (output_bfd))
-    {
-      outrel[1].r_offset =
-	_bfd_elf_section_offset (output_bfd, info, input_section, rel[1].r_offset);
-      outrel[2].r_offset =
-	_bfd_elf_section_offset (output_bfd, info, input_section, rel[2].r_offset);
-    }
 
-  if (outrel[0].r_offset == MINUS_ONE)
+  if (outrel.r_offset == MINUS_ONE)
     /* The relocation field has been deleted.  */
     return TRUE;
 
-  if (outrel[0].r_offset == MINUS_TWO)
+  if (outrel.r_offset == MINUS_TWO)
     {
       /* The relocation field has been converted into a relative value of
 	 some sort.  Functions like _bfd_elf_write_section_eh_frame expect
@@ -2760,49 +2749,22 @@ mips_elf_create_dynamic_relocation (bfd *output_bfd,
 
   /* The relocation is always an REL32 relocation because we don't
      know where the shared library will wind up at load-time.  */
-  outrel[0].r_info = ELF_R_INFO (output_bfd, (unsigned long) indx,
+  outrel.r_info = ELF_R_INFO (output_bfd, (unsigned long) indx,
 				 R_RISCV_REL32);
-
-  /* For strict adherence to the ABI specification, we should
-     generate a R_RISCV_64 relocation record by itself before the
-     _REL32/_64 record as well, such that the addend is read in as
-     a 64-bit value (REL32 is a 32-bit relocation, after all).
-     However, since none of the existing ELF64 MIPS dynamic
-     loaders seems to care, we don't waste space with these
-     artificial relocations.  If this turns out to not be true,
-     mips_elf_allocate_dynamic_relocation() should be tweaked so
-     as to make room for a pair of dynamic relocations per
-     invocation if ABI_64_P, and here we should generate an
-     additional relocation record with R_RISCV_64 by itself for a
-     NULL symbol before this relocation record.  */
-  outrel[1].r_info = ELF_R_INFO (output_bfd, 0,
-				 ABI_64_P (output_bfd)
-				 ? R_RISCV_64
-				 : R_RISCV_NONE);
-  outrel[2].r_info = ELF_R_INFO (output_bfd, 0, R_RISCV_NONE);
 
   /* Adjust the output offset of the relocation to reference the
      correct location in the output file.  */
-  outrel[0].r_offset += (input_section->output_section->vma
-			 + input_section->output_offset);
-  outrel[1].r_offset += (input_section->output_section->vma
-			 + input_section->output_offset);
-  outrel[2].r_offset += (input_section->output_section->vma
+  outrel.r_offset += (input_section->output_section->vma
 			 + input_section->output_offset);
 
-  /* Put the relocation back out.  We have to use the special
-     relocation outputter in the 64-bit case since the 64-bit
-     relocation format is non-standard.  */
+  /* Put the relocation back out. */
   if (ABI_64_P (output_bfd))
-    {
-      (*get_elf_backend_data (output_bfd)->s->swap_reloc_out)
-	(output_bfd, &outrel[0],
-	 (sreloc->contents
-	  + sreloc->reloc_count * sizeof (Elf64_RISCV_External_Rel)));
-    }
+    bfd_elf64_swap_reloc_out
+      (output_bfd, &outrel,
+       (sreloc->contents + sreloc->reloc_count * sizeof (Elf64_External_Rel)));
   else
     bfd_elf32_swap_reloc_out
-      (output_bfd, &outrel[0],
+      (output_bfd, &outrel,
        (sreloc->contents + sreloc->reloc_count * sizeof (Elf32_External_Rel)));
 
   /* We've now added another relocation.  */
@@ -4622,7 +4584,7 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 	      s = mips_elf_rel_dyn_section (info, FALSE);
 	      dyn.d_un.d_val = (s->reloc_count
 				* (ABI_64_P (output_bfd)
-				   ? sizeof (Elf64_RISCV_External_Rel)
+				   ? sizeof (Elf64_External_Rel)
 				   : sizeof (Elf32_External_Rel)));
 	      /* Adjust the section size too.  Tools like the prelinker
 		 can reasonably expect the values to the same.  */
@@ -4653,7 +4615,7 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 
         if (ABI_64_P (output_bfd))
           qsort ((Elf64_External_Rel *) s->contents + 1,
-	         s->reloc_count - 1, sizeof (Elf64_RISCV_External_Rel),
+	         s->reloc_count - 1, sizeof (Elf64_External_Rel),
 	         sort_dynamic_relocs_64);
         else
           qsort ((Elf32_External_Rel *) s->contents + 1,

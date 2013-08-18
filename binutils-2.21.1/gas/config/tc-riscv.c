@@ -93,7 +93,7 @@ struct mips_cl_insn
   long where;
 
   /* The relocs associated with the instruction, if any.  */
-  fixS *fixp[3];
+  fixS *fixp;
 };
 
 static bfd_boolean rv64 = TRUE; /* RV64 (true) or RV32 (false) */
@@ -295,10 +295,6 @@ struct mips_hi_fixup
   segT seg;
 };
 
-/* The frag containing the last explicit relocation operator.
-   Null if explicit relocations have not been used.  */
-
-static fragS *prev_reloc_op_frag;
 
 #define RELAX_BRANCH_ENCODE(uncond, toofar) \
   ((relax_substateT) \
@@ -368,7 +364,7 @@ static fragS *prev_reloc_op_frag;
 enum mips_regclass { MIPS_GR_REG, MIPS_FP_REG };
 
 static void append_insn
-  (struct mips_cl_insn *ip, expressionS *p, bfd_reloc_code_real_type *r);
+  (struct mips_cl_insn *ip, expressionS *p, bfd_reloc_code_real_type r);
 static void macro (struct mips_cl_insn * ip);
 static void mips_ip (char *str, struct mips_cl_insn * ip);
 static size_t my_getSmallExpression
@@ -501,10 +497,8 @@ static expressionS offset_expr;
 
 /* Relocs associated with imm_expr and offset_expr.  */
 
-static bfd_reloc_code_real_type imm_reloc[3]
-  = {BFD_RELOC_UNUSED, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
-static bfd_reloc_code_real_type offset_reloc[3]
-  = {BFD_RELOC_UNUSED, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
+static bfd_reloc_code_real_type imm_reloc = BFD_RELOC_UNUSED;
+static bfd_reloc_code_real_type offset_reloc = BFD_RELOC_UNUSED;
 
 /* The default target format to use.  */
 
@@ -813,14 +807,11 @@ riscv_rvc_compress(struct mips_cl_insn* insn)
 static void
 create_insn (struct mips_cl_insn *insn, const struct riscv_opcode *mo)
 {
-  size_t i;
-
   insn->insn_mo = mo;
   insn->insn_opcode = mo->match;
   insn->frag = NULL;
   insn->where = 0;
-  for (i = 0; i < ARRAY_SIZE (insn->fixp); i++)
-    insn->fixp[i] = NULL;
+  insn->fixp = NULL;
 }
 
 /* Install INSN at the location specified by its "frag" and "where" fields.  */
@@ -838,16 +829,13 @@ install_insn (const struct mips_cl_insn *insn)
 static void
 move_insn (struct mips_cl_insn *insn, fragS *frag, long where)
 {
-  size_t i;
-
   insn->frag = frag;
   insn->where = where;
-  for (i = 0; i < ARRAY_SIZE (insn->fixp); i++)
-    if (insn->fixp[i] != NULL)
-      {
-	insn->fixp[i]->fx_frag = frag;
-	insn->fixp[i]->fx_where = where;
-      }
+  if (insn->fixp != NULL)
+    {
+      insn->fixp->fx_frag = frag;
+      insn->fixp->fx_where = where;
+    }
   install_insn (insn);
 }
 
@@ -1302,18 +1290,12 @@ void
 md_assemble (char *str)
 {
   struct mips_cl_insn insn;
-  bfd_reloc_code_real_type unused_reloc[3]
-    = {BFD_RELOC_UNUSED, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
 
   imm_expr.X_op = O_absent;
   imm2_expr.X_op = O_absent;
   offset_expr.X_op = O_absent;
-  imm_reloc[0] = BFD_RELOC_UNUSED;
-  imm_reloc[1] = BFD_RELOC_UNUSED;
-  imm_reloc[2] = BFD_RELOC_UNUSED;
-  offset_reloc[0] = BFD_RELOC_UNUSED;
-  offset_reloc[1] = BFD_RELOC_UNUSED;
-  offset_reloc[2] = BFD_RELOC_UNUSED;
+  imm_reloc = BFD_RELOC_UNUSED;
+  offset_reloc = BFD_RELOC_UNUSED;
 
   mips_ip (str, &insn);
   DBG ((_("returned from mips_ip(%s) insn_opcode = 0x%x\n"),
@@ -1335,7 +1317,7 @@ md_assemble (char *str)
       else if (offset_expr.X_op != O_absent)
 	append_insn (&insn, &offset_expr, offset_reloc);
       else
-	append_insn (&insn, NULL, unused_reloc);
+	append_insn (&insn, NULL, BFD_RELOC_UNUSED);
     }
 }
 
@@ -1379,7 +1361,7 @@ add_relaxed_insn (struct mips_cl_insn *insn, int max_chars, int var,
 
 static void
 append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
-	     bfd_reloc_code_real_type *reloc_type)
+	     bfd_reloc_code_real_type reloc_type)
 {
 #ifdef OBJ_ELF
   /* The value passed to dwarf2_emit_insn is the distance between
@@ -1390,18 +1372,18 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
   dwarf2_emit_insn (0);
 #endif
 
-  gas_assert(*reloc_type <= BFD_RELOC_UNUSED);
+  gas_assert(reloc_type <= BFD_RELOC_UNUSED);
 
   /* don't compress instructions with relocs */
-  int compressible = (*reloc_type == BFD_RELOC_UNUSED ||
+  int compressible = (reloc_type == BFD_RELOC_UNUSED ||
     address_expr == NULL || address_expr->X_op == O_constant) && mips_opts.rvc;
 
   /* speculate that branches/jumps can be compressed.  if not, we'll relax. */
   if (address_expr != NULL && mips_opts.rvc)
   {
-    int compressible_branch = *reloc_type == BFD_RELOC_16_PCREL_S2 &&
+    int compressible_branch = reloc_type == BFD_RELOC_16_PCREL_S2 &&
       (INSN_MATCHES(*ip, BEQ) || INSN_MATCHES(*ip, BNE));
-    int compressible_jump = *reloc_type == BFD_RELOC_MIPS_JMP &&
+    int compressible_jump = reloc_type == BFD_RELOC_MIPS_JMP &&
       INSN_MATCHES(*ip, J);
     if(compressible_branch || compressible_jump)
     {
@@ -1411,7 +1393,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
                          RELAX_BRANCH_ENCODE(compressible_jump, 0),
                          address_expr->X_add_symbol,
                          address_expr->X_add_number);
-        *reloc_type = BFD_RELOC_UNUSED;
+        reloc_type = BFD_RELOC_UNUSED;
         return;
       }
     }
@@ -1426,7 +1408,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	{
 	  unsigned int tmp;
 
-	  switch (*reloc_type)
+	  switch (reloc_type)
 	    {
 	    case BFD_RELOC_32:
 	      ip->insn_opcode |= address_expr->X_add_number;
@@ -1479,59 +1461,35 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	    default:
 	      internalError ();
 	    }
-	    *reloc_type = BFD_RELOC_UNUSED;
+	    reloc_type = BFD_RELOC_UNUSED;
 	}
-      else if (*reloc_type < BFD_RELOC_UNUSED)
+      else if (reloc_type < BFD_RELOC_UNUSED)
 	{
 	  reloc_howto_type *howto;
-	  int i;
 
-	  /* In a compound relocation, it is the final (outermost)
-	     operator that determines the relocated field.  */
-	  for (i = 1; i < 3; i++)
-	    if (reloc_type[i] == BFD_RELOC_UNUSED)
-	      break;
-
-	  howto = bfd_reloc_type_lookup (stdoutput, reloc_type[i - 1]);
+	  howto = bfd_reloc_type_lookup (stdoutput, reloc_type);
 	  if (howto == NULL)
-	    as_bad (_("Unsupported MIPS relocation number %d"), reloc_type[i - 1]);
+	    as_bad (_("Unsupported MIPS relocation number %d"), reloc_type);
 	  
-	  ip->fixp[0] = fix_new_exp (ip->frag, ip->where,
-				     bfd_get_reloc_size (howto),
-				     address_expr,
-				     reloc_type[0] == BFD_RELOC_16_PCREL_S2 ||
-				     reloc_type[0] == BFD_RELOC_MIPS_JMP,
-				     reloc_type[0]);
+	  ip->fixp = fix_new_exp (ip->frag, ip->where,
+				  bfd_get_reloc_size (howto),
+				  address_expr,
+				  reloc_type == BFD_RELOC_16_PCREL_S2 ||
+				  reloc_type == BFD_RELOC_MIPS_JMP,
+				  reloc_type);
 
 	  /* These relocations can have an addend that won't fit in
 	     4 octets for 64bit assembly.  */
 	  if (rv64
 	      && ! howto->partial_inplace
-	      && (reloc_type[0] == BFD_RELOC_32
-		  || reloc_type[0] == BFD_RELOC_64
-		  || reloc_type[0] == BFD_RELOC_CTOR
-		  || reloc_type[0] == BFD_RELOC_MIPS_REL16
-		  || reloc_type[0] == BFD_RELOC_MIPS_RELGOT
-		  || hi16_reloc_p (reloc_type[0])
-		  || lo16_reloc_p (reloc_type[0])))
-	    ip->fixp[0]->fx_no_overflow = 1;
-
-	  /* Add fixups for the second and third relocations, if given.
-	     Note that the ABI allows the second relocation to be
-	     against RSS_UNDEF, RSS_GP, RSS_GP0 or RSS_LOC.  At the
-	     moment we only use RSS_UNDEF, but we could add support
-	     for the others if it ever becomes necessary.  */
-	  for (i = 1; i < 3; i++)
-	    if (reloc_type[i] != BFD_RELOC_UNUSED)
-	      {
-		ip->fixp[i] = fix_new (ip->frag, ip->where,
-				       ip->fixp[0]->fx_size, NULL, 0,
-				       FALSE, reloc_type[i]);
-
-		/* Use fx_tcbit to mark compound relocs.  */
-		ip->fixp[0]->fx_tcbit = 1;
-		ip->fixp[i]->fx_tcbit = 1;
-	      }
+	      && (reloc_type == BFD_RELOC_32
+		  || reloc_type == BFD_RELOC_64
+		  || reloc_type == BFD_RELOC_CTOR
+		  || reloc_type == BFD_RELOC_MIPS_REL16
+		  || reloc_type == BFD_RELOC_MIPS_RELGOT
+		  || hi16_reloc_p (reloc_type)
+		  || lo16_reloc_p (reloc_type)))
+	    ip->fixp->fx_no_overflow = 1;
 	}
     }
 
@@ -1547,24 +1505,6 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
   mips_clear_insn_labels ();
 }
 
-/* Read a macro's relocation codes from *ARGS and store them in *R.
-   The first argument in *ARGS will be either the code for a single
-   relocation or -1 followed by the three codes that make up a
-   composite relocation.  */
-
-static void
-macro_read_relocs (va_list *args, bfd_reloc_code_real_type *r)
-{
-  int i, next;
-
-  next = va_arg (*args, int);
-  if (next >= 0)
-    r[0] = (bfd_reloc_code_real_type) next;
-  else
-    for (i = 0; i < 3; i++)
-      r[i] = (bfd_reloc_code_real_type) va_arg (*args, int);
-}
-
 /* Build an instruction created by a macro expansion.  This is passed
    a pointer to the count of instructions created so far, an
    expression, the name of the instruction to build, an operand format
@@ -1575,14 +1515,12 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 {
   const struct riscv_opcode *mo;
   struct mips_cl_insn insn;
-  bfd_reloc_code_real_type r[3];
+  bfd_reloc_code_real_type r;
   va_list args;
 
   va_start (args, fmt);
 
-  r[0] = BFD_RELOC_UNUSED;
-  r[1] = BFD_RELOC_UNUSED;
-  r[2] = BFD_RELOC_UNUSED;
+  r = BFD_RELOC_UNUSED;
   mo = (struct riscv_opcode *) hash_find (op_hash, name);
   gas_assert (mo);
   gas_assert (strcmp (name, mo->name) == 0);
@@ -1695,25 +1633,25 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 
 	case 'O': /* An off-by-4 PC-relative address for PIC. */
 	  INSERT_OPERAND (IMMEDIATE, insn, 4);
-	  macro_read_relocs (&args, r);
+	  r = va_arg (args, int);
 	  continue;
 
 	case 'j':
-	  macro_read_relocs (&args, r);
-	  gas_assert (*r == BFD_RELOC_LO16
-		  || *r == BFD_RELOC_MIPS_GOT_LO16
-		  || *r == BFD_RELOC_MIPS_CALL_LO16);
+	  r = va_arg (args, int);
+	  gas_assert (r == BFD_RELOC_LO16
+		  || r == BFD_RELOC_MIPS_GOT_LO16
+		  || r == BFD_RELOC_MIPS_CALL_LO16);
 	  continue;
 
 	case 'u':
-	  macro_read_relocs (&args, r);
+	  r = va_arg (args, int);
 	  gas_assert (ep != NULL
 		  && (ep->X_op == O_constant
 		      || (ep->X_op == O_symbol
-			  && (*r == BFD_RELOC_HI16_S
-			      || *r == BFD_RELOC_HI16
-			      || *r == BFD_RELOC_MIPS_GOT_HI16
-			      || *r == BFD_RELOC_MIPS_CALL_HI16))));
+			  && (r == BFD_RELOC_HI16_S
+			      || r == BFD_RELOC_HI16
+			      || r == BFD_RELOC_MIPS_GOT_HI16
+			      || r == BFD_RELOC_MIPS_CALL_HI16))));
 	  continue;
 
 	case 'p':
@@ -1740,7 +1678,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	      ep = NULL;
 	    }
 	  else
-	    *r = BFD_RELOC_16_PCREL_S2;
+	    r = BFD_RELOC_16_PCREL_S2;
 	  continue;
 
 	case 'a':
@@ -1757,7 +1695,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	      ep = NULL;
 	    }
 	  else
-	    *r = BFD_RELOC_MIPS_JMP;
+	    r = BFD_RELOC_MIPS_JMP;
 	  continue;
 
 	default:
@@ -1766,7 +1704,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
       break;
     }
   va_end (args);
-  gas_assert (*r == BFD_RELOC_UNUSED ? ep == NULL : ep != NULL);
+  gas_assert (r == BFD_RELOC_UNUSED ? ep == NULL : ep != NULL);
 
   append_insn (&insn, ep, r);
 }
@@ -1808,7 +1746,6 @@ macro_build_lui (const char* name, expressionS *ep, int regnum, bfd_reloc_code_r
 {
   const struct riscv_opcode *mo;
   struct mips_cl_insn insn;
-  bfd_reloc_code_real_type r[3] = {reloc, BFD_RELOC_UNUSED, BFD_RELOC_UNUSED};
 
   gas_assert (ep->X_op == O_symbol);
 
@@ -1818,7 +1755,7 @@ macro_build_lui (const char* name, expressionS *ep, int regnum, bfd_reloc_code_r
 
   insn.insn_opcode = insn.insn_mo->match;
   INSERT_OPERAND (RD, insn, regnum);
-  append_insn (&insn, ep, r);
+  append_insn (&insn, ep, reloc);
 }
 
 /* Load an entry from the GOT. */
@@ -2290,7 +2227,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
               break;
 
 	    case '0': /* memory instruction with 0-offset (namely, AMOs) */
-	      if (my_getSmallExpression (&offset_expr, offset_reloc, s) == 0
+	      if (my_getSmallExpression (&offset_expr, &offset_reloc, s) == 0
 		  && (offset_expr.X_op != O_constant
 		      || offset_expr.X_add_number != 0))
 		break;
@@ -2477,13 +2414,13 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	    case 'A':
 	      my_getExpression (&offset_expr, s);
 	      normalize_address_expr (&offset_expr);
-	      *imm_reloc = BFD_RELOC_32;
+	      imm_reloc = BFD_RELOC_32;
 	      s = expr_end;
 	      continue;
 
 	    case 'j':		/* sign-extended RISCV_IMM_BITS immediate */
-	      *imm_reloc = BFD_RELOC_LO16;
-	      if (my_getSmallExpression (&imm_expr, imm_reloc, s) == 0)
+	      imm_reloc = BFD_RELOC_LO16;
+	      if (my_getSmallExpression (&imm_expr, &imm_reloc, s) == 0)
 		{
 		  int more;
 		  offsetT minval, maxval;
@@ -2540,7 +2477,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      /* If this value won't fit into a 16 bit offset, then go
 		 find a macro that will generate the 32 bit offset
 		 code pattern.  */
-	      if (my_getSmallExpression (&offset_expr, offset_reloc, s) == 0
+	      if (my_getSmallExpression (&offset_expr, &offset_reloc, s) == 0
 		  && (offset_expr.X_op != O_constant
 		      || offset_expr.X_add_number >= (signed)RISCV_IMM_REACH/2
 		      || offset_expr.X_add_number < -(signed)RISCV_IMM_REACH/2))
@@ -2550,20 +2487,20 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      continue;
 
 	    case 'p':		/* pc relative offset */
-	      *offset_reloc = BFD_RELOC_16_PCREL_S2;
+	      offset_reloc = BFD_RELOC_16_PCREL_S2;
 	      my_getExpression (&offset_expr, s);
 	      s = expr_end;
 	      continue;
 
 	    case 'u':		/* upper 20 bits */
-	      if (my_getSmallExpression (&imm_expr, imm_reloc, s) == 0
+	      if (my_getSmallExpression (&imm_expr, &imm_reloc, s) == 0
 		  && imm_expr.X_op == O_constant)
 		{
 		  if (imm_expr.X_add_number < 0
 		      || imm_expr.X_add_number >= (signed)RISCV_BIGIMM_REACH)
 		    as_bad (_("lui expression not in range 0..1048575"));
 	      
-		  *imm_reloc = BFD_RELOC_HI16;
+		  imm_reloc = BFD_RELOC_HI16;
 		  imm_expr.X_add_number <<= RISCV_IMM_BITS;
 		}
 	      s = expr_end;
@@ -2572,7 +2509,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	    case 'a':		/* 26 bit address */
 	      my_getExpression (&offset_expr, s);
 	      s = expr_end;
-	      *offset_reloc = BFD_RELOC_MIPS_JMP;
+	      offset_reloc = BFD_RELOC_MIPS_JMP;
 	      continue;
 
 	    default:
@@ -2652,8 +2589,8 @@ parse_relocation (char **str, bfd_reloc_code_real_type *reloc)
 
 
 /* Parse string STR as a 16-bit relocatable operand.  Store the
-   expression in *EP and the relocations in the array starting
-   at RELOC.  Return the number of relocation operators used.
+   expression in *EP and the relocation, if any, in RELOC.
+   Return the number of relocation operators used (0 or 1).
 
    On exit, EXPR_END points to the first character after the expression.  */
 
@@ -2661,13 +2598,12 @@ static size_t
 my_getSmallExpression (expressionS *ep, bfd_reloc_code_real_type *reloc,
 		       char *str)
 {
-  bfd_reloc_code_real_type reversed_reloc[3];
-  size_t reloc_index, i;
+  size_t reloc_index;
   int crux_depth, str_depth;
   char *crux;
 
-  /* Search for the start of the main expression, recoding relocations
-     in REVERSED_RELOC.  End the loop with CRUX pointing to the start
+  /* Search for the start of the main expression.
+     End the loop with CRUX pointing to the start
      of the main expression and with CRUX_DEPTH containing the number
      of open brackets at that point.  */
   reloc_index = -1;
@@ -2685,8 +2621,8 @@ my_getSmallExpression (expressionS *ep, bfd_reloc_code_real_type *reloc,
 	  str_depth++;
     }
   while (*str == '%'
-	 && reloc_index < 3
-	 && parse_relocation (&str, &reversed_reloc[reloc_index]));
+	 && reloc_index < 1
+	 && parse_relocation (&str, reloc));
 
   my_getExpression (ep, crux);
   str = expr_end;
@@ -2700,13 +2636,6 @@ my_getSmallExpression (expressionS *ep, bfd_reloc_code_real_type *reloc,
     as_bad ("unclosed '('");
 
   expr_end = str;
-
-  if (reloc_index != 0)
-    {
-      prev_reloc_op_frag = frag_now;
-      for (i = 0; i < reloc_index; i++)
-	reloc[i] = reversed_reloc[reloc_index - 1 - i];
-    }
 
   return reloc_index;
 }
