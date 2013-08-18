@@ -378,9 +378,6 @@ static void s_float_cons (int);
 static void s_mipsset (int);
 static void s_dtprelword (int);
 static void s_dtpreldword (int);
-static void s_mips_weakext (int);
-static void s_mips_file (int);
-static void s_mips_loc (int);
 static int validate_mips_insn (const struct riscv_opcode *);
 static int relaxed_branch_length (fragS *fragp, asection *sec, int update);
 
@@ -416,7 +413,6 @@ static const pseudo_typeS mips_pseudo_table[] =
   {"err", s_err, 0},
   {"half", s_cons, 1},
   {"dword", s_cons, 3},
-  {"weakext", s_mips_weakext, 0},
   {"origin", s_org, 0},
   {"repeat", s_rept, 0},
 
@@ -442,8 +438,8 @@ static const pseudo_typeS mips_pseudo_table[] =
 
   {"bgnb", s_ignore, 0},
   {"endb", s_ignore, 0},
-  {"file", s_mips_file, 0},
-  {"loc", s_mips_loc, 0},
+  {"file", (void (*) (int)) dwarf2_directive_file, 0 },
+  {"loc",  dwarf2_directive_loc,  0 },
   {"verstamp", s_ignore, 0},
 
   { NULL, NULL, 0 },
@@ -3331,53 +3327,6 @@ s_dtpreldword (int ignore ATTRIBUTE_UNUSED)
   s_dtprel_internal (8);
 }
 
-/* Handle the .weakext pseudo-op as defined in Kane and Heinrich.  */
-
-static void
-s_mips_weakext (int ignore ATTRIBUTE_UNUSED)
-{
-  char *name;
-  int c;
-  symbolS *symbolP;
-  expressionS exp;
-
-  name = input_line_pointer;
-  c = get_symbol_end ();
-  symbolP = symbol_find_or_make (name);
-  S_SET_WEAK (symbolP);
-  *input_line_pointer = c;
-
-  SKIP_WHITESPACE ();
-
-  if (! is_end_of_line[(unsigned char) *input_line_pointer])
-    {
-      if (S_IS_DEFINED (symbolP))
-	{
-	  as_bad ("ignoring attempt to redefine symbol %s",
-		  S_GET_NAME (symbolP));
-	  ignore_rest_of_line ();
-	  return;
-	}
-
-      if (*input_line_pointer == ',')
-	{
-	  ++input_line_pointer;
-	  SKIP_WHITESPACE ();
-	}
-
-      expression (&exp);
-      if (exp.X_op != O_symbol)
-	{
-	  as_bad ("bad .weakext directive");
-	  ignore_rest_of_line ();
-	  return;
-	}
-      symbol_set_value_expression (symbolP, &exp);
-    }
-
-  demand_empty_rest_of_line ();
-}
-
 valueT
 md_section_align (asection *seg, valueT addr)
 {
@@ -3635,39 +3584,6 @@ mips_handle_align (fragS *fragp)
   p = fragp->fr_literal + fragp->fr_fix;
   md_number_to_chars (p, RISCV_NOP, 4);
   fragp->fr_var = 4;
-}
-
-/* The .file directive; just like the usual .file directive, but there
-   is an initial number which is the ECOFF file index.  In the non-ECOFF
-   case .file implies DWARF-2.  */
-
-static void
-s_mips_file (int x ATTRIBUTE_UNUSED)
-{
-  static int first_file_directive = 0;
-
-  char *filename;
-
-  filename = dwarf2_directive_file (0);
-
-  /* Versions of GCC up to 3.1 start files with a ".file"
-     directive even for stabs output.  Make sure that this
-     ".file" is handled.  Note that you need a version of GCC
-     after 3.1 in order to support DWARF-2 on MIPS.  */
-  if (filename != NULL && ! first_file_directive)
-    {
-      (void) new_logical_line (filename, -1);
-      s_app_file_string (filename, 0);
-    }
-  first_file_directive = 1;
-}
-
-/* The .loc directive, implying DWARF-2.  */
-
-static void
-s_mips_loc (int x ATTRIBUTE_UNUSED)
-{
-  dwarf2_directive_loc (0);
 }
 
 void

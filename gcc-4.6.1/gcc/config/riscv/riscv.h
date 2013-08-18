@@ -359,9 +359,6 @@ struct mips_cpu_info {
 #ifndef SUBTARGET_EXTRA_SPECS
 #define SUBTARGET_EXTRA_SPECS
 #endif
-
-#define DBX_DEBUGGING_INFO 1		/* generate stabs (OSF/rose) */
-#define DWARF2_DEBUGGING_INFO 1         /* dwarf2 debugging info */
 
 #ifndef PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DWARF2_DEBUG
@@ -375,16 +372,9 @@ struct mips_cpu_info {
 #define LOCAL_LABEL_PREFIX	"."
 #define USER_LABEL_PREFIX	""
 
-/* On Sun 4, this limit is 2048.  We use 1500 to be safe,
-   since the length can run past this up to a continuation point.  */
-#undef DBX_CONTIN_LENGTH
-#define DBX_CONTIN_LENGTH 1500
-
-/* How to renumber registers for dbx and gdb.  */
-#define DBX_REGISTER_NUMBER(REGNO) mips_dbx_regno[REGNO]
-
 /* The mapping from gcc register number to DWARF 2 CFA column number.  */
-#define DWARF_FRAME_REGNUM(REGNO) mips_dwarf_regno[REGNO]
+#define DWARF_FRAME_REGNUM(REGNO) \
+  (GP_REG_P (REGNO) || FP_REG_P (REGNO) ? REGNO : INVALID_REGNUM)
 
 /* The DWARF 2 CFA column which tracks the return address.  */
 #define DWARF_FRAME_RETURN_COLUMN RETURN_ADDR_REGNUM
@@ -708,12 +698,10 @@ struct mips_cpu_info {
 #define GP_REG_FIRST 0
 #define GP_REG_LAST  31
 #define GP_REG_NUM   (GP_REG_LAST - GP_REG_FIRST + 1)
-#define GP_DBX_FIRST 0
 
 #define FP_REG_FIRST 32
 #define FP_REG_LAST  63
 #define FP_REG_NUM   (FP_REG_LAST - FP_REG_FIRST + 1)
-#define FP_DBX_FIRST ((write_symbols == DBX_DEBUG) ? 38 : 32)
 
 #define CALLEE_SAVED_GP_REG_FIRST (GP_REG_FIRST + 2)
 #define CALLEE_SAVED_GP_REG_LAST (CALLEE_SAVED_GP_REG_FIRST + 12 - 1)
@@ -1193,22 +1181,8 @@ typedef struct mips_args {
 #define MOVE_MAX UNITS_PER_WORD
 #define MAX_MOVE_MAX 8
 
-/* Define this macro as a C expression which is nonzero if
-   accessing less than a word of memory (i.e. a `char' or a
-   `short') is no faster than accessing a word of memory, i.e., if
-   such access require more than one instruction or if there is no
-   difference in cost between byte and (aligned) word loads.
+#define SLOW_BYTE_ACCESS 0
 
-   On RISC machines, it tends to generate better code to define
-   this as 1, since it avoids making a QI or HI mode register.
-
-   But, generating word accesses for -mips16 is generally bad as shifts
-   (often extended) would be needed for byte accesses.  */
-#define SLOW_BYTE_ACCESS 1
-
-/* Standard MIPS integer shifts truncate the shift amount to the
-   width of the shifted operand.  However, Loongson vector shifts
-   do not truncate the shift amount at all.  */
 #define SHIFT_COUNT_TRUNCATED 1
 
 /* Value is 1 if truncating an integer of INPREC bits to OUTPREC bits
@@ -1363,12 +1337,6 @@ do									\
     fputs ("\n", STREAM);						\
   }									\
 while (0)
-
-/* mips-tfile does not understand .stabd directives.  */
-#define DBX_OUTPUT_SOURCE_LINE(STREAM, LINE, COUNTER) do {	\
-  dbxout_begin_stabn_sline (LINE);				\
-  dbxout_stab_value_internal_label ("LM", &COUNTER);		\
-} while (0)
 
 /* The MIPS implementation uses some labels for its own purpose.  The
    following lists what labels are created, and are all formed by the
@@ -1619,8 +1587,6 @@ extern const enum reg_class mips_regno_to_class[];
 extern bool mips_hard_regno_mode_ok[][FIRST_PSEUDO_REGISTER];
 extern const char *current_function_file; /* filename current function is in */
 extern int num_source_filenames;	/* current .file # */
-extern int mips_dbx_regno[];
-extern int mips_dwarf_regno[];
 extern bool mips_split_p[];
 extern enum processor mips_arch;        /* which cpu to codegen for */
 extern enum processor mips_tune;        /* which cpu to schedule for */

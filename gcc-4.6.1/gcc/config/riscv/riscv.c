@@ -308,18 +308,6 @@ struct mips_rtx_cost_data
 
 /* Global variables for machine-dependent things.  */
 
-/* The number of file directives written by mips_output_filename.  */
-int num_source_filenames;
-
-/* The name that appeared in the last .file directive written by
-   mips_output_filename, or "" if mips_output_filename hasn't
-   written anything yet.  */
-const char *current_function_file = "";
-
-/* Arrays that map GCC register numbers to debugger register numbers.  */
-int mips_dbx_regno[FIRST_PSEUDO_REGISTER];
-int mips_dwarf_regno[FIRST_PSEUDO_REGISTER];
-
 /* The processor that we should tune the code for.  */
 enum processor mips_tune;
 
@@ -328,8 +316,6 @@ static const struct mips_rtx_cost_data *mips_cost;
 
 /* Index [M][R] is true if register R is allowed to hold a value of mode M.  */
 bool mips_hard_regno_mode_ok[(int) MAX_MACHINE_MODE][FIRST_PSEUDO_REGISTER];
-
-static GTY (()) int mips_output_filename_first_time = 1;
 
 /* mips_split_p[X] is true if symbols of type X can be split by
    mips_split_symbol.  */
@@ -3498,39 +3484,6 @@ mips_debugger_offset (rtx addr, HOST_WIDE_INT offset)
   return offset;
 }
 
-/* Implement TARGET_ASM_OUTPUT_SOURCE_FILENAME.  */
-
-static void
-mips_output_filename (FILE *stream, const char *name)
-{
-  /* If we are emitting DWARF-2, let dwarf2out handle the ".file"
-     directives.  */
-  if (write_symbols == DWARF2_DEBUG)
-    return;
-  else if (mips_output_filename_first_time)
-    {
-      mips_output_filename_first_time = 0;
-      num_source_filenames += 1;
-      current_function_file = name;
-      fprintf (stream, "\t.file\t%d ", num_source_filenames);
-      output_quoted_string (stream, name);
-      putc ('\n', stream);
-    }
-  /* If we are emitting stabs, let dbxout.c handle this (except for
-     the mips_output_filename_first_time case).  */
-  else if (write_symbols == DBX_DEBUG)
-    return;
-  else if (name != current_function_file
-	   && strcmp (name, current_function_file) != 0)
-    {
-      num_source_filenames += 1;
-      current_function_file = name;
-      fprintf (stream, "\t.file\t%d ", num_source_filenames);
-      output_quoted_string (stream, name);
-      putc ('\n', stream);
-    }
-}
-
 /* Implement TARGET_ASM_OUTPUT_DWARF_DTPREL.  */
 
 static void ATTRIBUTE_UNUSED
@@ -5245,8 +5198,8 @@ mips_output_mi_thunk (FILE *file, tree thunk_fndecl ATTRIBUTE_UNUSED,
   use_sibcall_p = const_call_insn_operand (fnaddr, Pmode);
 
   /* We need two temporary registers in some cases.  */
-  temp1 = gen_rtx_REG (Pmode, 2);
-  temp2 = gen_rtx_REG (Pmode, 3);
+  temp1 = gen_rtx_REG (Pmode, GP_RETURN);
+  temp2 = gen_rtx_REG (Pmode, GP_RETURN + 1);
 
   /* Find out which register contains the "this" pointer.  */
   if (aggregate_value_p (TREE_TYPE (TREE_TYPE (function)), function))
@@ -5367,7 +5320,7 @@ mips_handle_option (size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
 static void
 mips_option_override (void)
 {
-  int i, start, regno, mode;
+  int i, regno, mode;
   const struct mips_cpu_info *info;
 
 #ifdef SUBTARGET_OVERRIDE_OPTIONS
@@ -5415,26 +5368,6 @@ mips_option_override (void)
   if (TARGET_WRITABLE_EH_FRAME)
     flag_dwarf2_cfi_asm = 0;
 
-  /* Set up array to map GCC register number to debug register number.
-     Ignore the special purpose register numbers.  */
-
-  for (i = 0; i < FIRST_PSEUDO_REGISTER; i++)
-    {
-      mips_dbx_regno[i] = INVALID_REGNUM;
-      if (GP_REG_P (i) || FP_REG_P (i))
-	mips_dwarf_regno[i] = i;
-      else
-	mips_dwarf_regno[i] = INVALID_REGNUM;
-    }
-
-  start = GP_DBX_FIRST - GP_REG_FIRST;
-  for (i = GP_REG_FIRST; i <= GP_REG_LAST; i++)
-    mips_dbx_regno[i] = i + start;
-
-  start = FP_DBX_FIRST - FP_REG_FIRST;
-  for (i = FP_REG_FIRST; i <= FP_REG_LAST; i++)
-    mips_dbx_regno[i] = i + start;
-
   /* Set up mips_hard_regno_mode_ok.  */
   for (mode = 0; mode < MAX_MACHINE_MODE; mode++)
     for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
@@ -5472,46 +5405,17 @@ mips_conditional_register_usage (void)
 	fixed_regs[regno] = call_used_regs[regno] = 1;
     }
 
-  if (riscv_in_utfunc)
-  {
-    for (regno = CALLEE_SAVED_GP_REG_FIRST;
-         regno <= CALLEE_SAVED_GP_REG_LAST; regno++)
-    {
-      call_used_regs[regno] = 1;
-      call_really_used_regs[regno] = 1;
-    }
+  /* Mark all callee-saved registers as caller-saved when riscv_in_utfunc */
+  for (regno = CALLEE_SAVED_GP_REG_FIRST;
+       regno <= CALLEE_SAVED_GP_REG_LAST; regno++)
+    call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
 
-    call_used_regs[RETURN_ADDR_REGNUM] = 1;
-    call_really_used_regs[RETURN_ADDR_REGNUM] = 1;
+  for (regno = CALLEE_SAVED_FP_REG_FIRST;
+       regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
+    call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
 
-    for (regno = CALLEE_SAVED_FP_REG_FIRST;
-         regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
-    {
-      call_used_regs[regno] = 1;
-      call_really_used_regs[regno] = 1;
-    }
-  }
-  else
-  {
-    for (regno = CALLEE_SAVED_GP_REG_FIRST;
-         regno <= CALLEE_SAVED_GP_REG_LAST; regno++)
-    {
-      call_used_regs[regno] = 0;
-      call_really_used_regs[regno] = 0;
-    }
-
-    call_used_regs[GP_REG_FIRST + 28] = 1;
-
-    call_used_regs[RETURN_ADDR_REGNUM] = 0;
-    call_really_used_regs[RETURN_ADDR_REGNUM] = 0;
-
-    for (regno = CALLEE_SAVED_FP_REG_FIRST;
-         regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
-    {
-      call_used_regs[regno] = 0;
-      call_really_used_regs[regno] = 0;
-    }
-  }
+  regno = RETURN_ADDR_REGNUM;
+  call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
 }
 
 /* Initialize vector TARGET to VALS.  */
@@ -5563,12 +5467,13 @@ static void
 mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 {
   rtx addr, end_addr, mem;
-  rtx trampoline[8];
-  unsigned int i, j;
+  rtx trampoline[4];
+  unsigned int i;
   HOST_WIDE_INT static_chain_offset, target_function_offset;
 
   /* Work out the offsets of the pointers from the start of the
      trampoline code.  */
+  gcc_assert (ARRAY_SIZE (trampoline) * 4 == TRAMPOLINE_CODE_SIZE);
   static_chain_offset = TRAMPOLINE_CODE_SIZE;
   target_function_offset = static_chain_offset + GET_MODE_SIZE (ptr_mode);
 
@@ -5584,25 +5489,22 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
      l[wd]   $static_chain, static_chain_offset(v0)
      jr      v1
   */
-  i = 0;
 
-  trampoline[i++] = OP (RISCV_LTYPE (AUIPC, STATIC_CHAIN_REGNUM, 0));
-  trampoline[i++] = OP (RISCV_ITYPE (LREG, MIPS_PROLOGUE_TEMP_REGNUM,
-    			  STATIC_CHAIN_REGNUM, target_function_offset));
-  trampoline[i++] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,
-    			  STATIC_CHAIN_REGNUM, static_chain_offset));
-  trampoline[i++] = OP (RISCV_ITYPE (JALR, 0, MIPS_PROLOGUE_TEMP_REGNUM, 0));
-
-  gcc_assert (i * 4 == TRAMPOLINE_CODE_SIZE);
+  trampoline[0] = OP (RISCV_LTYPE (AUIPC, STATIC_CHAIN_REGNUM, 0));
+  trampoline[1] = OP (RISCV_ITYPE (LREG, MIPS_PROLOGUE_TEMP_REGNUM,
+		    STATIC_CHAIN_REGNUM, target_function_offset));
+  trampoline[2] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,
+		    STATIC_CHAIN_REGNUM, static_chain_offset));
+  trampoline[3] = OP (RISCV_ITYPE (JALR, 0, MIPS_PROLOGUE_TEMP_REGNUM, 0));
 
 #undef MATCH_LREG
 #undef OP
 
   /* Copy the trampoline code.  Leave any padding uninitialized.  */
-  for (j = 0; j < i; j++)
+  for (i = 0; i < ARRAY_SIZE (trampoline); i++)
     {
-      mem = adjust_address (m_tramp, SImode, j * GET_MODE_SIZE (SImode));
-      mips_emit_move (mem, trampoline[j]);
+      mem = adjust_address (m_tramp, SImode, i * GET_MODE_SIZE (SImode));
+      mips_emit_move (mem, trampoline[i]);
     }
 
   /* Set up the static chain pointer field.  */
@@ -5616,14 +5518,6 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
   /* Flush the code part of the trampoline.  */
   emit_insn (gen_add3_insn (end_addr, addr, GEN_INT (TRAMPOLINE_SIZE)));
   emit_insn (gen_clear_cache (addr, end_addr));
-}
-
-/* Implement TARGET_SHIFT_TRUNCATION_MASK. */
-
-static unsigned HOST_WIDE_INT
-mips_shift_truncation_mask (enum machine_mode mode)
-{
-  return GET_MODE_BITSIZE (mode) - 1;
 }
 
 const char*
@@ -5896,12 +5790,6 @@ mips_function_rodata_section (tree decl)
 
 #undef TARGET_TRAMPOLINE_INIT
 #define TARGET_TRAMPOLINE_INIT mips_trampoline_init
-
-#undef TARGET_ASM_OUTPUT_SOURCE_FILENAME
-#define TARGET_ASM_OUTPUT_SOURCE_FILENAME mips_output_filename
-
-#undef TARGET_SHIFT_TRUNCATION_MASK
-#define TARGET_SHIFT_TRUNCATION_MASK mips_shift_truncation_mask
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
