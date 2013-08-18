@@ -1355,18 +1355,6 @@ while (0)
 /* Globalizing directive for a label.  */
 #define GLOBAL_ASM_OP "\t.globl\t"
 
-/* This says how to define a global common symbol.  */
-
-#define ASM_OUTPUT_ALIGNED_DECL_COMMON mips_output_aligned_decl_common
-
-/* This says how to define a local common symbol (i.e., not visible to
-   linker).  */
-
-#ifndef ASM_OUTPUT_ALIGNED_LOCAL
-#define ASM_OUTPUT_ALIGNED_LOCAL(STREAM, NAME, SIZE, ALIGN) \
-  mips_declare_common_object (STREAM, NAME, "\n\t.lcomm\t", SIZE, ALIGN, false)
-#endif
-
 /* This is how to declare a function name.  The actual work of
    emitting the label is moved to function_prologue, so that we can
    get the line number correctly emitted before the .ent directive,

@@ -2845,14 +2845,6 @@
   DONE;
 })
 
-(define_insn "mips_cache"
-  [(set (mem:BLK (scratch))
-	(unspec:BLK [(match_operand:SI 0 "const_int_operand")
-		     (match_operand:QI 1 "address_operand" "p")]
-		    UNSPEC_MIPS_CACHE))]
-  "0"
-  "cache\t%X0,%a1")
-
 (define_insn "nop"
   [(const_int 0)]
   ""

@@ -667,14 +667,10 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
     }
   gcc_unreachable ();
 }
-
-/* Like mips_symbol_insns, but treat extended MIPS16 instructions as a
-   single instruction.  We rely on the fact that, in the worst case,
-   all instructions involved in a MIPS16 address calculation are usually
-   extended ones.  */
 
-static int
-mips_symbol_insns (enum mips_symbol_type type, enum machine_mode mode)
+/* Returns the number of instructions necessary to reference a symbol. */
+
+static int riscv_symbol_insns (enum mips_symbol_type type)
 {
   switch (type)
     {
@@ -728,7 +724,7 @@ mips_cannot_force_const_mem (rtx x)
   if (mips_symbolic_constant_p (base, &type))
     {
       /* The same optimization as for CONST_INT.  */
-      if (SMALL_INT (offset) && mips_symbol_insns (type, MAX_MACHINE_MODE) > 0)
+      if (SMALL_INT (offset) && riscv_symbol_insns (type) > 0)
 	return true;
     }
 
@@ -802,7 +798,7 @@ mips_valid_lo_sum_p (enum mips_symbol_type symbol_type, enum machine_mode mode)
 {
   /* Check that symbols of type SYMBOL_TYPE can be used to access values
      of mode MODE.  */
-  if (mips_symbol_insns (symbol_type, mode) == 0)
+  if (riscv_symbol_insns (symbol_type) == 0)
     return false;
 
   /* Check that there is a known low-part relocation.  */
@@ -912,7 +908,7 @@ mips_address_insns (rtx x, enum machine_mode mode, bool might_split_p)
         factor = (GET_MODE_SIZE (mode) + UNITS_PER_WORD - 1) / UNITS_PER_WORD;
 
       if (addr.type == ADDRESS_SYMBOLIC)
-	factor *= mips_symbol_insns (addr.symbol_type, mode);
+	factor *= riscv_symbol_insns (addr.symbol_type);
 
       return factor;
     }
@@ -951,7 +947,7 @@ mips_const_insns (rtx x)
     case CONST:
       /* See if we can refer to X directly.  */
       if (mips_symbolic_constant_p (x, &symbol_type))
-	return mips_symbol_insns (symbol_type, MAX_MACHINE_MODE);
+	return riscv_symbol_insns (symbol_type);
 
       /* Otherwise try splitting the constant into a base and offset.
 	 If the offset is a 16-bit value, we can load the base address
@@ -977,7 +973,7 @@ mips_const_insns (rtx x)
 
     case SYMBOL_REF:
     case LABEL_REF:
-      return mips_symbol_insns (mips_classify_symbol (x), MAX_MACHINE_MODE);
+      return riscv_symbol_insns (mips_classify_symbol (x));
 
     default:
       return 0;
@@ -1157,7 +1153,7 @@ mips_split_symbol (rtx temp, rtx addr, enum machine_mode mode, rtx *low_out)
   if (!(GET_CODE (addr) == HIGH && mode == MAX_MACHINE_MODE))
     {
       if (mips_symbolic_constant_p (addr, &symbol_type)
-	  && mips_symbol_insns (symbol_type, mode) > 0
+	  && riscv_symbol_insns (symbol_type) > 0
 	  && mips_split_p[symbol_type])
 	{
 	  if (low_out)
@@ -2160,7 +2156,7 @@ mips_output_move (rtx dest, rtx src)
 	  }
 
       if (src_code == CONST_INT)
-	return "li\t%0,%1\t\t\t# %X1";
+	return "li\t%0,%1";
 
       if (src_code == HIGH)
 	return "lui\t%0,%h1";
@@ -3191,20 +3187,6 @@ mips_expand_block_move (rtx dest, rtx src, rtx length)
   return false;
 }
 
-/* Return true if X is a MEM with the same size as MODE.  */
-
-bool
-mips_mem_fits_mode_p (enum machine_mode mode, rtx x)
-{
-  rtx size;
-
-  if (!MEM_P (x))
-    return false;
-
-  size = MEM_SIZE (x);
-  return size && INTVAL (size) == GET_MODE_SIZE (mode);
-}
-
 /* (Re-)Initialize mips_split_p, mips_lo_relocs and mips_hi_relocs.  */
 
 static void
@@ -3277,19 +3259,12 @@ mips_print_int_branch_condition (FILE *file, enum rtx_code code, int letter)
 
 /* Implement TARGET_PRINT_OPERAND.  The MIPS-specific operand codes are:
 
-   'X'	Print CONST_INT OP in hexadecimal format.
-   'x'	Print the low 16 bits of CONST_INT OP in hexadecimal format.
-   'd'	Print CONST_INT OP in decimal.
-   'm'	Print one less than CONST_INT OP in decimal.
    'h'	Print the high-part relocation associated with OP, after stripping
 	  any outermost HIGH.
    'R'	Print the low-part relocation associated with OP.
    'C'	Print the integer branch condition for comparison OP.
    'N'	Print the inverse of the integer branch condition for comparison OP.
-   'T'	Print 'f' for (eq:CC ...), 't' for (ne:CC ...),
-	      'z' for (eq:?I ...), 'n' for (ne:?I ...).
-   't'	Like 'T', but with the EQ/NE cases reversed
-   'Z'	Print OP and a comma for ISA_HAS_8CC, otherwise print nothing.
+   'S'	Print the swapped integer branch condition for comparison OP.
    'D'	Print the second part of a double-word register or memory operand.
    'L'	Print the low-order register in a double-word register operand.
    'M'	Print high-order register in a double-word register operand.
@@ -3305,34 +3280,6 @@ mips_print_operand (FILE *file, rtx op, int letter)
 
   switch (letter)
     {
-    case 'X':
-      if (CONST_INT_P (op))
-	fprintf (file, HOST_WIDE_INT_PRINT_HEX, INTVAL (op));
-      else
-	output_operand_lossage ("invalid use of '%%%c'", letter);
-      break;
-
-    case 'x':
-      if (CONST_INT_P (op))
-	fprintf (file, HOST_WIDE_INT_PRINT_HEX, INTVAL (op) & 0xffff);
-      else
-	output_operand_lossage ("invalid use of '%%%c'", letter);
-      break;
-
-    case 'd':
-      if (CONST_INT_P (op))
-	fprintf (file, HOST_WIDE_INT_PRINT_DEC, INTVAL (op));
-      else
-	output_operand_lossage ("invalid use of '%%%c'", letter);
-      break;
-
-    case 'm':
-      if (CONST_INT_P (op))
-	fprintf (file, HOST_WIDE_INT_PRINT_DEC, INTVAL (op) - 1);
-      else
-	output_operand_lossage ("invalid use of '%%%c'", letter);
-      break;
-
     case 'h':
       if (code == HIGH)
 	op = XEXP (op, 0);
@@ -3353,19 +3300,6 @@ mips_print_operand (FILE *file, rtx op, int letter)
 
     case 'S':
       mips_print_int_branch_condition (file, swap_condition (code), letter);
-      break;
-
-    case 'T':
-    case 't':
-      {
-	int truth = (code == NE) == (letter == 'T');
-	fputc ("zfnt"[truth * 2 + (GET_MODE (op) == CCmode)], file);
-      }
-      break;
-
-    case 'Z':
-      mips_print_operand (file, op, 0);
-      fputc (',', file);
       break;
 
     default:
@@ -3565,42 +3499,6 @@ mips_declare_object (FILE *stream, const char *name, const char *init_string,
   va_start (ap, final_string);
   vfprintf (stream, final_string, ap);
   va_end (ap);
-}
-
-/* Declare a common object of SIZE bytes using asm directive INIT_STRING.
-   NAME is the name of the object and ALIGN is the required alignment
-   in bytes.  TAKES_ALIGNMENT_P is true if the directive takes a third
-   alignment argument.  */
-
-void
-mips_declare_common_object (FILE *stream, const char *name,
-			    const char *init_string,
-			    unsigned HOST_WIDE_INT size,
-			    unsigned int align, bool takes_alignment_p)
-{
-  if (!takes_alignment_p)
-    {
-      size += (align / BITS_PER_UNIT) - 1;
-      size -= size % (align / BITS_PER_UNIT);
-      mips_declare_object (stream, name, init_string,
-			   "," HOST_WIDE_INT_PRINT_UNSIGNED "\n", size);
-    }
-  else
-    mips_declare_object (stream, name, init_string,
-			 "," HOST_WIDE_INT_PRINT_UNSIGNED ",%u\n",
-			 size, align / BITS_PER_UNIT);
-}
-
-/* Implement ASM_OUTPUT_ALIGNED_DECL_COMMON.  This is usually the same as the
-   elfos.h version, but we also need to handle -muninit-const-in-rodata.  */
-
-void
-mips_output_aligned_decl_common (FILE *stream, tree decl ATTRIBUTE_UNUSED,
-				 const char *name,
-				 unsigned HOST_WIDE_INT size,
-				 unsigned int align)
-{
-  mips_declare_common_object (stream, name, "\n\t.comm\t", size, align, true);
 }
 
 #ifdef ASM_OUTPUT_SIZE_DIRECTIVE
@@ -4203,6 +4101,7 @@ mips_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
   mclass = GET_MODE_CLASS (mode);
 
   if (GP_REG_P (regno))
+    /* Double-word values must be even-register-aligned. */
     return ((regno - GP_REG_FIRST) & 1) == 0 || size <= UNITS_PER_WORD;
 
   if (FP_REG_P (regno))
@@ -4215,13 +4114,6 @@ mips_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
 	  || mclass == MODE_COMPLEX_FLOAT
 	  || mclass == MODE_VECTOR_FLOAT)
 	return size <= UNITS_PER_FPVALUE;
-
-      /* Allow integer modes that fit into a single register.  We need
-	 to put integers into FPRs when using instructions like CVT
-	 and TRUNC.  There's no point allowing sizes smaller than a word,
-	 because the FPU has no appropriate load/store instructions.  */
-      if (mclass == MODE_INT)
-	return size >= MIN_UNITS_PER_WORD && size <= UNITS_PER_FPREG;
     }
 
   if (regno == GOT_VERSION_REGNUM)
@@ -4282,34 +4174,15 @@ mips_cannot_change_mode_class (enum machine_mode from ATTRIBUTE_UNUSED,
 			       enum machine_mode to ATTRIBUTE_UNUSED,
 			       enum reg_class rclass)
 {
-  /* There are several problems with changing the modes of values
-     in floating-point registers:
-
-     - When a multi-word value is stored in paired floating-point
-       registers, the first register always holds the low word.
-       We therefore can't allow FPRs to change between single-word
-       and multi-word modes on big-endian targets.
-
-     - GCC assumes that each word of a multiword register can be accessed
-       individually using SUBREGs.  This is not true for floating-point
-       registers if they are bigger than a word.
-
-     - Loading a 32-bit value into a 64-bit floating-point register
-       will not sign-extend the value, despite what LOAD_EXTEND_OP says.
-       We can't allow FPRs to change from SImode to to a wider mode on
-       64-bit targets.
-
-     - If the FPU has already interpreted a value in one format, we must
-       not ask it to treat the value as having a different format.
-
-     We therefore disallow all mode changes involving FPRs.  */
+  /* An FP register written in one format is undefined if interpreted in
+     another format. */
   return reg_classes_intersect_p (FP_REGS, rclass);
 }
 
-/* Return true if moves in mode MODE can use the FPU's mov.fmt instruction.  */
+/* Return true if moves in mode MODE can use the fsgnj instruction.  */
 
 static bool
-mips_mode_ok_for_mov_fmt_p (enum machine_mode mode)
+riscv_mode_ok_for_fsgnj_p (enum machine_mode mode)
 {
   switch (mode)
     {
@@ -4330,8 +4203,8 @@ mips_modes_tieable_p (enum machine_mode mode1, enum machine_mode mode2)
   /* FPRs allow no mode punning, so it's not worth tying modes if we'd
      prefer to put one of them in FPRs.  */
   return (mode1 == mode2
-	  || (!mips_mode_ok_for_mov_fmt_p (mode1)
-	      && !mips_mode_ok_for_mov_fmt_p (mode2)));
+	  || (!riscv_mode_ok_for_fsgnj_p (mode1)
+	      && !riscv_mode_ok_for_fsgnj_p (mode2)));
 }
 
 /* Implement TARGET_PREFERRED_RELOAD_CLASS.  */
@@ -4340,7 +4213,7 @@ static reg_class_t
 mips_preferred_reload_class (rtx x, reg_class_t rclass)
 {
   if (reg_class_subset_p (FP_REGS, rclass)
-      && mips_mode_ok_for_mov_fmt_p (GET_MODE (x)))
+      && riscv_mode_ok_for_fsgnj_p (GET_MODE (x)))
     return FP_REGS;
 
   if (reg_class_subset_p (GR_REGS, rclass))
@@ -4414,8 +4287,7 @@ mips_register_move_cost (enum machine_mode mode,
   to = mips_canonicalize_move_class (to);
 
   /* Handle moves that can be done without using general-purpose registers.  */
-  if (from == FP_REGS)
-    if (to == FP_REGS && mips_mode_ok_for_mov_fmt_p (mode))
+  if (from == FP_REGS && to == FP_REGS && riscv_mode_ok_for_fsgnj_p (mode))
       /* fsgnj.fmt.  */
       return 1;
 
@@ -4476,24 +4348,20 @@ mips_secondary_reload_class (enum reg_class rclass,
 
   if (reg_class_subset_p (rclass, FP_REGS))
     {
-      if (MEM_P (x)
-	  && (GET_MODE_SIZE (mode) == 4 || GET_MODE_SIZE (mode) == 8))
-	/* In this case we can use lwc1, swc1, ldc1 or sdc1.  We'll use
-	   pairs of lwc1s and swc1s if ldc1 and sdc1 are not supported.  */
+      if (MEM_P (x) && (GET_MODE_SIZE (mode) == 4 || GET_MODE_SIZE (mode) == 8))
+	/* We can use flw/fld/fsw/fsd. */
 	return NO_REGS;
 
       if (GP_REG_P (regno) || x == CONST0_RTX (mode))
-	/* In this case we can use mtc1, mfc1, dmtc1 or dmfc1.  */
+	/* We can use fmv or go through memory when mode > Pmode. */
 	return NO_REGS;
 
       if (CONSTANT_P (x) && !targetm.cannot_force_const_mem (x))
-	/* We can force the constant to memory and use lwc1
-	   and ldc1.  As above, we will use pairs of lwc1s if
-	   ldc1 is not supported.  */
+	/* We can force the constant to memory and use flw/fld. */
 	return NO_REGS;
 
-      if (FP_REG_P (regno) && mips_mode_ok_for_mov_fmt_p (mode))
-	/* In this case we can use mov.fmt.  */
+      if (FP_REG_P (regno) && riscv_mode_ok_for_fsgnj_p (mode))
+	/* We can use fsgnj. */
 	return NO_REGS;
 
       /* Otherwise, we need to reload through an integer register.  */
@@ -4515,14 +4383,6 @@ mips_mode_rep_extended (enum machine_mode mode, enum machine_mode mode_rep)
     return SIGN_EXTEND;
 
   return UNKNOWN;
-}
-
-/* Implement TARGET_VALID_POINTER_MODE.  */
-
-static bool
-mips_valid_pointer_mode (enum machine_mode mode)
-{
-  return mode == SImode || (TARGET_64BIT && mode == DImode);
 }
 
 /* Implement TARGET_VECTOR_MODE_SUPPORTED_P.  */
@@ -4555,21 +4415,6 @@ mips_scalar_mode_supported_p (enum machine_mode mode)
     return true;
 
   return default_scalar_mode_supported_p (mode);
-}
-
-/* Implement TARGET_VECTORIZE_PREFERRED_SIMD_MODE.  */
-
-static enum machine_mode
-mips_preferred_simd_mode (enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  return word_mode;
-}
-
-/* Implement TARGET_INIT_LIBFUNCS.  */
-
-static void
-mips_init_libfuncs (void)
-{
 }
 
 /* Return the assembly code for INSN, which has the operands given by
@@ -4657,12 +4502,6 @@ struct mips_builtin_description {
 };
 
 static unsigned int
-mips_builtin_avail_cache (void)
-{
-  return 0;
-}
-
-static unsigned int
 mips_builtin_avail_riscv (void)
 {
   return 1;
@@ -4701,8 +4540,6 @@ mips_builtin_avail_riscv (void)
 		FUNCTION_TYPE, AVAIL)
 
 static const struct mips_builtin_description mips_builtins[] = {
-  DIRECT_NO_TARGET_BUILTIN (cache, MIPS_VOID_FTYPE_SI_CVPOINTER, cache),
-
   DIRECT_BUILTIN( riscv_vload_vdi, MIPS_VDI_FTYPE_CPOINTER, riscv ),
   DIRECT_BUILTIN( riscv_vload_vsi, MIPS_VSI_FTYPE_CPOINTER, riscv ),
   DIRECT_BUILTIN( riscv_vload_vhi, MIPS_VHI_FTYPE_CPOINTER, riscv ),
@@ -4755,26 +4592,11 @@ mips_builtin_vector_type (tree type, enum machine_mode mode)
   return types[mode_index];
 }
 
-/* Return a type for 'const volatile void *'.  */
-
-static tree
-mips_build_cvpointer_type (void)
-{
-  static tree cache;
-
-  if (cache == NULL_TREE)
-    cache = build_pointer_type (build_qualified_type
-				(void_type_node,
-				 TYPE_QUAL_CONST | TYPE_QUAL_VOLATILE));
-  return cache;
-}
-
 /* Source-level argument types.  */
 #define MIPS_ATYPE_VOID void_type_node
 #define MIPS_ATYPE_INT integer_type_node
 #define MIPS_ATYPE_POINTER ptr_type_node
 #define MIPS_ATYPE_CPOINTER const_ptr_type_node
-#define MIPS_ATYPE_CVPOINTER mips_build_cvpointer_type ()
 
 /* Standard mode-based argument types.  */
 #define MIPS_ATYPE_UQI unsigned_intQI_type_node
@@ -5666,8 +5488,6 @@ mips_function_rodata_section (tree decl)
 #undef TARGET_SET_CURRENT_FUNCTION
 #define TARGET_SET_CURRENT_FUNCTION mips_set_current_function
 
-#undef TARGET_VALID_POINTER_MODE
-#define TARGET_VALID_POINTER_MODE mips_valid_pointer_mode
 #undef TARGET_REGISTER_MOVE_COST
 #define TARGET_REGISTER_MOVE_COST mips_register_move_cost
 #undef TARGET_MEMORY_MOVE_COST
@@ -5685,9 +5505,6 @@ mips_function_rodata_section (tree decl)
 
 #undef TARGET_ASM_FILE_START_FILE_DIRECTIVE
 #define TARGET_ASM_FILE_START_FILE_DIRECTIVE true
-
-#undef TARGET_INIT_LIBFUNCS
-#define TARGET_INIT_LIBFUNCS mips_init_libfuncs
 
 #undef TARGET_EXPAND_BUILTIN_VA_START
 #define TARGET_EXPAND_BUILTIN_VA_START mips_va_start
@@ -5735,9 +5552,6 @@ mips_function_rodata_section (tree decl)
 
 #undef TARGET_SCALAR_MODE_SUPPORTED_P
 #define TARGET_SCALAR_MODE_SUPPORTED_P mips_scalar_mode_supported_p
-
-#undef TARGET_VECTORIZE_PREFERRED_SIMD_MODE
-#define TARGET_VECTORIZE_PREFERRED_SIMD_MODE mips_preferred_simd_mode
 
 #undef TARGET_INIT_BUILTINS
 #define TARGET_INIT_BUILTINS mips_init_builtins
