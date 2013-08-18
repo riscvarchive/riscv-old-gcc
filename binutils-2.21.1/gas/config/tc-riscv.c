@@ -876,7 +876,7 @@ struct regname {
 #define RNUM_MASK	0x000ff
 #define RWARN		0x80000
 
-#define GENERIC_REGISTER_NUMBERS \
+#define X_REGISTER_NUMBERS \
     {"x0",	RTYPE_NUM | 0},  \
     {"x1",	RTYPE_NUM | 1},  \
     {"x2",	RTYPE_NUM | 2},  \
@@ -910,7 +910,7 @@ struct regname {
     {"x30",	RTYPE_NUM | 30}, \
     {"x31",	RTYPE_NUM | 31} 
 
-#define FP_REGISTER_NAMES       \
+#define F_REGISTER_NUMBERS       \
     {"f0",	RTYPE_FPU | 0},  \
     {"f1",	RTYPE_FPU | 1},  \
     {"f2",	RTYPE_FPU | 2},  \
@@ -944,7 +944,7 @@ struct regname {
     {"f30",	RTYPE_FPU | 30}, \
     {"f31",	RTYPE_FPU | 31}
 
-#define CR_REGISTER_NUMBERS \
+#define PCR_REGISTER_NUMBERS \
     {"cr0",	RTYPE_CP0 | 0},  \
     {"cr1",	RTYPE_CP0 | 1},  \
     {"cr2",	RTYPE_CP0 | 2},  \
@@ -978,8 +978,28 @@ struct regname {
     {"cr30",	RTYPE_CP0 | 30}, \
     {"cr31",	RTYPE_CP0 | 31} 
 
+#define PCR_REGISTER_NAMES \
+    {"sup0",		RTYPE_CP0 | 0},  \
+    {"sup1",		RTYPE_CP0 | 1},  \
+    {"epc",		RTYPE_CP0 | 2},  \
+    {"badvaddr",	RTYPE_CP0 | 3},  \
+    {"ptbr",		RTYPE_CP0 | 4},  \
+    {"asid",		RTYPE_CP0 | 5},  \
+    {"count",		RTYPE_CP0 | 6},  \
+    {"compare",		RTYPE_CP0 | 7},  \
+    {"evec",		RTYPE_CP0 | 8},  \
+    {"cause",		RTYPE_CP0 | 9},  \
+    {"status",		RTYPE_CP0 | 10}, \
+    {"hartid",		RTYPE_CP0 | 11}, \
+    {"impl",		RTYPE_CP0 | 12}, \
+    {"fatc",		RTYPE_CP0 | 13}, \
+    {"send_ipi",	RTYPE_CP0 | 14}, \
+    {"clear_ipi",	RTYPE_CP0 | 15}, \
+    {"tohost",		RTYPE_CP0 | 30}, \
+    {"fromhost",	RTYPE_CP0 | 31} 
+
 /* Remaining symbolic register names */
-#define SYMBOLIC_REGISTER_NAMES \
+#define X_REGISTER_NAMES \
   { "zero",	 0 | RTYPE_GP }, \
   { "ra",	 1 | RTYPE_GP }, \
   { "s0",	 2 | RTYPE_GP }, \
@@ -1013,7 +1033,7 @@ struct regname {
   { "t4",	30 | RTYPE_GP }, \
   { "t5",	31 | RTYPE_GP }
 
-#define FP_SYMBOLIC_REGISTER_NAMES  \
+#define F_REGISTER_NAMES  \
   { "fs0",	 0 | RTYPE_FPU }, \
   { "fs1",	 1 | RTYPE_FPU }, \
   { "fs2",	 2 | RTYPE_FPU }, \
@@ -1150,16 +1170,17 @@ struct regname {
     {"vf31",	RTYPE_VFP_REG | 31}
 
 static const struct regname reg_names[] = {
-  GENERIC_REGISTER_NUMBERS,
-  FP_REGISTER_NAMES,
-  CR_REGISTER_NUMBERS,
+  X_REGISTER_NUMBERS,
+  X_REGISTER_NAMES,
 
-  SYMBOLIC_REGISTER_NAMES,
-  FP_SYMBOLIC_REGISTER_NAMES,
+  F_REGISTER_NUMBERS,
+  F_REGISTER_NAMES,
+
+  PCR_REGISTER_NUMBERS,
+  PCR_REGISTER_NAMES,
 
   RISCV_VEC_GR_REGISTER_NAMES,
   RISCV_VEC_FP_REGISTER_NAMES,
-
   RISCV_VEC_GR_SYMBOLIC_REGISTER_NAMES,
 
   {0, 0}

@@ -26,17 +26,8 @@
 #include "libiberty.h"
 #include "opcode/riscv.h"
 #include "opintl.h"
-
-/* FIXME: These are needed to figure out if the code is mips16 or
-   not. The low bit of the address is often a good indicator.  No
-   symbol table is available when this code runs out in an embedded
-   system as when it is used for disassembler support in a monitor.  */
-
-#if !defined(EMBEDDED_ENV)
-#define SYMTAB_AVAILABLE 1
 #include "elf-bfd.h"
 #include "elf/riscv.h"
-#endif
 
 #include <assert.h>
 
@@ -71,14 +62,6 @@ static const char* mips_fpr_names_abi[32] = {
   "fs8", "fs9", "fs10", "fs11", "fs12", "fs13", "fs14", "fs15",
   "fv0", "fv1", "fa0",   "fa1",  "fa2",  "fa3",  "fa4",  "fa5",
   "fa6", "fa7", "ft0",   "ft1",  "ft2",  "ft3",  "ft4",  "ft5"
-};
-
-static const char * const mips_cp0_names_numeric[32] =
-{
-  "$0",   "$1",   "$2",   "$3",   "$4",   "$5",   "$6",   "$7",
-  "$8",   "$9",   "$10",  "$11",  "$12",  "$13",  "$14",  "$15",
-  "$16",  "$17",  "$18",  "$19",  "$20",  "$21",  "$22",  "$23",
-  "$24",  "$25",  "$26",  "$27",  "$28",  "$29",  "$30",  "$31"
 };
 
 static const char * const mips_vgr_reg_names_riscv[32] =
@@ -118,29 +101,20 @@ struct mips_arch_choice
   unsigned long bfd_mach;
   int processor;
   int isa;
-  const char * const *cp0_names;
 };
 
 const struct mips_arch_choice mips_arch_choices[] =
 {
-  { "numeric",	0, 0, 0, 0,
-    mips_cp0_names_numeric },
-
-  { "rv32",	1, bfd_mach_riscv_rocket32, CPU_ROCKET32, ISA_RV32,
-    mips_cp0_names_numeric },
-
-  { "rv64",	1, bfd_mach_riscv_rocket64, CPU_ROCKET64, ISA_RV64,
-    mips_cp0_names_numeric },
+  { "numeric",	0, 0, 0, 0 },
+  { "rv32",	1, bfd_mach_riscv_rocket32, CPU_ROCKET32, ISA_RV32 },
+  { "rv64",	1, bfd_mach_riscv_rocket64, CPU_ROCKET64, ISA_RV64 },
 };
 
 /* ISA and processor type to disassemble for, and register names to use.
    set_default_mips_dis_options and parse_mips_dis_options fill in these
    values.  */
-static int mips_processor;
-static int mips_isa;
 static const char * const *mips_gpr_names;
 static const char * const *mips_fpr_names;
-static const char * const *mips_cp0_names;
 
 /* Other options */
 static int no_aliases;	/* If set disassemble as most general inst.  */
@@ -159,77 +133,12 @@ choose_abi_by_name (const char *name, unsigned int namelen)
   return c;
 }
 
-static const struct mips_arch_choice *
-choose_arch_by_name (const char *name, unsigned int namelen)
-{
-  const struct mips_arch_choice *c = NULL;
-  unsigned int i;
-
-  for (i = 0, c = NULL; i < ARRAY_SIZE (mips_arch_choices) && c == NULL; i++)
-    if (strncmp (mips_arch_choices[i].name, name, namelen) == 0
-	&& strlen (mips_arch_choices[i].name) == namelen)
-      c = &mips_arch_choices[i];
-
-  return c;
-}
-
-static const struct mips_arch_choice *
-choose_arch_by_number (unsigned long mach)
-{
-  static unsigned long hint_bfd_mach;
-  static const struct mips_arch_choice *hint_arch_choice;
-  const struct mips_arch_choice *c;
-  unsigned int i;
-
-  /* We optimize this because even if the user specifies no
-     flags, this will be done for every instruction!  */
-  if (hint_bfd_mach == mach
-      && hint_arch_choice != NULL
-      && hint_arch_choice->bfd_mach == hint_bfd_mach)
-    return hint_arch_choice;
-
-  for (i = 0, c = NULL; i < ARRAY_SIZE (mips_arch_choices) && c == NULL; i++)
-    {
-      if (mips_arch_choices[i].bfd_mach_valid
-	  && mips_arch_choices[i].bfd_mach == mach)
-	{
-	  c = &mips_arch_choices[i];
-	  hint_bfd_mach = mach;
-	  hint_arch_choice = c;
-	}
-    }
-  return c;
-}
-
 static void
-set_default_mips_dis_options (struct disassemble_info *info)
+set_default_mips_dis_options (struct disassemble_info *info ATTRIBUTE_UNUSED)
 {
-  const struct mips_arch_choice *chosen_arch;
-
-  /* Defaults: mipsIII/r3000 (?!), (o)32-style ("oldabi") GPR names,
-     and numeric FPR, CP0 register, and HWR names.  */
-  mips_isa = ISA_RV64;
-  mips_processor =  CPU_ROCKET64;
   mips_gpr_names = mips_gpr_names_abi;
   mips_fpr_names = mips_fpr_names_abi;
-  mips_cp0_names = mips_cp0_names_numeric;
   no_aliases = 0;
-
-  /* Set ISA, architecture, and cp0 register names as best we can.  */
-#if ! SYMTAB_AVAILABLE
-  /* This is running out on a target machine, not in a host tool.
-     FIXME: Where does mips_target_info come from?  */
-  target_processor = mips_target_info.processor;
-  mips_isa = mips_target_info.isa;
-#else
-  chosen_arch = choose_arch_by_number (info->mach);
-  if (chosen_arch != NULL)
-    {
-      mips_processor = chosen_arch->processor;
-      mips_isa = chosen_arch->isa;
-      mips_cp0_names = chosen_arch->cp0_names;
-    }
-#endif
 }
 
 static void
@@ -238,7 +147,6 @@ parse_mips_dis_option (const char *option, unsigned int len)
   unsigned int i, optionlen, vallen;
   const char *val;
   const struct mips_abi_choice *chosen_abi;
-  const struct mips_arch_choice *chosen_arch;
 
   /* Try to match options that are simple flags */
   if (CONST_STRNEQ (option, "no-aliases"))
@@ -278,43 +186,6 @@ parse_mips_dis_option (const char *option, unsigned int len)
       chosen_abi = choose_abi_by_name (val, vallen);
       if (chosen_abi != NULL)
 	mips_fpr_names = chosen_abi->fpr_names;
-      return;
-    }
-
-  if (strncmp ("cp0-names", option, optionlen) == 0
-      && strlen ("cp0-names") == optionlen)
-    {
-      chosen_arch = choose_arch_by_name (val, vallen);
-      if (chosen_arch != NULL)
-	{
-	  mips_cp0_names = chosen_arch->cp0_names;
-	}
-      return;
-    }
-
-  if (strncmp ("hwr-names", option, optionlen) == 0
-      && strlen ("hwr-names") == optionlen)
-    {
-      chosen_arch = choose_arch_by_name (val, vallen);
-      return;
-    }
-
-  if (strncmp ("reg-names", option, optionlen) == 0
-      && strlen ("reg-names") == optionlen)
-    {
-      /* We check both ABI and ARCH here unconditionally, so
-	 that "numeric" will do the desirable thing: select
-	 numeric register names for all registers.  Other than
-	 that, a given name probably won't match both.  */
-      chosen_abi = choose_abi_by_name (val, vallen);
-      if (chosen_abi != NULL)
-	{
-	  mips_gpr_names = chosen_abi->gpr_names;
-	  mips_fpr_names = chosen_abi->fpr_names;
-	}
-      chosen_arch = choose_arch_by_name (val, vallen);
-      if (chosen_arch != NULL)
-	mips_cp0_names = chosen_arch->cp0_names;
       return;
     }
 
@@ -575,12 +446,6 @@ print_insn_args (const char *d,
 	     numbers.  */
 	  (*info->fprintf_func) (info->stream, "cr%ld",
 				 (l >> OP_SH_RS) & OP_MASK_RS);
-	  break;
-
-	case 'G':
-	  /* Control registers */
-	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_cp0_names[(l >> OP_SH_RS) & OP_MASK_RS]);
 	  break;
 
 	default:
@@ -869,36 +734,10 @@ with the -M switch (multiple options should be separated by commas):\n"));
                            Default: numeric.\n"));
 
   fprintf (stream, _("\n\
-  cp0-names=ARCH           Print CP0 register names according to\n\
-                           specified architecture.\n\
-                           Default: based on binary being disassembled.\n"));
-
-  fprintf (stream, _("\n\
-  hwr-names=ARCH           Print HWR names according to specified \n\
-			   architecture.\n\
-                           Default: based on binary being disassembled.\n"));
-
-  fprintf (stream, _("\n\
-  reg-names=ABI            Print GPR and FPR names according to\n\
-                           specified ABI.\n"));
-
-  fprintf (stream, _("\n\
-  reg-names=ARCH           Print CP0 register and HWR names according to\n\
-                           specified architecture.\n"));
-
-  fprintf (stream, _("\n\
   For the options above, the following values are supported for \"ABI\":\n\
    "));
   for (i = 0; i < ARRAY_SIZE (mips_abi_choices); i++)
     fprintf (stream, " %s", mips_abi_choices[i].name);
-  fprintf (stream, _("\n"));
-
-  fprintf (stream, _("\n\
-  For the options above, The following values are supported for \"ARCH\":\n\
-   "));
-  for (i = 0; i < ARRAY_SIZE (mips_arch_choices); i++)
-    if (*mips_arch_choices[i].name != '\0')
-      fprintf (stream, " %s", mips_arch_choices[i].name);
   fprintf (stream, _("\n"));
 
   fprintf (stream, _("\n"));
