@@ -1754,20 +1754,9 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
 	     registers are sometimes cheaper than (D)MTC1 $0.  */
 	  if (cost == 1
 	      && outer_code == SET
+	      && code == CONST_INT
 	      && !(float_mode_p && TARGET_HARD_FLOAT))
 	    cost = 0;
-	  /* When non-MIPS16 code loads a constant N>1 times, we rarely
-	     want to CSE the constant itself.  It is usually better to
-	     have N copies of the last operation in the sequence and one
-	     shared copy of the other operations.  (Note that this is
-	     not true for MIPS16 code, where the final operation in the
-	     sequence is often an extended instruction.)
-
-	     Also, if we have a CONST_INT, we don't know whether it is
-	     for a word or doubleword operation, so we cannot rely on
-	     the result of riscv_build_integer.  */
-	  else if (outer_code == SET || mode == VOIDmode)
-	    cost = 1;
 	  *total = COSTS_N_INSNS (cost);
 	  return true;
 	}
