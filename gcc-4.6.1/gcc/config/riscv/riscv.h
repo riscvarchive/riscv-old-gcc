@@ -54,14 +54,6 @@ struct mips_cpu_info {
 /* True if we need to use a global offset table to access some symbols.  */
 #define TARGET_USE_GOT TARGET_ABICALLS
 
-/* True if the output must have a writable .eh_frame.
-   See ASM_PREFERRED_EH_DATA_FORMAT for details.  */
-#ifdef HAVE_LD_PERSONALITY_RELAXATION
-#define TARGET_WRITABLE_EH_FRAME 0
-#else
-#define TARGET_WRITABLE_EH_FRAME flag_pic
-#endif
-
 /* TARGET_HARD_FLOAT and TARGET_SOFT_FLOAT reflect whether the FPU is
    directly accessible, while the command-line options select
    TARGET_HARD_FLOAT_ABI and TARGET_SOFT_FLOAT_ABI to reflect the ABI
@@ -104,16 +96,9 @@ struct mips_cpu_info {
       else								\
 	builtin_define ("__riscv_soft_float");				\
 									\
-      if (TARGET_BIG_ENDIAN)						\
-	{								\
-	  builtin_define_std ("RISCVEB");				\
-	  builtin_define ("_RISCVEB");					\
-	}								\
-      else								\
-	{								\
-	  builtin_define_std ("RISCVEL");				\
-	  builtin_define ("_RISCVEL");					\
-	}								\
+      /* The base RISC-V ISA is always little-endian. */		\
+      builtin_define_std ("RISCVEL");					\
+      builtin_define ("_RISCVEL");					\
 									\
       /* Macros dependent on the C dialect.  */				\
       if (preprocessing_asm_p ())					\
@@ -153,20 +138,8 @@ struct mips_cpu_info {
 #define TARGET_CPU_DEFAULT 0
 #endif
 
-#ifndef TARGET_ENDIAN_DEFAULT
-#define TARGET_ENDIAN_DEFAULT 0
-#endif
-
 #ifndef MIPS_CPU_STRING_DEFAULT
 #define MIPS_CPU_STRING_DEFAULT "rocket"
-#endif
-
-#ifndef MULTILIB_ENDIAN_DEFAULT
-#if TARGET_ENDIAN_DEFAULT == 0
-#define MULTILIB_ENDIAN_DEFAULT "EL"
-#else
-#define MULTILIB_ENDIAN_DEFAULT "EB"
-#endif
 #endif
 
 #ifndef TARGET_64BIT_DEFAULT
@@ -185,20 +158,7 @@ struct mips_cpu_info {
 
 #ifndef MULTILIB_DEFAULTS
 #define MULTILIB_DEFAULTS \
-    { MULTILIB_ENDIAN_DEFAULT, MULTILIB_ARCH_DEFAULT }
-#endif
-
-/* We must pass -EL to the linker by default for little endian embedded
-   targets using linker scripts with a OUTPUT_FORMAT line.  Otherwise, the
-   linker will default to using big-endian output files.  The OUTPUT_FORMAT
-   line must be in the linker script, otherwise -EB/-EL will not work.  */
-
-#ifndef ENDIAN_SPEC
-#if TARGET_ENDIAN_DEFAULT == 0
-#define ENDIAN_SPEC "%{!EB:%{!meb:-EL}} %{EB|meb:-EB}"
-#else
-#define ENDIAN_SPEC "%{!EL:%{!mel:-EB}} %{EL|mel:-EL}"
-#endif
+    { MULTILIB_ARCH_DEFAULT }
 #endif
 
 /* A spec condition that matches all non-mips16 -mips arguments.  */
@@ -280,7 +240,7 @@ struct mips_cpu_info {
 
 #undef ASM_SPEC
 #define ASM_SPEC "\
-%{G*} %(endian_spec) \
+%{G*} \
 %(subtarget_asm_debugging_spec) \
 %{m32} %{m64} %{!m32:%{!m64: %(asm_abi_default_spec)}} \
 %{fPIC|fpic|fPIE|fpie:-fpic} \
@@ -292,9 +252,8 @@ struct mips_cpu_info {
 #ifndef LINK_SPEC
 #define LINK_SPEC "\
 %{!T:-dT riscv.ld} \
-%(endian_spec) \
-%{m64:-melf64%{EB:b}%{!EB:l}riscv} \
-%{m32:-melf32%{EB:b}%{!EB:l}riscv} \
+%{m64:-melf64lriscv} \
+%{m32:-melf32lriscv} \
 %{G*} %{mips1} %{mips2} %{mips3} %{mips4} %{mips32*} %{mips64*} \
 %{shared}"
 #endif  /* LINK_SPEC defined */
@@ -312,7 +271,6 @@ struct mips_cpu_info {
 
 #undef CC1_SPEC
 #define CC1_SPEC "\
-%{G*} %{EB:-meb} %{EL:-mel} %{EB:%{EL:%emay not use both -EB and -EL}} \
 %(subtarget_cc1_spec)"
 
 /* Preprocessor specs.  */
@@ -341,7 +299,6 @@ struct mips_cpu_info {
   { "subtarget_asm_debugging_spec", SUBTARGET_ASM_DEBUGGING_SPEC },	\
   { "subtarget_asm_spec", SUBTARGET_ASM_SPEC },				\
   { "asm_abi_default_spec", "-" MULTILIB_ARCH_DEFAULT },		\
-  { "endian_spec", ENDIAN_SPEC },					\
   SUBTARGET_EXTRA_SPECS
 
 #ifndef SUBTARGET_EXTRA_SPECS
@@ -400,8 +357,8 @@ struct mips_cpu_info {
 /* Target machine storage layout */
 
 #define BITS_BIG_ENDIAN 0
-#define BYTES_BIG_ENDIAN (TARGET_BIG_ENDIAN != 0)
-#define WORDS_BIG_ENDIAN (TARGET_BIG_ENDIAN != 0)
+#define BYTES_BIG_ENDIAN 0
+#define WORDS_BIG_ENDIAN 0
 
 #define MAX_BITS_PER_WORD 64
 
@@ -550,9 +507,6 @@ struct mips_cpu_info {
    optimised to use word loads. */
 #define LOCAL_ALIGNMENT(TYPE, ALIGN) \
   DATA_ALIGNMENT (TYPE, ALIGN)
-  
-#define PAD_VARARGS_DOWN \
-  (FUNCTION_ARG_PADDING (TYPE_MODE (type), type) == downward)
 
 /* Define if operations between registers always perform the operation
    on the full register even if a narrower mode is specified.  */
@@ -1053,12 +1007,6 @@ typedef struct mips_args {
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
   mips_init_cumulative_args (&CUM, FNTYPE)
 
-#define FUNCTION_ARG_PADDING(MODE, TYPE) \
-  (mips_pad_arg_upward (MODE, TYPE) ? upward : downward)
-
-#define BLOCK_REG_PADDING(MODE, TYPE, FIRST) \
-  (mips_pad_reg_upward (MODE, TYPE) ? upward : downward)
-
 
 #define EPILOGUE_USES(REGNO)	mips_epilogue_uses (REGNO)
 
@@ -1529,36 +1477,9 @@ while (0)
 
 extern const enum reg_class mips_regno_to_class[];
 extern bool mips_hard_regno_mode_ok[][FIRST_PSEUDO_REGISTER];
-extern const char *current_function_file; /* filename current function is in */
-extern int num_source_filenames;	/* current .file # */
 extern bool mips_split_p[];
-extern enum processor mips_arch;        /* which cpu to codegen for */
 extern enum processor mips_tune;        /* which cpu to schedule for */
 #endif
 
-/* As on most targets, we want the .eh_frame section to be read-only where
-   possible.  And as on most targets, this means two things:
-
-     (a) Non-locally-binding pointers must have an indirect encoding,
-	 so that the addresses in the .eh_frame section itself become
-	 locally-binding.
-
-     (b) A shared library's .eh_frame section must encode locally-binding
-	 pointers in a relative (relocation-free) form.
-
-   However, MIPS has traditionally not allowed directives like:
-
-	.long	x-.
-
-   in cases where "x" is in a different section, or is not defined in the
-   same assembly file.  We are therefore unable to emit the PC-relative
-   form required by (b) at assembly time.
-
-   Fortunately, the linker is able to convert absolute addresses into
-   PC-relative addresses on our behalf.  Unfortunately, only certain
-   versions of the linker know how to do this for indirect pointers,
-   and for personality data.  We must fall back on using writable
-   .eh_frame sections for shared libraries if the linker does not
-   support this feature.  */
 #define ASM_PREFERRED_EH_DATA_FORMAT(CODE,GLOBAL) \
   (((GLOBAL) ? DW_EH_PE_indirect : 0) | DW_EH_PE_absptr)

@@ -25,11 +25,7 @@ along with GCC; see the file COPYING3.  If not see
 #define WCHAR_TYPE_SIZE 32
 
 #undef TARGET_VERSION
-#if TARGET_ENDIAN_DEFAULT == 0
-#define TARGET_VERSION fprintf (stderr, " (RISC-V LE Linux/ELF)");
-#else
-#define TARGET_VERSION fprintf (stderr, " (RISC-V BE Linux/ELF)");
-#endif
+#define TARGET_VERSION fprintf (stderr, " (RISC-V Linux/ELF)");
 
 /* If we don't set MASK_ABICALLS, we can't default to PIC.  */
 #undef TARGET_DEFAULT
@@ -57,8 +53,7 @@ along with GCC; see the file COPYING3.  If not see
 /* Borrowed from sparc/linux.h */
 #undef LINK_SPEC
 #define LINK_SPEC \
- "%(endian_spec) \
-  %{shared:-shared} \
+  "%{shared:-shared} \
   %{!shared: \
     %{!static: \
       %{rdynamic:-export-dynamic} \

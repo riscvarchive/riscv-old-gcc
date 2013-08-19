@@ -73,8 +73,6 @@ static int mips_output_flavor (void) { return OUTPUT_FLAVOR; }
 #define ZERO 0
 #define SP 14
 
-extern int target_big_endian;
-
 /* Information about an instruction, including its format, operands
    and fixups.  */
 struct mips_cl_insn
@@ -2651,16 +2649,13 @@ my_getExpression (expressionS *ep, char *str)
 char *
 md_atof (int type, char *litP, int *sizeP)
 {
-  return ieee_md_atof (type, litP, sizeP, target_big_endian);
+  return ieee_md_atof (type, litP, sizeP, TARGET_BYTES_BIG_ENDIAN);
 }
 
 void
 md_number_to_chars (char *buf, valueT val, int n)
 {
-  if (target_big_endian)
-    number_to_chars_bigendian (buf, val, n);
-  else
-    number_to_chars_littleendian (buf, val, n);
+  number_to_chars_littleendian (buf, val, n);
 }
 
 const char *md_shortopts = "O::g::G:";
@@ -2672,8 +2667,6 @@ enum options
     OPTION_MARCH,
     OPTION_PIC,
     OPTION_NO_PIC,
-    OPTION_EB,
-    OPTION_EL,
     OPTION_MRVC,
     OPTION_MNO_RVC,
     OPTION_END_OF_ENUM    
@@ -2687,8 +2680,6 @@ struct option md_longopts[] =
   {"fPIC", no_argument, NULL, OPTION_PIC},
   {"fpic", no_argument, NULL, OPTION_PIC},
   {"fno-pic", no_argument, NULL, OPTION_NO_PIC},
-  {"EB", no_argument, NULL, OPTION_EB},
-  {"EL", no_argument, NULL, OPTION_EL},
   {"mrvc", no_argument, NULL, OPTION_MRVC},
   {"mno-rvc", no_argument, NULL, OPTION_MNO_RVC},
 
@@ -2701,14 +2692,6 @@ md_parse_option (int c, char *arg)
 {
   switch (c)
     {
-    case OPTION_EB:
-      target_big_endian = 1;
-      break;
-
-    case OPTION_EL:
-      target_big_endian = 0;
-      break;
-
     case 'g':
       if (arg == NULL)
 	mips_debug = 2;
@@ -2827,10 +2810,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
   if (fixP->fx_addsy == NULL && !fixP->fx_pcrel && fixP->fx_tcbit == 0)
     fixP->fx_done = 1;
 
-  if (target_big_endian)
-    insn = (buf[0] << 24) | (buf[1] << 16) | (buf[2] << 8) | buf[3];
-  else
-    insn = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
+  insn = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
 
   switch (fixP->fx_r_type)
     {
@@ -2881,10 +2861,8 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 		hiv = 0xffffffff;
 	      else
 		hiv = 0;
-	      md_number_to_chars ((char *)(buf + (target_big_endian ? 4 : 0)),
-				  *valP, 4);
-	      md_number_to_chars ((char *)(buf + (target_big_endian ? 0 : 4)),
-				  hiv, 4);
+	      md_number_to_chars ((char *)buf, *valP, 4);
+	      md_number_to_chars ((char *)buf + 4, hiv, 4);
 	    }
 	}
       break;
@@ -3468,11 +3446,7 @@ md_convert_frag_branch (bfd *abfd ATTRIBUTE_UNUSED, segT asec ATTRIBUTE_UNUSED,
   bfd_reloc_code_real_type reloc_type = BFD_RELOC_16_PCREL_S2;
 
   buf = (bfd_byte *)fragp->fr_literal + fragp->fr_fix;
-
-  if (target_big_endian)
-    insn = bfd_getb16 (buf);
-  else
-    insn = bfd_getl16 (buf);
+  insn = bfd_getl16 (buf);
 
   if (!RELAX_BRANCH_TOOFAR (fragp->fr_subtype))
     {

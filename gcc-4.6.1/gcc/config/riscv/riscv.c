@@ -2019,9 +2019,8 @@ mips_address_cost (rtx addr, bool speed ATTRIBUTE_UNUSED)
   return mips_address_insns (addr, SImode, false);
 }
 
-/* Return one word of double-word value OP, taking into account the fixed
-   endianness of certain registers.  HIGH_P is true to select the high part,
-   false to select the low part.  */
+/* Return one word of double-word value OP.  HIGH_P is true to select the
+   high part or false to select the low part. */
 
 rtx
 mips_subword (rtx op, bool high_p)
@@ -2033,17 +2032,10 @@ mips_subword (rtx op, bool high_p)
   if (mode == VOIDmode)
     mode = TARGET_64BIT ? TImode : DImode;
 
-  if (TARGET_BIG_ENDIAN ? !high_p : high_p)
-    byte = UNITS_PER_WORD;
-  else
-    byte = 0;
+  byte = high_p ? UNITS_PER_WORD : 0;
 
   if (FP_REG_RTX_P (op))
-    {
-      /* Paired FPRs are always ordered little-endian.  */
-      offset = (UNITS_PER_WORD < UNITS_PER_HWFPVALUE ? high_p : byte != 0);
-      return gen_rtx_REG (word_mode, REGNO (op) + offset);
-    }
+    return gen_rtx_REG (word_mode, REGNO (op) + high_p);
 
   if (MEM_P (op))
     return adjust_address (op, word_mode, byte);
@@ -2712,48 +2704,6 @@ mips_function_arg_boundary (enum machine_mode mode, const_tree type)
   return alignment;
 }
 
-/* Return true if FUNCTION_ARG_PADDING (MODE, TYPE) should return
-   upward rather than downward.  In other words, return true if the
-   first byte of the stack slot has useful data, false if the last
-   byte does.  */
-
-bool
-mips_pad_arg_upward (enum machine_mode mode, const_tree type)
-{
-  /* On little-endian targets, the first byte of every stack argument
-     is passed in the first byte of the stack slot.  */
-  if (!BYTES_BIG_ENDIAN)
-    return true;
-
-  /* Otherwise, integral types are padded downward: the last byte of a
-     stack argument is passed in the last byte of the stack slot.  */
-  if (type != 0
-      ? (INTEGRAL_TYPE_P (type)
-	 || POINTER_TYPE_P (type)
-	 || FIXED_POINT_TYPE_P (type))
-      : (SCALAR_INT_MODE_P (mode)
-	 || ALL_SCALAR_FIXED_POINT_MODE_P (mode)))
-    return false;
-
-  return true;
-}
-
-/* Likewise BLOCK_REG_PADDING (MODE, TYPE, ...).  Return !BYTES_BIG_ENDIAN
-   if the least significant byte of the register has useful data.  Return
-   the opposite if the most significant byte does.  */
-
-bool
-mips_pad_reg_upward (enum machine_mode mode, tree type)
-{
-  /* No shifting is required for floating-point arguments.  */
-  if (type != 0 ? FLOAT_TYPE_P (type) : GET_MODE_CLASS (mode) == MODE_FLOAT)
-    return !BYTES_BIG_ENDIAN;
-
-  /* Otherwise, apply the same padding to register arguments as we do
-     to stack arguments.  */
-  return mips_pad_arg_upward (mode, type);
-}
-
 /* See whether VALTYPE is a record whose fields should be returned in
    floating-point registers.  If so, return the number of fields and
    list them in FIELDS (which should have two elements).  Return 0
@@ -3235,9 +3185,6 @@ mips_print_operand_reloc (FILE *file, rtx op, const char **relocs)
    'C'	Print the integer branch condition for comparison OP.
    'N'	Print the inverse of the integer branch condition for comparison OP.
    'S'	Print the swapped integer branch condition for comparison OP.
-   'D'	Print the second part of a double-word register or memory operand.
-   'L'	Print the low-order register in a double-word register operand.
-   'M'	Print high-order register in a double-word register operand.
    'z'	Print $0 if OP is zero, otherwise print OP normally.  */
 
 static void
@@ -3277,23 +3224,14 @@ mips_print_operand (FILE *file, rtx op, int letter)
       switch (code)
 	{
 	case REG:
-	  {
-	    unsigned int regno = REGNO (op);
-	    if ((letter == 'M' && TARGET_LITTLE_ENDIAN)
-		|| (letter == 'L' && TARGET_BIG_ENDIAN)
-		|| letter == 'D')
-	      regno++;
-	    else if (letter && letter != 'z' && letter != 'M' && letter != 'L')
-	      output_operand_lossage ("invalid use of '%%%c'", letter);
-	    fprintf (file, "%s", reg_names[regno]);
-	  }
+	  if (letter && letter != 'z')
+	    output_operand_lossage ("invalid use of '%%%c'", letter);
+	  fprintf (file, "%s", reg_names[REGNO (op)]);
 	  break;
 
 	case MEM:
 	  if (letter == 'y')
 	    fprintf (file, "%s", reg_names[REGNO(XEXP(op, 0))]);
-	  else if (letter && letter == 'D')
-	    output_address (plus_constant (XEXP (op, 0), 4));
 	  else if (letter && letter != 'z')
 	    output_operand_lossage ("invalid use of '%%%c'", letter);
 	  else
@@ -5084,11 +5022,6 @@ mips_option_override (void)
   REAL_MODE_FORMAT (TFmode) = &MIPS_TFMODE_FORMAT;
 #endif
 
-  /* .cfi_* directives generate a read-only section, so fall back on
-     manual .eh_frame creation if we need the section to be writable.  */
-  if (TARGET_WRITABLE_EH_FRAME)
-    flag_dwarf2_cfi_asm = 0;
-
   /* Set up mips_hard_regno_mode_ok.  */
   for (mode = 0; mode < MAX_MACHINE_MODE; mode++)
     for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
@@ -5376,8 +5309,7 @@ mips_function_rodata_section (tree decl)
 #define TARGET_DEFAULT_TARGET_FLAGS		\
   (TARGET_DEFAULT				\
    | TARGET_CPU_DEFAULT				\
-   | (TARGET_64BIT_DEFAULT ? 0 : MASK_32BIT)	\
-   | TARGET_ENDIAN_DEFAULT)
+   | (TARGET_64BIT_DEFAULT ? 0 : MASK_32BIT))
 #undef TARGET_HANDLE_OPTION
 #define TARGET_HANDLE_OPTION mips_handle_option
 

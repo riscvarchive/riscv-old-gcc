@@ -18,12 +18,6 @@
 ; along with GCC; see the file COPYING3.  If not see
 ; <http://www.gnu.org/licenses/>.
 
-EB
-Driver
-
-EL
-Driver
-
 m32
 Target RejectNegative Mask(32BIT)
 Generate RV32 code
@@ -39,14 +33,6 @@ Generate code that can be used in SVR4-style dynamic objects
 mbranch-cost=
 Target RejectNegative Joined UInteger Var(mips_branch_cost)
 -mbranch-cost=COST	Set the cost of branches to roughly COST instructions
-
-meb
-Target Report RejectNegative Mask(BIG_ENDIAN)
-Use big-endian byte order
-
-mel
-Target Report RejectNegative InverseMask(BIG_ENDIAN, LITTLE_ENDIAN)
-Use little-endian byte order
 
 mhard-float
 Target Report RejectNegative InverseMask(SOFT_FLOAT_ABI, HARD_FLOAT_ABI)

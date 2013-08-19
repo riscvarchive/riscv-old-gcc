@@ -19,12 +19,11 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-/* Force the default endianness and ABI flags onto the command line
+/* Force the default ABI flags onto the command line
    in order to make the other specs easier to write.  */
 #undef DRIVER_SELF_SPECS
 #define DRIVER_SELF_SPECS \
   LINUX_DRIVER_SELF_SPECS \
-  " %{!EB:%{!EL:%(endian_spec)}}" \
   " %{" OPT_ARCH32 ": -m32} %{" OPT_ARCH64 ": -m64}" \
 
 #undef LIB_SPEC
@@ -39,17 +38,16 @@ along with GCC; see the file COPYING3.  If not see
 
 #undef LINK_SPEC
 #define LINK_SPEC "\
-%{G*} %{EB} %{EL} %{mips1} %{mips2} %{mips3} %{mips4} \
+%{G*} \
 %{shared} \
- %(endian_spec) \
   %{!shared: \
     %{!static: \
       %{rdynamic:-export-dynamic} \
       %{" OPT_ARCH64 ": -dynamic-linker " LINUX_DYNAMIC_LINKER64 "} \
       %{" OPT_ARCH32 ": -dynamic-linker " LINUX_DYNAMIC_LINKER32 "}} \
     %{static:-static}} \
-%{" OPT_ARCH64 ":-melf64%{EB:b}%{EL:l}riscv} \
-%{" OPT_ARCH32 ":-melf32%{EB:b}%{EL:l}riscv}"
+%{" OPT_ARCH64 ":-melf64lriscv} \
+%{" OPT_ARCH32 ":-melf32lriscv}"
 
 /* GNU/Linux doesn't use the same floating-point format that IRIX uses
    for long double.  There's no need to override this here, since

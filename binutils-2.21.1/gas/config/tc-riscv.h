@@ -30,10 +30,7 @@
 struct frag;
 struct expressionS;
 
-/* Default to big endian.  */
-#ifndef TARGET_BYTES_BIG_ENDIAN
-#define TARGET_BYTES_BIG_ENDIAN		1
-#endif
+#define TARGET_BYTES_BIG_ENDIAN 0
 
 #define TARGET_ARCH bfd_arch_riscv
 
@@ -68,8 +65,7 @@ struct mips_segment_info {
 /* This field is nonzero if the symbol is the target of a MIPS16 jump.  */
 #define TC_SYMFIELD_TYPE int
 
-/* The endianness of the target format may change based on command
-   line arguments.  */
+/* The ISA of the target may change based on command-line arguments.  */
 #define TARGET_FORMAT mips_target_format()
 extern const char *mips_target_format (void);
 
