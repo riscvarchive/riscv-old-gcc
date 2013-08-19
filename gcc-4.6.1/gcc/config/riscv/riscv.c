@@ -3349,46 +3349,6 @@ mips_output_dwarf_dtprel (FILE *file, int size, rtx x)
   fputs ("+0x8000", file);
 }
 
-/* Implement ASM_OUTPUT_ASCII.  */
-
-void
-mips_output_ascii (FILE *stream, const char *string, size_t len)
-{
-  size_t i;
-  int cur_pos;
-
-  cur_pos = 17;
-  fprintf (stream, "\t.ascii\t\"");
-  for (i = 0; i < len; i++)
-    {
-      int c;
-
-      c = (unsigned char) string[i];
-      if (ISPRINT (c))
-	{
-	  if (c == '\\' || c == '\"')
-	    {
-	      putc ('\\', stream);
-	      cur_pos++;
-	    }
-	  putc (c, stream);
-	  cur_pos++;
-	}
-      else
-	{
-	  fprintf (stream, "\\%03o", c);
-	  cur_pos += 4;
-	}
-
-      if (cur_pos > 72 && i+1 < len)
-	{
-	  cur_pos = 17;
-	  fprintf (stream, "\"\n\t.ascii\t\"");
-	}
-    }
-  fprintf (stream, "\"\n");
-}
-
 /* Make the last instruction frame-related and note that it performs
    the operation described by FRAME_PATTERN.  */
 
@@ -3713,24 +3673,6 @@ mips_emit_save_slot_move (rtx dest, rtx src, rtx temp)
     }
   if (MEM_P (dest))
     mips_set_frame_expr (mips_frame_set (dest, src));
-}
-
-/* Implement TARGET_OUTPUT_FUNCTION_PROLOGUE.  */
-
-static void
-mips_output_function_prologue (FILE *file ATTRIBUTE_UNUSED,
-                               HOST_WIDE_INT size ATTRIBUTE_UNUSED)
-{
-  const char *fnname;
-
-  /* Get the function name the same way that toplev.c does before calling
-     assemble_start_function.  This is needed so that the name used here
-     exactly matches the name used in ASM_DECLARE_FUNCTION_NAME.  */
-  fnname = XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0);
-
-  ASM_OUTPUT_TYPE_DIRECTIVE (asm_out_file, fnname, "function");
-  assemble_name (asm_out_file, fnname);
-  fputs (":\n", asm_out_file);
 }
 
 /* Save register REG to MEM.  Make the instruction frame-related.  */
@@ -5241,44 +5183,6 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
   gcc_unreachable();
 }
 
-/* Implement TARGET_ASM_FUNCTION_RODATA_SECTION.
-
-   The complication here is that, with the combination TARGET_ABICALLS
-   && !TARGET_ABSOLUTE_ABICALLS && !TARGET_GPWORD, jump tables will use
-   absolute addresses, and should therefore not be included in the
-   read-only part of a DSO.  Handle such cases by selecting a normal
-   data section instead of a read-only one.  The logic apes that in
-   default_function_rodata_section.  */
-
-static section *
-mips_function_rodata_section (tree decl)
-{
-  if (!TARGET_ABICALLS)
-    return default_function_rodata_section (decl);
-
-  if (decl && DECL_SECTION_NAME (decl))
-    {
-      const char *name = TREE_STRING_POINTER (DECL_SECTION_NAME (decl));
-      if (DECL_ONE_ONLY (decl) && strncmp (name, ".gnu.linkonce.t.", 16) == 0)
-	{
-	  char *rname = ASTRDUP (name);
-	  rname[14] = 'd';
-	  return get_section (rname, SECTION_LINKONCE | SECTION_WRITE, decl);
-	}
-      else if (flag_function_sections
-	       && flag_data_sections
-	       && strncmp (name, ".text.", 6) == 0)
-	{
-	  char *rname = ASTRDUP (name);
-	  memcpy (rname + 1, "data", 4);
-	  return get_section (rname, SECTION_WRITE, decl);
-	}
-    }
-  return data_section;
-}
-
-
-
 /* Initialize the GCC target structure.  */
 #undef TARGET_ASM_ALIGNED_HI_OP
 #define TARGET_ASM_ALIGNED_HI_OP "\t.half\t"
@@ -5294,11 +5198,6 @@ mips_function_rodata_section (tree decl)
 
 #undef TARGET_LEGITIMIZE_ADDRESS
 #define TARGET_LEGITIMIZE_ADDRESS mips_legitimize_address
-
-#undef TARGET_ASM_FUNCTION_PROLOGUE
-#define TARGET_ASM_FUNCTION_PROLOGUE mips_output_function_prologue
-#undef TARGET_ASM_FUNCTION_RODATA_SECTION
-#define TARGET_ASM_FUNCTION_RODATA_SECTION mips_function_rodata_section
 
 #undef TARGET_SCHED_ADJUST_COST
 #define TARGET_SCHED_ADJUST_COST mips_adjust_cost

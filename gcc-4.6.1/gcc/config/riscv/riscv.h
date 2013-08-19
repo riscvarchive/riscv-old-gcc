@@ -1111,9 +1111,7 @@ typedef struct mips_args {
 #define DEFAULT_SIGNED_CHAR 1
 #endif
 
-/* Although LDC1 and SDC1 provide 64-bit moves on 32-bit targets,
-   we generally don't want to use them for copying arbitrary data.
-   A single N-word move is usually the same cost as N single-word moves.  */
+/* Consider using fld/fsd to move 8 bytes at a time for RV32IFD. */
 #define MOVE_MAX UNITS_PER_WORD
 #define MAX_MOVE_MAX 8
 
@@ -1139,15 +1137,6 @@ typedef struct mips_args {
    for both 32-bit and 64-bit targets.  */
 
 #define FUNCTION_MODE SImode
-
-
-
-/* Define if copies to/from condition code registers should be avoided.
-
-   This is needed for the MIPS because reload_outcc is not complete;
-   it needs to handle cases where the source is a general or another
-   condition code register.  */
-#define AVOID_CCMODE_COPIES
 
 /* A C expression for the cost of a branch instruction.  A value of
    1 is the default; other values are interpreted relative to that.  */
@@ -1264,15 +1253,6 @@ typedef struct mips_args {
 /* Globalizing directive for a label.  */
 #define GLOBAL_ASM_OP "\t.globl\t"
 
-/* This is how to declare a function name.  The actual work of
-   emitting the label is moved to function_prologue, so that we can
-   get the line number correctly emitted before the .ent directive,
-   and after any .file directives.  Define as empty so that the function
-   is not declared before the .ent directive elsewhere.  */
-
-#undef ASM_DECLARE_FUNCTION_NAME
-#define ASM_DECLARE_FUNCTION_NAME(STREAM,NAME,DECL)
-
 /* This is how to store into the string LABEL
    the symbol_ref name of an internal numbered label where
    PREFIX is the class of label and NUM is the number within the class.
@@ -1281,32 +1261,6 @@ typedef struct mips_args {
 #undef ASM_GENERATE_INTERNAL_LABEL
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)			\
   sprintf ((LABEL), "*%s%s%ld", (LOCAL_LABEL_PREFIX), (PREFIX), (long)(NUM))
-
-/* Print debug labels as "foo = ." rather than "foo:" because they should
-   represent a byte pointer rather than an ISA-encoded address.  This is
-   particularly important for code like:
-
-	$LFBxxx = .
-		.cfi_startproc
-		...
-		.section .gcc_except_table,...
-		...
-		.uleb128 foo-$LFBxxx
-
-   The .uleb128 requies $LFBxxx to match the FDE start address, which is
-   likewise a byte pointer rather than an ISA-encoded address.
-
-   At the time of writing, this hook is not used for the function end
-   label:
-
-   	$LFExxx:
-		.end foo
-
-   But this doesn't matter, because GAS doesn't treat a pre-.end label
-   as a MIPS16 one anyway.  */
-
-#define ASM_OUTPUT_DEBUG_LABEL(FILE, PREFIX, NUM)			\
-  fprintf (FILE, "%s%s%d = .\n", LOCAL_LABEL_PREFIX, PREFIX, NUM)
 
 /* This is how to output an element of a case-vector that is absolute.  */
 
@@ -1327,33 +1281,20 @@ do {									\
 	   LOCAL_LABEL_PREFIX, VALUE);					\
 } while (0)
 
+/* Don't put jump tables in .rodata for PIC.  We need to relocate them. */
+#undef ASM_OUTPUT_BEFORE_CASE_LABEL
+#define ASM_OUTPUT_BEFORE_CASE_LABEL(FILE, PREFIX, NUM, TABLE) \
+  if (flag_pic) { \
+    fprintf (FILE, "%s\n", DATA_SECTION_ASM_OP); \
+    ASM_OUTPUT_ALIGN (FILE, exact_log2 (POINTER_SIZE/8)); \
+  }
+
 /* This is how to output an assembler line
    that says to advance the location counter
    to a multiple of 2**LOG bytes.  */
 
 #define ASM_OUTPUT_ALIGN(STREAM,LOG)					\
   fprintf (STREAM, "\t.align\t%d\n", (LOG))
-
-/* This is how to output an assembler line to advance the location
-   counter by SIZE bytes.  */
-
-#undef ASM_OUTPUT_SKIP
-#define ASM_OUTPUT_SKIP(STREAM,SIZE)					\
-  fprintf (STREAM, "\t.space\t"HOST_WIDE_INT_PRINT_UNSIGNED"\n", (SIZE))
-
-/* This is how to output a string.  */
-#undef ASM_OUTPUT_ASCII
-#define ASM_OUTPUT_ASCII mips_output_ascii
-
-/* Output #ident as a in the read-only data section.  */
-#undef  ASM_OUTPUT_IDENT
-#define ASM_OUTPUT_IDENT(FILE, STRING)					\
-{									\
-  const char *p = STRING;						\
-  int size = strlen (p) + 1;						\
-  switch_to_section (readonly_data_section);				\
-  assemble_string (p, size);						\
-}
 
 /* Define the strings to put out for each section in the object file.  */
 #define TEXT_SECTION_ASM_OP	"\t.text"	/* instructions */
@@ -1388,7 +1329,7 @@ while (0)
 #ifndef ASM_COMMENT_START
 #define ASM_COMMENT_START " #"
 #endif
-
+
 #undef SIZE_TYPE
 #define SIZE_TYPE (POINTER_SIZE == 64 ? "long unsigned int" : "unsigned int")
 

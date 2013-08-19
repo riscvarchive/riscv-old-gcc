@@ -87,9 +87,6 @@ extern bool mips_expand_ins_as_unaligned_store (rtx, rtx, HOST_WIDE_INT,
 extern void mips_order_regs_for_local_alloc (void);
 extern HOST_WIDE_INT mips_debugger_offset (rtx, HOST_WIDE_INT);
 
-extern void mips_output_external (FILE *, tree, const char *);
-extern void mips_output_ascii (FILE *, const char *, size_t);
-
 extern HOST_WIDE_INT mips_initial_elimination_offset (int, int);
 extern rtx mips_return_addr (int, rtx);
 extern void mips_emit_save_slot_move (rtx, rtx, rtx);
