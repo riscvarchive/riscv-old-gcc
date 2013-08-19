@@ -371,6 +371,7 @@
 ;; This mode iterator allows 32-bit and 64-bit GPR patterns to be generated
 ;; from the same template.
 (define_mode_iterator GPR [SI (DI "TARGET_64BIT")])
+(define_mode_iterator SUPERQI [HI SI (DI "TARGET_64BIT")])
 
 ;; A copy of GPR that can be used when a pattern has two independent
 ;; modes.
@@ -415,9 +416,6 @@
 ;; This attribute gives the length suffix for a sign- or zero-extension
 ;; instruction.
 (define_mode_attr size [(QI "b") (HI "h")])
-
-;; This attributes gives the mode mask of a SHORT.
-(define_mode_attr mask [(QI "0x00ff") (HI "0xffff")])
 
 ;; Mode attributes for GPR loads.
 (define_mode_attr load [(SI "lw") (DI "ld")])
@@ -1336,8 +1334,6 @@
 ;;
 ;;  ....................
 
-
-
 (define_insn "truncdfsf2"
   [(set (match_operand:SF 0 "register_operand" "=f")
 	(float_truncate:SF (match_operand:DF 1 "register_operand" "f")))]
@@ -1539,26 +1535,16 @@
   [(set_attr "move_type" "shift_shift,load")
    (set_attr "mode" "<GPR:MODE>")])
 
-(define_insn "zero_extendqi<GPR:mode>2"
-  [(set (match_operand:GPR 0 "register_operand" "=d,d")
-        (zero_extend:GPR
+(define_insn "zero_extendqi<SUPERQI:mode>2"
+  [(set (match_operand:SUPERQI 0 "register_operand" "=d,d")
+        (zero_extend:SUPERQI
 	     (match_operand:QI 1 "nonimmediate_operand" "d,m")))]
   ""
   "@
    and\t%0,%1,0xff
    lbu\t%0,%1"
   [(set_attr "move_type" "andi,load")
-   (set_attr "mode" "<GPR:MODE>")])
-
-(define_insn "zero_extendqihi2"
-  [(set (match_operand:HI 0 "register_operand" "=d,d")
-        (zero_extend:HI (match_operand:QI 1 "nonimmediate_operand" "d,m")))]
-  ""
-  "@
-   andi\t%0,%1,0x00ff
-   lbu\t%0,%1"
-  [(set_attr "move_type" "andi,load")
-   (set_attr "mode" "HI")])
+   (set_attr "mode" "<SUPERQI:MODE>")])
 
 ;;
 ;;  ....................
@@ -1594,44 +1580,24 @@
   [(set_attr "move_type" "move,load")
    (set_attr "mode" "DI")])
 
-(define_insn_and_split "extend<SHORT:mode><GPR:mode>2"
-  [(set (match_operand:GPR 0 "register_operand" "=d,d")
-        (sign_extend:GPR
+(define_insn_and_split "extend<SHORT:mode><SUPERQI:mode>2"
+  [(set (match_operand:SUPERQI 0 "register_operand" "=d,d")
+        (sign_extend:SUPERQI
 	     (match_operand:SHORT 1 "nonimmediate_operand" "d,m")))]
   ""
   "@
    #
    l<SHORT:size>\t%0,%1"
   "&& reload_completed && REG_P (operands[1])"
-  [(set (match_dup 0) (ashift:GPR (match_dup 1) (match_dup 2)))
-   (set (match_dup 0) (ashiftrt:GPR (match_dup 0) (match_dup 2)))]
+  [(set (match_dup 0) (ashift:SUPERQI (match_dup 1) (match_dup 2)))
+   (set (match_dup 0) (ashiftrt:SUPERQI (match_dup 0) (match_dup 2)))]
 {
-  operands[1] = gen_lowpart (<GPR:MODE>mode, operands[1]);
-  operands[2] = GEN_INT (GET_MODE_BITSIZE (<GPR:MODE>mode)
+  operands[1] = gen_lowpart (<SUPERQI:MODE>mode, operands[1]);
+  operands[2] = GEN_INT (GET_MODE_BITSIZE (<SUPERQI:MODE>mode)
 			 - GET_MODE_BITSIZE (<SHORT:MODE>mode));
 }
   [(set_attr "move_type" "shift_shift,load")
-   (set_attr "mode" "<GPR:MODE>")])
-
-(define_insn_and_split "extendqihi2"
-  [(set (match_operand:HI 0 "register_operand" "=d,d")
-        (sign_extend:HI
-	     (match_operand:QI 1 "nonimmediate_operand" "d,m")))]
-  ""
-  "@
-   #
-   lb\t%0,%1"
-  "&& reload_completed && REG_P (operands[1])"
-  [(set (match_dup 0) (ashift:SI (match_dup 1) (match_dup 2)))
-   (set (match_dup 0) (ashiftrt:SI (match_dup 0) (match_dup 2)))]
-{
-  operands[0] = gen_lowpart (SImode, operands[0]);
-  operands[1] = gen_lowpart (SImode, operands[1]);
-  operands[2] = GEN_INT (GET_MODE_BITSIZE (SImode)
-			 - GET_MODE_BITSIZE (QImode));
-}
-  [(set_attr "move_type" "shift_shift,load")
-   (set_attr "mode" "SI")])
+   (set_attr "mode" "<SUPERQI:MODE>")])
 
 (define_insn "extendsfdf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
