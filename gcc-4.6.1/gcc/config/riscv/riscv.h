@@ -1107,9 +1107,7 @@ typedef struct mips_args {
 #define CASE_VECTOR_PC_RELATIVE 0
 
 /* Define this as 1 if `char' should by default be signed; else as 0.  */
-#ifndef DEFAULT_SIGNED_CHAR
-#define DEFAULT_SIGNED_CHAR 1
-#endif
+#define DEFAULT_SIGNED_CHAR 0
 
 /* Consider using fld/fsd to move 8 bytes at a time for RV32IFD. */
 #define MOVE_MAX UNITS_PER_WORD
