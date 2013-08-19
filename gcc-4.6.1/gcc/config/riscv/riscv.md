@@ -1343,49 +1343,6 @@
    (set_attr "cnv_mode"	"D2S")   
    (set_attr "mode"	"SF")])
 
-;; Integer truncation patterns.  Truncating SImode values to smaller
-;; modes is a no-op, as it is for most other GCC ports.  Truncating
-;; DImode values to SImode is not a no-op for TARGET_64BIT since we
-;; need to make sure that the lower 32 bits are properly sign-extended
-;; (see TRULY_NOOP_TRUNCATION).  Truncating DImode values into modes
-;; smaller than SImode is equivalent to two separate truncations:
-;;
-;;                        A       B
-;;    DI ---> HI  ==  DI ---> SI ---> HI
-;;    DI ---> QI  ==  DI ---> SI ---> QI
-;;
-;; Step A needs a real instruction but step B does not.
-
-(define_insn "truncdisi2"
-  [(set (match_operand:SI 0 "nonimmediate_operand" "=d,m")
-        (truncate:SI (match_operand:DI 1 "register_operand" "d,d")))]
-  "TARGET_64BIT"
-  "@
-    sllw\t%0,%1,0
-    sw\t%1,%0"
-  [(set_attr "move_type" "sll0,store")
-   (set_attr "mode" "SI")])
-
-(define_insn "truncdihi2"
-  [(set (match_operand:HI 0 "nonimmediate_operand" "=d,m")
-        (truncate:HI (match_operand:DI 1 "register_operand" "d,d")))]
-  "TARGET_64BIT"
-  "@
-    sllw\t%0,%1,0
-    sh\t%1,%0"
-  [(set_attr "move_type" "sll0,store")
-   (set_attr "mode" "SI")])
-
-(define_insn "truncdiqi2"
-  [(set (match_operand:QI 0 "nonimmediate_operand" "=d,m")
-        (truncate:QI (match_operand:DI 1 "register_operand" "d,d")))]
-  "TARGET_64BIT"
-  "@
-    sllw\t%0,%1,0
-    sb\t%1,%0"
-  [(set_attr "move_type" "sll0,store")
-   (set_attr "mode" "SI")])
-
 ;; Combiner patterns to optimize shift/truncate combinations.
 
 (define_insn "*ashr_trunc<mode>"

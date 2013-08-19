@@ -1707,22 +1707,6 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
   switch (code)
     {
     case CONST_INT:
-      /* Treat *clear_upper32-style ANDs as having zero cost in the
-	 second operand.  The cost is entirely in the first operand.
-
-	 ??? This is needed because we would otherwise try to CSE
-	 the constant operand.  Although that's the right thing for
-	 instructions that continue to be a register operation throughout
-	 compilation, it is disastrous for instructions that could
-	 later be converted into a memory operation.  */
-      if (TARGET_64BIT
-	  && outer_code == AND
-	  && UINTVAL (x) == 0xffffffff)
-	{
-	  *total = 0;
-	  return true;
-	}
-
       /* When not optimizing for size, we care more about the cost
          of hot code, and hot code is often in a loop.  If a constant
          operand needs to be forced into a register, we will often be
@@ -1786,19 +1770,6 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
       return false;
 
     case AND:
-      /* Check for a *clear_upper32 pattern and treat it like a zero
-	 extension.  See the pattern's comment for details.  */
-      if (TARGET_64BIT
-	  && mode == DImode
-	  && CONST_INT_P (XEXP (x, 1))
-	  && UINTVAL (XEXP (x, 1)) == 0xffffffff)
-	{
-	  *total = (mips_zero_extend_cost (mode, XEXP (x, 0))
-		    + rtx_cost (XEXP (x, 0), SET, speed));
-	  return true;
-	}
-      /* Fall through.  */
-
     case IOR:
     case XOR:
       /* Double-word operations use two single-word operations.  */
@@ -1827,7 +1798,6 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
       return false;
 
     case LO_SUM:
-      /* Low-part immediates need an extended MIPS16 instruction.  */
       *total = (COSTS_N_INSNS (1)
 		+ rtx_cost (XEXP (x, 0), SET, speed));
       return true;
