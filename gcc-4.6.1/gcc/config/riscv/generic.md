@@ -47,7 +47,7 @@
   "imuldiv*3")
 
 (define_insn_reservation "generic_imul" 17
-  (eq_attr "type" "imul,imul3,imadd")
+  (eq_attr "type" "imul")
   "imuldiv*17")
 
 (define_insn_reservation "generic_idiv" 38

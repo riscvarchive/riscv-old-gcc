@@ -180,12 +180,8 @@
 ;; clz		the clz and clo instructions
 ;; pop		the pop instruction
 ;; trap		trap if instructions
-;; imul		integer multiply 2 operands
-;; imul3	integer multiply 3 operands
-;; imul3nc	integer multiply 3 operands without clobbering HI/LO
-;; imadd	integer multiply-add
-;; idiv		integer divide 2 operands
-;; idiv3	integer divide 3 operands
+;; imul		integer multiply 
+;; idiv		integer divide
 ;; move		integer register move (addi rd, rs1, 0)
 ;; fmove	floating point register move
 ;; fadd		floating point add/subtract
@@ -209,7 +205,7 @@
 (define_attr "type"
   "unknown,branch,jump,call,load,fpload,fpidxload,store,fpstore,fpidxstore,
    prefetch,prefetchx,condmove,mtc,mfc,mthilo,mfhilo,const,arith,logical,
-   shift,slt,signext,clz,pop,trap,imul,imul3,imul3nc,imadd,idiv,idiv3,move,
+   shift,slt,signext,clz,pop,trap,imul,idiv,move,
    fmove,fadd,fmul,fmadd,fdiv,frdiv,frdiv1,frdiv2,fabs,fneg,fcmp,fcvt,fsqrt,
    frsqrt,frsqrt1,frsqrt2,multi,nop,ghost"
   (cond [(eq_attr "jal" "!unset") (const_string "call")
@@ -857,7 +853,7 @@
 		  (match_operand:SI 2 "register_operand" "d")))]
   ""
   { return TARGET_64BIT ? "mulw\t%0,%1,%2" : "mul\t%0,%1,%2"; }
-  [(set_attr "type" "imul3")
+  [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
 
 (define_insn "*muldisi3"
@@ -866,7 +862,7 @@
 		      (truncate:SI (match_operand:DI 2 "register_operand" "d"))))]
   "TARGET_64BIT"
   "mulw\t%0,%1,%2"
-  [(set_attr "type" "imul3")
+  [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
 
 (define_insn "*muldi3_truncsi"
@@ -876,7 +872,7 @@
 		      (match_operand:DI 2 "register_operand" "d"))))]
   "TARGET_64BIT"
   "mulw\t%0,%1,%2"
-  [(set_attr "type" "imul3")
+  [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
 
 (define_insn "muldi3"
@@ -885,7 +881,7 @@
 		  (match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT"
   "mul\t%0,%1,%2"
-  [(set_attr "type" "imul3")
+  [(set_attr "type" "imul")
    (set_attr "mode" "DI")])
 
 ;;
@@ -934,7 +930,7 @@
 	    (const_int 64))))]
   "TARGET_64BIT"
   "mulh<u>\t%0,%1,%2"
-  [(set_attr "type" "imul3")
+  [(set_attr "type" "imul")
    (set_attr "mode" "DI")])
 
 
@@ -974,7 +970,7 @@
 	    (const_int 64))))]
   "TARGET_64BIT"
   "mulhsu\t%0,%2,%1"
-  [(set_attr "type" "imul3")
+  [(set_attr "type" "imul")
    (set_attr "mode" "DI")])
 
 (define_insn_and_split "<u>mulsidi3"
@@ -1013,7 +1009,7 @@
 	    (const_int 32))))]
   "!TARGET_64BIT"
   "mulh<u>\t%0,%1,%2"
-  [(set_attr "type" "imul3")
+  [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
 
 
@@ -1053,7 +1049,7 @@
 	    (const_int 32))))]
   "!TARGET_64BIT"
   "mulhsu\t%0,%2,%1"
-  [(set_attr "type" "imul3")
+  [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
 
 ;;
@@ -1070,7 +1066,7 @@
 		  (match_operand:SI 2 "register_operand" "d")))]
   ""
   { return TARGET_64BIT ? "div<u>w\t%0,%1,%2" : "div<u>\t%0,%1,%2"; }
-  [(set_attr "type" "idiv3")
+  [(set_attr "type" "idiv")
    (set_attr "mode" "SI")])
 
 (define_insn "<u>divdi3"
@@ -1079,7 +1075,7 @@
 		  (match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT"
   "div<u>\t%0,%1,%2"
-  [(set_attr "type" "idiv3")
+  [(set_attr "type" "idiv")
    (set_attr "mode" "DI")])
 
 (define_insn "<u>modsi3"
@@ -1088,7 +1084,7 @@
 		  (match_operand:SI 2 "register_operand" "d")))]
   ""
   { return TARGET_64BIT ? "rem<u>w\t%0,%1,%2" : "rem<u>\t%0,%1,%2"; }
-  [(set_attr "type" "idiv3")
+  [(set_attr "type" "idiv")
    (set_attr "mode" "SI")])
 
 (define_insn "<u>moddi3"
@@ -1097,7 +1093,7 @@
 		  (match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT"
   "rem<u>\t%0,%1,%2"
-  [(set_attr "type" "idiv3")
+  [(set_attr "type" "idiv")
    (set_attr "mode" "DI")])
 
 (define_insn "div<mode>3"
