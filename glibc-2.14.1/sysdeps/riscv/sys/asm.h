@@ -21,29 +21,21 @@
 #ifndef _SYS_ASM_H
 #define _SYS_ASM_H
 
-#ifndef CAT
-# ifdef __STDC__
-#  define __CAT(str1,str2) str1##str2
-# else
-#  define __CAT(str1,str2) str1/**/str2
-# endif
-# define CAT(str1,str2) __CAT(str1,str2)
-#endif
-
-/*
+/* 
  * Macros to handle different pointer/register sizes for 32/64-bit code
- *
- * 64 bit address space isn't used yet, so we may use the R3000 32 bit
- * defines for now.
  */
 #ifdef __riscv64
 # define PTR .dword
-# define PTRSIZE 8
 # define PTRLOG 3
+# define SZREG	8
+# define REG_S sd
+# define REG_L ld
 #else
 # define PTR .word
-# define PTRSIZE 4
 # define PTRLOG 2
+# define SZREG	4
+# define REG_S sw
+# define REG_L lw
 #endif
 
 /*
@@ -69,80 +61,9 @@ symbol:
 #endif
 
 /*
- * EXPORT - export definition of symbol
- */
-#define	EXPORT(symbol)                                  \
-		.globl	symbol;                         \
-symbol:
-
-/*
- * ABS - export absolute symbol
- */
-#define	ABS(symbol,value)                               \
-		.globl	symbol;                         \
-symbol		=	value
-
-#define	PANIC(msg)                                      \
-		.set	push;				\
-		.set	reorder;                        \
-		la	a0,8f;                          \
-		jal	panic;                          \
-9:		b	9b;                             \
-		.set	pop;				\
-		TEXT(msg)
-
-/*
- * Print formated string
- */
-#define PRINT(string)                                   \
-		.set	push;				\
-		.set	reorder;                        \
-		la	a0,8f;                          \
-		jal	printk;                         \
-		.set	pop;				\
-		TEXT(string)
-
-#define	TEXT(msg)                                       \
-		.data;                                  \
-8:		.asciiz	msg;                            \
-		.previous;
-
-/*
- * Build text tables
- */
-#define TTABLE(string)                                  \
-		.text;                                  \
-		.word	1f;                             \
-		.previous;                              \
-		.data;                                  \
-1:		.asciz	string;                         \
-		.previous
-
-/*
  * Stack alignment
  */
 #define ALSZ	15
 #define ALMASK	~15
-
-/*
- * Size of a register
- */
-#ifdef __riscv64
-# define SZREG	8
-#else
-# define SZREG	4
-#endif
-
-/*
- * Use the following macros in assemblercode to load/store registers,
- * pointers etc.
- */
-#if (SZREG == 4)
-# define REG_S sw
-# define REG_L lw
-#else
-# define REG_S sd
-# define REG_L ld
-#endif
 
 #endif /* sys/asm.h */

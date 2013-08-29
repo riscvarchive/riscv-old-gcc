@@ -218,10 +218,10 @@ do {									\
 	la a0, _rtld_local\n\
 	" STRINGXP(REG_L) " a0, 0(a0)\n\
 	" STRINGXP(REG_L) " a1, 0(sp)\n\
-	add a2, sp, " STRINGXP (PTRSIZE) "\n\
+	add a2, sp, " STRINGXP (SZREG) "\n\
 	sll a3, a1, " STRINGXP (PTRLOG) "\n\
 	add a3, a3, a2\n\
-	add a3, a3, " STRINGXP (PTRSIZE) "\n\
+	add a3, a3, " STRINGXP (SZREG) "\n\
 	# Call the function to run the initializers.\n\
 	jal _dl_init_internal\n\
 	# Pass our finalizer function to the user in v0 as per ELF ABI.\n\

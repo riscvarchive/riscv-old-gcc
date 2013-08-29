@@ -45,9 +45,9 @@ LEAF(__clone)
 
 	addi		a1,a1,-32		/* Reserve argument save space.  */
 	REG_S		a0,0(a1)	/* Save function pointer.  */
-	REG_S		a3,PTRSIZE(a1)	/* Save argument pointer.  */
+	REG_S		a3,SZREG(a1)	/* Save argument pointer.  */
 #ifdef RESET_PID
-	REG_S		a2,(PTRSIZE*2)(a1)	/* Save clone flags.  */
+	REG_S		a2,(SZREG*2)(a1)	/* Save clone flags.  */
 #endif
 
 	move		a0,a2
@@ -83,7 +83,7 @@ L(thread_start):
 
 #ifdef RESET_PID
 	/* Check and see if we need to reset the PID.  */
-	REG_L		a0,(PTRSIZE*2)(sp)
+	REG_L		a0,(SZREG*2)(sp)
 	li		a1,CLONE_THREAD
 	and		a1,a0,a1
 	beqz		a1,L(restore_pid)
