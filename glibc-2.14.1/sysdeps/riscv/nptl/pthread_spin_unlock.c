@@ -1,5 +1,7 @@
-/* Copyright (C) 2005 Free Software Foundation, Inc.
+/* pthread_spin_unlock -- unlock a spin lock.  Generic version.
+   Copyright (C) 2003 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
+   Contributed by Paul Mackerras <paulus@au.ibm.com>, 2003.
 
    The GNU C Library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Lesser General Public
@@ -16,20 +18,12 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#include <errno.h>
+#include "pthreadP.h"
+#include <atomic.h>
 
-int pthread_spin_lock(pthread_spinlock_t* lock)
+int
+pthread_spin_unlock (pthread_spinlock_t *lock)
 {
-  int tmp1, tmp2;
-
-  asm volatile ("\n\
-  1:lw           %0, 0(%2)\n\
-    li           %1, %3\n\
-    bnez         %0, 1b\n\
-    amoswap.w.aq %0, %1, 0(%2)\n\
-    bnez         %0, 1b"
-    : "=&r"(tmp1), "=&r"(tmp2) : "r"(lock), "i"(EBUSY)
-  );
-
-  return tmp1;
+  asm volatile ("amoswap.w.rl x0, x0, 0(%0)" : : "r"(lock));
+  return 0;
 }

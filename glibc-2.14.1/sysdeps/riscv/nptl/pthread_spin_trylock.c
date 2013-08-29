@@ -20,14 +20,16 @@
 
 int pthread_spin_trylock(pthread_spinlock_t* lock)
 {
-  int ret;
+  int tmp1, tmp2;
 
-  if (__sync_fetch_and_or(lock, 1) == 0)
-    ret = 0;
-  else
-    ret = EBUSY;
+  asm volatile ("\n\
+    lw           %0, 0(%2)\n\
+    li           %1, %3\n\
+    bnez         %0, 1f\n\
+    amoswap.w.aq %0, %1, 0(%2)\n\
+  1:"
+    : "=&r"(tmp1), "=&r"(tmp2) : "r"(lock), "i"(EBUSY)
+  );
 
-  __sync_synchronize();
-
-  return ret;
+  return tmp1;
 }

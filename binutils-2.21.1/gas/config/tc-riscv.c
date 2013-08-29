@@ -1206,6 +1206,23 @@ reg_lookup (char **s, unsigned int types, unsigned int *regnop)
   return reg >= 0;
 }
 
+static int
+arg_lookup(char **s, const char* const* array, size_t size, unsigned *regnop)
+{
+  const char *p = strchr(*s, ',');
+  size_t i, len = p ? (size_t)(p - *s) : strlen(*s);
+  
+  for (i = 0; i < size; i++)
+    if (array[i] != NULL && strncmp(array[i], *s, len) == 0)
+      {
+        *regnop = i;
+        *s += len;
+        return 1;
+      }
+
+  return 0;
+}
+
 /* This function is called once, at assembler startup time.  It should set up
    all the tables, etc. that the MD part of the assembler will need.  */
 
@@ -1587,15 +1604,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  INSERT_OPERAND (RD, insn, va_arg (args, int));
 	  continue;
 
-	case 'U':
-	  {
-	    int tmp = va_arg (args, int);
-
-	    INSERT_OPERAND (RT, insn, tmp);
-	    INSERT_OPERAND (RD, insn, tmp);
-	    continue;
-	  }
-
 	case 'S':
 	  INSERT_OPERAND (FS, insn, va_arg (args, int));
 	  continue;
@@ -1623,6 +1631,14 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 
 	case 'm':
 	  INSERT_OPERAND (RM, insn, va_arg (args, int));
+	  continue;
+
+	case 'P':
+	  INSERT_OPERAND (PRED, insn, va_arg (args, int));
+	  continue;
+
+	case 'Q':
+	  INSERT_OPERAND (SUCC, insn, va_arg (args, int));
 	  continue;
 
 	case 'O': /* An off-by-4 PC-relative address for PIC. */
@@ -1991,6 +2007,8 @@ validate_mips_insn (const struct riscv_opcode *opc)
       case 's':	USE_BITS (OP_MASK_RS,		OP_SH_RS);	break;
       case 't':	USE_BITS (OP_MASK_RT,		OP_SH_RT);	break;
       case 'u':	USE_BITS (OP_MASK_BIGIMMEDIATE,	OP_SH_BIGIMMEDIATE); break;
+      case 'P':	USE_BITS (OP_MASK_PRED,		OP_SH_PRED); break;
+      case 'Q':	USE_BITS (OP_MASK_SUCC,		OP_SH_SUCC); break;
       case '[': break;
       case ']': break;
       case '0': break;
@@ -2288,26 +2306,30 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		break;
 
             case 'm':		/* rounding mode */
-            {
-              size_t i, found = ARRAY_SIZE(riscv_rm);
-              for(i = 0; i < found; i++)
-                if(riscv_rm[i] && !strncmp(s,riscv_rm[i],strlen(riscv_rm[i])))
-                    found = i;
+              if (arg_lookup (&s, riscv_rm, ARRAY_SIZE(riscv_rm), &regno))
+                {
+                  INSERT_OPERAND (RM, *ip, regno);
+                  continue;
+                }
+              break;
 
-              if(found == ARRAY_SIZE(riscv_rm))
-                as_bad("bad rounding mode: `%s'",s);
-
-              INSERT_OPERAND(RM, *ip, found);
-              s += strlen(riscv_rm[found]);
-              continue;
-            }
+	    case 'P':
+	    case 'Q':		/* fence predecessor/successor */
+              if (arg_lookup (&s, riscv_pred_succ, ARRAY_SIZE(riscv_pred_succ), &regno))
+                {
+	          if (*args == 'P')
+	            INSERT_OPERAND(PRED, *ip, regno);
+	          else
+	            INSERT_OPERAND(SUCC, *ip, regno);
+	          continue;
+                }
+              break;
 
 	    case 'b':		/* base register */
 	    case 'd':		/* destination register */
 	    case 's':		/* source register */
 	    case 't':		/* target register */
 	    case 'z':		/* must be zero register */
-	    case 'U':           /* destination register (clo/clz).  */
 	    case 'g':		/* coprocessor destination register */
 	      ok = reg_lookup (&s, RTYPE_NUM | RTYPE_GP, &regno);
 	      if (ok)
@@ -2333,10 +2355,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		      break;
 		    case 'g':
 		      INSERT_OPERAND (FS, *ip, regno);
-		      break;
-		    case 'U':
-		      INSERT_OPERAND (RD, *ip, regno);
-		      INSERT_OPERAND (RT, *ip, regno);
 		      break;
 		    case 't':
 		      INSERT_OPERAND (RT, *ip, regno);

@@ -220,6 +220,16 @@ parse_mips_dis_options (const char *options)
     }
 }
 
+/* Print one argument from an array. */
+
+static void
+arg_print (struct disassemble_info *info, unsigned long val,
+	   const char* const* array, size_t size)
+{
+  const char *s = val >= size || array[val] == NULL ? "unknown" : array[val];
+  (*info->fprintf_func) (info->stream, "%s", s);
+}
+
 /* Print insn arguments for 32/64-bit code.  */
 
 static void
@@ -352,15 +362,20 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'm':
-        {
-	  assert(OP_MASK_RM < ARRAY_SIZE(riscv_rm));
-          const char* rm = riscv_rm[(l >> OP_SH_RM) & OP_MASK_RM];
-          if(rm == NULL)
-            rm = "unknown";
-
-	  (*info->fprintf_func) (info->stream, "%s", rm);
+	  arg_print(info, (l >> OP_SH_RM) & OP_MASK_RM,
+		    riscv_rm, ARRAY_SIZE(riscv_rm));
 	  break;
-	}
+
+	case 'P':
+	  arg_print(info, (l >> OP_SH_PRED) & OP_MASK_PRED,
+	            riscv_pred_succ, ARRAY_SIZE(riscv_pred_succ));
+	  break;
+
+	case 'Q':
+	  arg_print(info, (l >> OP_SH_SUCC) & OP_MASK_SUCC,
+	            riscv_pred_succ, ARRAY_SIZE(riscv_pred_succ));
+	  break;
+
 	case 'j': /* Same as i, but sign-extended.  */
 	case 'o':
 	  delta = (l >> OP_SH_IMMEDIATE) & OP_MASK_IMMEDIATE;

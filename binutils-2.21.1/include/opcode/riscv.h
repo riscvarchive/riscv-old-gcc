@@ -108,12 +108,25 @@ static inline unsigned int riscv_insn_length (unsigned int insn)
 #define OP_MASK_SHAMT		0x3f
 #define OP_SH_SHAMT		10
 #define OP_MASK_SHAMTW		0x1f
-#define OP_SH_SHAMTW	10
+#define OP_SH_SHAMTW		10
 #define OP_MASK_RM		0x7
-#define OP_SH_RM	9
+#define OP_SH_RM		9
+#define OP_MASK_PRED		0xf
+#define OP_SH_PRED		13
+#define OP_MASK_SUCC		0xf
+#define OP_SH_SUCC		9
+#define OP_MASK_AQ		0x1
+#define OP_SH_AQ		16
+#define OP_MASK_RL		0x1
+#define OP_SH_RL		15
 
-static const char * const riscv_rm[8] =
-  { "rne", "rtz", "rdn", "rup", "rmm", 0, 0, "dyn" };
+static const char * const riscv_rm[8] = {
+  "rne", "rtz", "rdn", "rup", "rmm", 0, 0, "dyn"
+};
+static const char* const riscv_pred_succ[16] = {
+  0,   "w",  "r",  "rw",  "o",  "ow",  "or",  "orw",
+  "i", "iw", "ir", "irw", "io", "iow", "ior", "iorw",
+};
 
 #define OP_MASK_VRD		0x1f
 #define OP_SH_VRD		27

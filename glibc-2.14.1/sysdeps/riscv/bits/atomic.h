@@ -38,6 +38,9 @@ typedef uintptr_t uatomicptr_t;
 typedef intmax_t atomic_max_t;
 typedef uintmax_t uatomic_max_t;
 
+#define asm_amo(which, res, mem, value) \
+  asm volatile (which "\t%0, %1, 0(%2)" : "=r"(res) : "r"(value), "r"(mem))
+
 /* Atomic compare and exchange. */
 
 #define atomic_compare_and_exchange_val_acq(mem, newval, oldval)         \
@@ -53,25 +56,36 @@ typedef uintmax_t uatomic_max_t;
 /* Atomic exchange (without compare).  */
 
 #define atomic_exchange_acq(mem, value)         \
-  ({ __sync_synchronize();                      \
-     __sync_lock_test_and_set(mem, value); })
+  ({ typeof(*mem) __prev;                       \
+      if (sizeof(*mem) == 4)				\
+	asm_amo("amoswap.w.aq", __prev, mem, value);	\
+      else if(sizeof(*mem) == 8)			\
+	asm_amo("amoswap.d.aq", __prev, mem, value);	\
+      else						\
+	abort();					\
+     __prev; })
 
 #define atomic_exchange_rel(mem, value)         \
   ({ typeof(*mem) __prev;                       \
-     __prev = __sync_lock_test_and_set(mem, value);  \
-     __sync_synchronize();                      \
+      if (sizeof(*mem) == 4)				\
+	asm_amo("amoswap.w.rl", __prev, mem, value);	\
+      else if(sizeof(*mem) == 8)			\
+	asm_amo("amoswap.d.rl", __prev, mem, value);	\
+      else						\
+	abort();					\
      __prev; })
 
 
 /* Atomically add value and return the previous (unincremented) value.  */
 
-/* ??? Barrier semantics for atomic_exchange_and_add appear to be 
-   undefined.  Use full barrier for now, as that's safe.  */
 #define atomic_exchange_and_add(mem, value)             \
   ({ typeof(*mem) __prev;                               \
-     __sync_synchronize();                              \
-     __prev = __sync_fetch_and_add(mem, value);         \
-     __sync_synchronize();                              \
+      if (sizeof(*mem) == 4)				\
+	asm_amo("amoadd.w", __prev, mem, value);	\
+      else if(sizeof(*mem) == 8)			\
+	asm_amo("amoadd.d", __prev, mem, value);	\
+      else						\
+	abort();					\
      __prev; })
 
 #define catomic_exchange_and_add(mem, value)		\
@@ -80,38 +94,34 @@ typedef uintmax_t uatomic_max_t;
 #define atomic_bit_test_set(mem, bit)                   \
   ({ typeof(*mem) __prev;                               \
      typeof(*mem) __mask = (typeof(*mem))1 << (bit);    \
-     __sync_synchronize();                              \
-     __prev = __sync_fetch_and_or(mem, __mask);         \
-     __sync_synchronize();                              \
+      if (sizeof(*mem) == 4)				\
+	asm_amo("amoor.w", __prev, mem, __mask);	\
+      else if(sizeof(*mem) == 8)			\
+	asm_amo("amoor.d", __prev, mem, __mask);	\
+      else						\
+	abort();					\
      __prev & __mask; })
-
-#define asm_maxmin(which, size, res, mem, value) \
-  asm ("amo" which "." size "\t%0, %1, 0(%2)" : "=r"(res) : "r"(value), "r"(mem) : "memory")
 
 #define atomic_max(mem, value)		        	\
   ({  typeof(*mem) __prev;                    		\
-      __sync_synchronize();                            	\
       if (sizeof(*mem) == 4)				\
-	asm_maxmin("maxu", "s", __prev, mem, value);	\
+	asm_amo("amomaxu.w", __prev, mem, value);	\
       else if(sizeof(*mem) == 8)			\
-	asm_maxmin("maxu", "d", __prev, mem, value);	\
+	asm_amo("amomaxu.d", __prev, mem, value);	\
       else						\
 	abort();					\
-     __sync_synchronize();                              \
      __prev; })
 
 #define catomic_max(mem, value) atomic_max(mem, value)
 
 #define atomic_min(mem, value)		        	\
   ({  typeof(*mem) __prev;                    		\
-      __sync_synchronize();                            	\
       if (sizeof(*mem) == 4)				\
-	asm_maxmin("minu", "s", __prev, mem, value);	\
+	asm_amo("amominu.w", __prev, mem, value);	\
       else if(sizeof(*mem) == 8)			\
-	asm_maxmin("minu", "d", __prev, mem, value);	\
+	asm_amo("amominu.d", __prev, mem, value);	\
       else						\
 	abort();					\
-     __sync_synchronize();                              \
      __prev; })
 
 #define atomic_full_barrier() __sync_synchronize()
