@@ -174,6 +174,9 @@
 (define_predicate "symbol_ref_operand"
   (match_code "symbol_ref"))
 
+(define_predicate "modular_operator"
+  (match_code "plus,minus,mult,ashift"))
+
 (define_predicate "equality_operator"
   (match_code "eq,ne"))
 

@@ -744,6 +744,15 @@
   [(set_attr "type" "arith")
    (set_attr "mode" "SI")])
 
+(define_insn "*adddisisi3"
+  [(set (match_operand:SI 0 "register_operand" "=d,d")
+	     (plus:SI (truncate:SI (match_operand:DI 1 "register_operand" "d,d"))
+		      (match_operand:SI 2 "arith_operand" "d,Q")))]
+  "TARGET_64BIT"
+  "addw\t%0,%1,%2"
+  [(set_attr "type" "arith")
+   (set_attr "mode" "SI")])
+
 (define_insn "*adddi3_truncsi"
   [(set (match_operand:SI 0 "register_operand" "=d,d")
           (truncate:SI
@@ -753,6 +762,45 @@
   "addw\t%0,%1,%2"
   [(set_attr "type" "arith")
    (set_attr "mode" "SI")])
+
+;; Simplify (int)(a + 1), etc.
+(define_peephole2
+  [(set (match_operand:DI 0 "register_operand")
+	(match_operator:DI 4 "modular_operator"
+	  [(match_operand:DI 1 "register_operand")
+	   (match_operand:DI 2 "arith_operand")]))
+   (set (match_operand:SI 3 "register_operand")
+        (truncate:SI (match_dup 0)))]
+  "TARGET_64BIT && (REGNO (operands[0]) == REGNO (operands[3]) || peep2_reg_dead_p (2, operands[0]))"
+  [(set (match_dup 3)
+          (truncate:SI
+	     (match_op_dup:DI 4 
+	       [(match_operand:DI 1 "register_operand")
+		(match_operand:DI 2 "arith_operand")])))])
+
+;; Simplify (int)a + 1, etc.
+(define_peephole2
+  [(set (match_operand:SI 0 "register_operand")
+        (truncate:SI (match_operand:DI 1 "register_operand")))
+   (set (match_operand:SI 3 "register_operand")
+	(match_operator:SI 4 "modular_operator"
+	  [(match_dup 0)
+	   (match_operand:SI 2 "arith_operand")]))]
+  "TARGET_64BIT && (REGNO (operands[0]) == REGNO (operands[3]) || peep2_reg_dead_p (2, operands[0]))"
+  [(set (match_dup 3)
+	(match_op_dup:SI 4 [(match_dup 1) (match_dup 2)]))])
+
+;; Simplify -(int)a, etc.
+(define_peephole2
+  [(set (match_operand:SI 0 "register_operand")
+        (truncate:SI (match_operand:DI 2 "register_operand")))
+   (set (match_operand:SI 3 "register_operand")
+	(match_operator:SI 4 "modular_operator"
+	  [(match_operand:SI 1 "reg_or_0_operand")
+	   (match_dup 0)]))]
+  "TARGET_64BIT && (REGNO (operands[0]) == REGNO (operands[3]) || peep2_reg_dead_p (2, operands[0]))"
+  [(set (match_dup 3)
+	(match_op_dup:SI 4 [(match_dup 1) (match_dup 2)]))])
 
 ;; HImode constant generation; see mips_move_integer for details.
 ;; si+si->hi without truncation is legal because of TRULY_NOOP_TRUNCATION.
@@ -783,50 +831,74 @@
   [(set_attr "type" "fadd")
    (set_attr "mode" "<UNITMODE>")])
 
-(define_insn "subdi3"
+(define_expand "sub<mode>3"
+  [(set (match_operand:GPR 0 "register_operand")
+	(minus:GPR (match_operand:GPR 1 "reg_or_0_operand")
+		   (match_operand:GPR 2 "register_operand")))]
+  "")
+
+(define_insn "*subdi3"
   [(set (match_operand:DI 0 "register_operand" "=d")
-	(minus:DI (match_operand:DI 1 "register_operand" "d")
+	(minus:DI (match_operand:DI 1 "reg_or_0_operand" "dJ")
 		   (match_operand:DI 2 "register_operand" "d")))]
   "TARGET_64BIT"
-  "sub\t%0,%1,%2"
+  "sub\t%0,%z1,%2"
   [(set_attr "type" "arith")
    (set_attr "mode" "DI")])
 
-(define_insn "subsi3"
+(define_insn "*subsi3"
   [(set (match_operand:SI 0 "register_operand" "=d")
-	(minus:SI (match_operand:SI 1 "register_operand" "d")
-		   (match_operand:SI 2 "register_operand" "d")))]
+	(minus:SI (match_operand:GPR 1 "reg_or_0_operand" "dJ")
+		   (match_operand:GPR2 2 "register_operand" "d")))]
   ""
-  { return TARGET_64BIT ? "subw\t%0,%1,%2" : "sub\t%0,%1,%2"; }
+  { return TARGET_64BIT ? "subw\t%0,%z1,%2" : "sub\t%0,%z1,%2"; }
   [(set_attr "type" "arith")
    (set_attr "mode" "SI")])
 
 (define_insn "*subsi3_extended"
   [(set (match_operand:DI 0 "register_operand" "=d")
 	(sign_extend:DI
-	    (minus:SI (match_operand:SI 1 "register_operand" "d")
+	    (minus:SI (match_operand:SI 1 "reg_or_0_operand" "dJ")
 		      (match_operand:SI 2 "register_operand" "d"))))]
   "TARGET_64BIT"
-  "subw\t%0,%1,%2"
+  "subw\t%0,%z1,%2"
   [(set_attr "type" "arith")
    (set_attr "mode" "DI")])
 
 (define_insn "*subdisi3"
-  [(set (match_operand:SI 0 "register_operand" "=d,d")
-	     (minus:SI (truncate:SI (match_operand:DI 1 "register_operand" "d,d"))
-		      (truncate:SI (match_operand:DI 2 "arith_operand" "d,Q"))))]
+  [(set (match_operand:SI 0 "register_operand" "=d")
+	     (minus:SI (truncate:SI (match_operand:DI 1 "reg_or_0_operand" "dJ"))
+		      (truncate:SI (match_operand:DI 2 "register_operand" "d"))))]
   "TARGET_64BIT"
-  "subw\t%0,%1,%2"
+  "subw\t%0,%z1,%2"
+  [(set_attr "type" "arith")
+   (set_attr "mode" "SI")])
+
+(define_insn "*subdisisi3"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+	     (minus:SI (truncate:SI (match_operand:DI 1 "reg_or_0_operand" "dJ"))
+		      (match_operand:SI 2 "register_operand" "d")))]
+  "TARGET_64BIT"
+  "addw\t%0,%z1,%2"
+  [(set_attr "type" "arith")
+   (set_attr "mode" "SI")])
+
+(define_insn "*subsidisi3"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+	     (minus:SI (match_operand:SI 1 "reg_or_0_operand" "dJ")
+		      (truncate:SI (match_operand:DI 2 "register_operand" "d"))))]
+  "TARGET_64BIT"
+  "addw\t%0,%z1,%2"
   [(set_attr "type" "arith")
    (set_attr "mode" "SI")])
 
 (define_insn "*subdi3_truncsi"
   [(set (match_operand:SI 0 "register_operand" "=d,d")
           (truncate:SI
-	     (minus:DI (match_operand:DI 1 "register_operand" "d,d")
+	     (minus:DI (match_operand:DI 1 "reg_or_0_operand" "dJ,d")
 		      (match_operand:DI 2 "arith_operand" "d,Q"))))]
   "TARGET_64BIT"
-  "subw\t%0,%1,%2"
+  "subw\t%0,%z1,%2"
   [(set_attr "type" "arith")
    (set_attr "mode" "SI")])
 
@@ -847,10 +919,16 @@
   [(set_attr "type" "fmul")
    (set_attr "mode" "<UNITMODE>")])
 
-(define_insn "mulsi3"
+(define_expand "mul<mode>3"
+  [(set (match_operand:GPR 0 "register_operand")
+	(mult:GPR (match_operand:GPR 1 "reg_or_0_operand")
+		   (match_operand:GPR 2 "register_operand")))]
+  "")
+
+(define_insn "*mulsi3"
   [(set (match_operand:SI 0 "register_operand" "=d")
-	(mult:SI (match_operand:SI 1 "register_operand" "d")
-		  (match_operand:SI 2 "register_operand" "d")))]
+	(mult:SI (match_operand:GPR 1 "register_operand" "d")
+		  (match_operand:GPR2 2 "register_operand" "d")))]
   ""
   { return TARGET_64BIT ? "mulw\t%0,%1,%2" : "mul\t%0,%1,%2"; }
   [(set_attr "type" "imul")
@@ -875,7 +953,7 @@
   [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
 
-(define_insn "muldi3"
+(define_insn "*muldi3"
   [(set (match_operand:DI 0 "register_operand" "=d")
 	(mult:DI (match_operand:DI 1 "register_operand" "d")
 		  (match_operand:DI 2 "register_operand" "d")))]
@@ -1246,22 +1324,6 @@
 ;;
 ;;  ....................
 
-(define_insn "negsi2"
-  [(set (match_operand:SI 0 "register_operand" "=d")
-	(neg:SI (match_operand:SI 1 "register_operand" "d")))]
-  ""
-  { return TARGET_64BIT ? "subw\t%0,zero,%1" : "sub\t%0,zero,%1"; }
-  [(set_attr "type"	"arith")
-   (set_attr "mode"	"SI")])
-
-(define_insn "negdi2"
-  [(set (match_operand:DI 0 "register_operand" "=d")
-	(neg:DI (match_operand:DI 1 "register_operand" "d")))]
-  "TARGET_64BIT"
-  "sub\t%0,zero,%1"
-  [(set_attr "type"	"arith")
-   (set_attr "mode"	"DI")])
-
 (define_insn "neg<mode>2"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
 	(neg:ANYF (match_operand:ANYF 1 "register_operand" "f")))]
@@ -1339,6 +1401,31 @@
    (set_attr "cnv_mode"	"D2S")   
    (set_attr "mode"	"SF")])
 
+;; Integer truncation patterns.  Truncating to HImode/QImode is a no-op.
+;; Truncating from DImode to SImode is not, because we always keep SImode
+;; values sign-extended in a register so we can safely use DImode branches
+;; and comparisons on SImode values.
+
+(define_insn "truncdisi2"
+  [(set (match_operand:SI 0 "nonimmediate_operand" "=d,m")
+        (truncate:SI (match_operand:DI 1 "register_operand" "d,d")))]
+  "TARGET_64BIT"
+  "@
+    addiw\t%0,%1,0
+    sw\t%1,%0"
+  [(set_attr "move_type" "arith,store")
+   (set_attr "mode" "SI")])
+
+(define_insn "truncdi<mode>2"
+  [(set (match_operand:SHORT 0 "nonimmediate_operand" "=d,m")
+        (truncate:SHORT (match_operand:DI 1 "register_operand" "d,d")))]
+  "TARGET_64BIT"
+  "@
+    #nop
+    <store>\t%1,%0"
+  [(set_attr "move_type" "arith,store")
+   (set_attr "mode" "SI")])
+
 ;; Combiner patterns to optimize shift/truncate combinations.
 
 (define_insn "*ashr_trunc<mode>"
@@ -1361,65 +1448,6 @@
   [(set_attr "type" "shift")
    (set_attr "mode" "<MODE>")])
 
-;; Combiner patterns for truncate/sign_extend combinations.  The SI versions
-;; use the shift/truncate patterns above.
-
-(define_insn_and_split "*extenddi_truncate<mode>"
-  [(set (match_operand:DI 0 "register_operand" "=d")
-	(sign_extend:DI
-	    (truncate:SHORT (match_operand:DI 1 "register_operand" "d"))))]
-  "TARGET_64BIT"
-  "#"
-  "&& reload_completed"
-  [(set (match_dup 2)
-	(ashift:DI (match_dup 1)
-		   (match_dup 3)))
-   (set (match_dup 0)
-	(ashiftrt:DI (match_dup 2)
-		     (match_dup 3)))]
-{
-  operands[2] = gen_lowpart (DImode, operands[0]);
-  operands[3] = GEN_INT (BITS_PER_WORD - GET_MODE_BITSIZE (<MODE>mode));
-})
-
-(define_insn_and_split "*extendsi_truncate<mode>"
-  [(set (match_operand:SI 0 "register_operand" "=d")
-	(sign_extend:SI
-	    (truncate:SHORT (match_operand:DI 1 "register_operand" "d"))))]
-  "TARGET_64BIT"
-  "#"
-  "&& reload_completed"
-  [(set (match_dup 2)
-	(ashift:DI (match_dup 1)
-		   (match_dup 3)))
-   (set (match_dup 0)
-	(truncate:SI (ashiftrt:DI (match_dup 2)
-				  (match_dup 3))))]
-{
-  operands[2] = gen_lowpart (DImode, operands[0]);
-  operands[3] = GEN_INT (BITS_PER_WORD - GET_MODE_BITSIZE (<MODE>mode));
-})
-
-;; Combiner patterns to optimize truncate/zero_extend combinations.
-
-(define_insn "*zero_extend<mode>_truncqi"
-  [(set (match_operand:GPR 0 "register_operand" "=d")
-        (zero_extend:GPR
-	    (truncate:QI (match_operand:DI 1 "register_operand" "d"))))]
-  "TARGET_64BIT"
-  "andi\t%0,%1,0xff"
-  [(set_attr "type" "logical")
-   (set_attr "mode" "<MODE>")])
-
-(define_insn ""
-  [(set (match_operand:HI 0 "register_operand" "=d")
-        (zero_extend:HI
-	    (truncate:QI (match_operand:DI 1 "register_operand" "d"))))]
-  "TARGET_64BIT"
-  "andi\t%0,%1,0xff"
-  [(set_attr "type" "logical")
-   (set_attr "mode" "HI")])
-
 ;;
 ;;  ....................
 ;;
@@ -2144,6 +2172,15 @@
           (truncate:SI
 	     (ashift:DI (match_operand:DI 1 "register_operand" "d")
 		      (match_operand:DI 2 "arith_operand" "dI"))))]
+  "TARGET_64BIT && (GET_CODE (operands[2]) == CONST_INT ? INTVAL (operands[2]) < 32 : 1)"
+  "sllw\t%0,%1,%2"
+  [(set_attr "type" "shift")
+   (set_attr "mode" "SI")])
+
+(define_insn "*ashldisi3"
+  [(set (match_operand:SI 0 "register_operand" "=d")
+	  (ashift:SI (match_operand:GPR 1 "register_operand" "d")
+		      (match_operand:GPR2 2 "arith_operand" "dI")))]
   "TARGET_64BIT && (GET_CODE (operands[2]) == CONST_INT ? INTVAL (operands[2]) < 32 : 1)"
   "sllw\t%0,%1,%2"
   [(set_attr "type" "shift")

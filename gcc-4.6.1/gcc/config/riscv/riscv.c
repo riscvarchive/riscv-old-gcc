@@ -2297,34 +2297,20 @@ mips_reversed_fp_cond (enum rtx_code *code)
    conditional move.  On entry, *OP0 and *OP1 are the values being
    compared and *CODE is the code used to compare them.
 
-   Update *CODE, *OP0 and *OP1 so that they describe the final comparison.
-   If NEED_EQ_NE_P, then only EQ or NE comparisons against zero are possible,
-   otherwise any standard branch condition can be used.  The standard branch
-   conditions are:
-
-      - EQ or NE between two registers.
-      - any comparison between a register and zero.  */
+   Update *CODE, *OP0 and *OP1 so that they describe the final comparison. */
 
 static void
-mips_emit_compare (enum rtx_code *code, rtx *op0, rtx *op1, bool need_eq_ne_p)
+mips_emit_compare (enum rtx_code *code, rtx *op0, rtx *op1)
 {
   rtx cmp_op0 = *op0;
   rtx cmp_op1 = *op1;
 
   if (GET_MODE_CLASS (GET_MODE (*op0)) == MODE_INT)
     {
-      if (!need_eq_ne_p && *op1 == const0_rtx)
+      if (*op1 == const0_rtx)
 	;
       else if (*code == EQ || *code == NE)
-	{
-	  if (need_eq_ne_p)
-	    {
-	      *op0 = mips_zero_if_equal (cmp_op0, cmp_op1);
-	      *op1 = const0_rtx;
-	    }
-	  else
-	    *op1 = force_reg (GET_MODE (cmp_op0), cmp_op1);
-	}
+	*op1 = force_reg (GET_MODE (cmp_op0), cmp_op1);
       else
 	{
 	  /* The comparison needs a separate scc instruction.  Store the
@@ -2390,27 +2376,9 @@ mips_expand_conditional_branch (rtx *operands)
   rtx op1 = operands[2];
   rtx condition;
 
-  mips_emit_compare (&code, &op0, &op1, false);
+  mips_emit_compare (&code, &op0, &op1);
   condition = gen_rtx_fmt_ee (code, VOIDmode, op0, op1);
   emit_jump_insn (gen_condjump (condition, operands[3]));
-}
-
-/* Perform the comparison in OPERANDS[1].  Move OPERANDS[2] into OPERANDS[0]
-   if the condition holds, otherwise move OPERANDS[3] into OPERANDS[0].  */
-
-void
-mips_expand_conditional_move (rtx *operands)
-{
-  rtx cond;
-  enum rtx_code code = GET_CODE (operands[1]);
-  rtx op0 = XEXP (operands[1], 0);
-  rtx op1 = XEXP (operands[1], 1);
-
-  mips_emit_compare (&code, &op0, &op1, true);
-  cond = gen_rtx_fmt_ee (code, GET_MODE (op0), op0, op1);
-  emit_insn (gen_rtx_SET (VOIDmode, operands[0],
-			  gen_rtx_IF_THEN_ELSE (GET_MODE (operands[0]), cond,
-						operands[2], operands[3])));
 }
 
 /* Initialize *CUM for a call to a function of type FNTYPE.  */

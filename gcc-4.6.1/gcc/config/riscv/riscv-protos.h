@@ -69,8 +69,6 @@ extern const char *mips_riscv_output_vector_move (enum machine_mode, rtx, rtx);
 #ifdef RTX_CODE
 extern void mips_expand_scc (rtx *);
 extern void mips_expand_conditional_branch (rtx *);
-extern void mips_expand_vcondv2sf (rtx, rtx, rtx, enum rtx_code, rtx, rtx);
-extern void mips_expand_conditional_move (rtx *);
 #endif
 extern rtx mips_expand_call (bool, rtx, rtx, rtx);
 extern void mips_expand_fcc_reload (rtx, rtx, rtx);
