@@ -2338,7 +2338,7 @@
   if (GET_CODE (operands[1]) == ORDERED)
     return "feq.<fmt>\t%0,%2,%2";
   else /* UNORDERED */
-    return "feq.<fmt>\t%0,%2,%2; sltu\t%0,%0,1";
+    return "feq.<fmt>\t%0,%2,%2; seqz\t%0,%0";
 }
   [(set_attr "type" "fcmp")
    (set_attr "mode" "<UNITMODE>")])
@@ -2348,7 +2348,7 @@
 	(eq:GPR2 (match_operand:GPR 1 "register_operand" "d")
 		 (const_int 0)))]
   ""
-  "sltu\t%0,%1,1"
+  "seqz\t%0,%1"
   [(set_attr "type" "slt")
    (set_attr "mode" "<GPR:MODE>")])
 
@@ -2357,7 +2357,7 @@
 	(ne:GPR2 (match_operand:GPR 1 "register_operand" "d")
 		 (const_int 0)))]
   ""
-  "sltu\t%0,zero,%1"
+  "snez\t%0,%1"
   [(set_attr "type" "slt")
    (set_attr "mode" "<GPR:MODE>")])
 
