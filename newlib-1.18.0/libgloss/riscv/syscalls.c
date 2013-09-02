@@ -93,7 +93,8 @@
 static inline long __syscall_errno(long n, long a, long b, long c, long d)
 {
   sysret_t s = __internal_syscall(n, a, b, c, d);
-  errno = s.err;
+  if (__builtin_expect(s.err, 0))
+    errno = -s.result;
   return s.result;
 }
 
