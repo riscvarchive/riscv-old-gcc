@@ -1332,18 +1332,6 @@ md_assemble (char *str)
     }
 }
 
-static inline bfd_boolean
-hi16_reloc_p (bfd_reloc_code_real_type reloc)
-{
-  return reloc == BFD_RELOC_HI16_S || reloc == BFD_RELOC_MIPS16_HI16_S;
-}
-
-static inline bfd_boolean
-lo16_reloc_p (bfd_reloc_code_real_type reloc)
-{
-  return reloc == BFD_RELOC_LO16 || reloc == BFD_RELOC_MIPS16_LO16;
-}
-
 /* Return true if the given fixup is followed by a matching R_MIPS_LO16
    relocation.  */
 
@@ -1498,8 +1486,8 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 		  || reloc_type == BFD_RELOC_CTOR
 		  || reloc_type == BFD_RELOC_MIPS_REL16
 		  || reloc_type == BFD_RELOC_MIPS_RELGOT
-		  || hi16_reloc_p (reloc_type)
-		  || lo16_reloc_p (reloc_type)))
+		  || reloc_type == BFD_RELOC_HI16_S
+		  || reloc_type == BFD_RELOC_LO16))
 	    ip->fixp->fx_no_overflow = 1;
 	}
     }
@@ -2555,6 +2543,7 @@ struct percent_op_match
 static const struct percent_op_match mips_percent_op[] =
 {
   {"%lo", BFD_RELOC_LO16},
+  {"%gp_rel", BFD_RELOC_GPREL16},
 #ifdef OBJ_ELF
   {"%tprel_hi", BFD_RELOC_MIPS_TLS_TPREL_HI16},
   {"%tprel_lo", BFD_RELOC_MIPS_TLS_TPREL_LO16},
@@ -2782,7 +2771,8 @@ mips_force_relocation (fixS *fixp)
     return 1;
 
   if (S_GET_SEGMENT (fixp->fx_addsy) == bfd_abs_section_ptr
-      && (hi16_reloc_p (fixp->fx_r_type) || lo16_reloc_p (fixp->fx_r_type)))
+      && (fixp->fx_r_type == BFD_RELOC_HI16_S
+          || fixp->fx_r_type == BFD_RELOC_LO16))
     return 1;
 
   return 0;
@@ -2854,6 +2844,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_MIPS_RELGOT:
     case BFD_RELOC_HI16:
     case BFD_RELOC_HI16_S:
+    case BFD_RELOC_GPREL16:
     case BFD_RELOC_MIPS_GOT_HI16:
     case BFD_RELOC_MIPS_GOT_LO16:
     case BFD_RELOC_MIPS_CALL_HI16:
@@ -2895,7 +2886,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       break;
 
     case BFD_RELOC_LO16:
-    case BFD_RELOC_MIPS16_LO16:
       if (!fixP->fx_done)
 	break;
 

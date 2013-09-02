@@ -3,8 +3,6 @@
 
 . ${srcdir}/emulparams/elf64lriscv-defs.sh
 OUTPUT_FORMAT="elf64-littleriscv"
-BIG_OUTPUT_FORMAT="elf64-bigriscv"
-LITTLE_OUTPUT_FORMAT="elf64-littleriscv"
 
 # Magic sections.
 OTHER_SECTIONS='

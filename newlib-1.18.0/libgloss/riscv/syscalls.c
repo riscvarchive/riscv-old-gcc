@@ -398,12 +398,12 @@ long sysconf(int name)
 
 void* sbrk(ptrdiff_t incr)
 {
-  extern unsigned char _end; // Defined by linker
-  static unsigned char* heap_end;
+  extern unsigned char _end[]; // Defined by linker
+  static unsigned long heap_end;
 
-  if(heap_end == 0)
-    heap_end = &_end;
-  if(incr && syscall_errno(SYS_brk, heap_end+incr, 0, 0, 0) != heap_end+incr)
+  if (heap_end == 0)
+    heap_end = (long)_end;
+  if (syscall_errno(SYS_brk, heap_end + incr, 0, 0, 0) != heap_end + incr)
     return (void*)-1;
 
   heap_end += incr;

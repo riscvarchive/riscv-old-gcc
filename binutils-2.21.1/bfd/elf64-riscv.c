@@ -180,7 +180,21 @@ static reloc_howto_type mips_elf64_howto_table_rel[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  EMPTY_HOWTO (7),
+  /* GP-relative reference.  */
+  HOWTO (R_RISCV_GPREL16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_IMMEDIATE,			/* bitpos */
+	 complain_overflow_signed, /* complain_on_overflow */
+	 _bfd_riscv_elf_gprel_reloc, /* special_function */
+	 "R_RISCV_GPREL16",	/* name */
+	 TRUE,			/* partial_inplace */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
   EMPTY_HOWTO (8),
   EMPTY_HOWTO (9),
 
@@ -692,7 +706,21 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  EMPTY_HOWTO (7),
+  /* GP-relative reference. */
+  HOWTO (R_RISCV_GPREL16,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 OP_SH_IMMEDIATE,	/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_gprel_reloc,	/* special_function */
+	 "R_RISCV_GPREL16",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
   EMPTY_HOWTO (8),
   EMPTY_HOWTO (9),
 
@@ -1217,6 +1245,7 @@ static const struct elf_reloc_map mips_reloc_map[] =
   { BFD_RELOC_16_PCREL_S2, R_RISCV_PC16 },
   { BFD_RELOC_HI16_S, R_RISCV_HI16 },
   { BFD_RELOC_LO16, R_RISCV_LO16 },
+  { BFD_RELOC_GPREL16, R_RISCV_GPREL16 },
   { BFD_RELOC_MIPS_JMP, R_RISCV_26 },
   { BFD_RELOC_MIPS_GOT_HI16, R_RISCV_GOT_HI16 },
   { BFD_RELOC_MIPS_GOT_LO16, R_RISCV_GOT_LO16 },

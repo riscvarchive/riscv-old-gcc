@@ -189,9 +189,20 @@ SECTIONS
   }
 
   /* End of initialized data segment */
-  . = ALIGN(4);
   PROVIDE( edata = . );
   _edata = .;
+
+  /* Have _gp point to middle of sdata/sbss to maximize displacement range */
+  . = ALIGN(16);
+  _gp = . + 0x800;
+
+  /* Writable small data segment */
+  .sdata : 
+  {
+    *(.sdata)
+    *(.sdata.*)
+    *(.gnu.linkonce.s.*)
+  }
 
   /*--------------------------------------------------------------------*/
   /* Uninitialized data segment                                         */
@@ -200,6 +211,14 @@ SECTIONS
   /* Start of uninitialized data segment */
   . = .;
   _fbss = .;
+
+  /* Writable uninitialized small data segment */
+  .sbss : 
+  {
+    *(.sbss)
+    *(.sbss.*)
+    *(.gnu.linkonce.sb.*)
+  }
 
   /* bss: Uninitialized writeable data section */
   . = .;
@@ -215,18 +234,4 @@ SECTIONS
   /* End of uninitialized data segment (used by syscalls.c for heap) */
   PROVIDE( end = . );
   _end = .;
-
-  /*--------------------------------------------------------------------*/
-  /* Special gcc sections (this was in idt32.ld)                        */
-  /*--------------------------------------------------------------------*/
-
-  .mdebug.abi32        0 : { KEEP(*(.mdebug.abi32))        }
-  .mdebug.abiN32       0 : { KEEP(*(.mdebug.abiN32))       }
-  .mdebug.abi64        0 : { KEEP(*(.mdebug.abi64))        }
-  .mdebug.abiO64       0 : { KEEP(*(.mdebug.abiO64))       }
-  .mdebug.eabi32       0 : { KEEP(*(.mdebug.eabi32))       }
-  .mdebug.eabi64       0 : { KEEP(*(.mdebug.eabi64))       }
-  .gcc_compiled_long32 0 : { KEEP(*(.gcc_compiled_long32)) }
-  .gcc_compiled_long64 0 : { KEEP(*(.gcc_compiled_long64)) }
-
 }

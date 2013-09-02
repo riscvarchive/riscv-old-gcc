@@ -58,6 +58,7 @@ along with GCC; see the file COPYING3.  If not see
 #include "bitmap.h"
 #include "diagnostic.h"
 #include "target-globals.h"
+#include "symcat.h"
 #include <stdint.h>
 
 /*----------------------------------------------------------------------*/
@@ -589,6 +590,10 @@ mips_classify_symbol (const_rtx x)
 {
   if (mips_tls_symbol_p (x))
     return SYMBOL_TLS;
+  if (GET_CODE (x) == LABEL_REF)
+    return SYMBOL_ABSOLUTE;
+  if (SYMBOL_REF_SMALL_P (x) && !SYMBOL_REF_WEAK (x))
+    return SYMBOL_GPREL;
   return SYMBOL_ABSOLUTE;
 }
 
@@ -657,6 +662,12 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
 	 in case the 32-bit value X + OFFSET has a different sign from X.  */
       return Pmode == SImode || offset_within_block_p (x, INTVAL (offset));
 
+    case SYMBOL_GPREL:
+      /* Make sure that the offset refers to something within the
+	 same object block.  This should guarantee that the final
+	 GP-relative offset will not overflow the immediate. */
+      return offset_within_block_p (x, INTVAL (offset));
+
     case SYMBOL_TPREL:
       /* There is no carry between the HI and LO REL relocations, so the
 	 offset is only valid if we know it won't lead to such a carry.  */
@@ -675,9 +686,16 @@ static int riscv_symbol_insns (enum mips_symbol_type type)
   switch (type)
     {
     case SYMBOL_ABSOLUTE:
+      /* LUI + reference for non-PIC; AUIPC + LW/LD + reference for PIC. */
+      return 2 + flag_pic;
+
     case SYMBOL_TPREL:
-      /* One of LUI or AUIPC, followed by one of ADDI, LD, or LW. */
-      return 2;
+      /* As above, but we must add in the thread pointer. */
+      return 3 + flag_pic;
+
+    case SYMBOL_GPREL:
+      /* Just the reference itself. */
+      return 1;
 
     case SYMBOL_TLS:
       /* We don't treat a bare TLS symbol as a constant.  */
@@ -867,8 +885,16 @@ mips_classify_address (struct mips_address_info *info, rtx x,
     case CONST:
     case LABEL_REF:
     case SYMBOL_REF:
-      info->type = ADDRESS_SYMBOLIC;
-      return false;
+      if (mips_symbolic_constant_p (x, &info->symbol_type)
+	  && riscv_symbol_insns (info->symbol_type) > 0
+	  && !mips_split_p[info->symbol_type]
+	  && mips_lo_relocs[info->symbol_type])
+	{
+	  info->type = ADDRESS_LO_SUM;
+	  info->reg = gen_rtx_REG (Pmode, GP_REGNUM);
+	  info->offset = x;
+	  return true;
+	}
 
     default:
       return false;
@@ -889,31 +915,27 @@ mips_legitimate_address_p (enum machine_mode mode, rtx x, bool strict_p)
    of mode MODE at address X.  Return 0 if X isn't valid for MODE.
    Assume that multiword moves may need to be split into word moves
    if MIGHT_SPLIT_P, otherwise assume that a single load or store is
-   enough.
-
-   For MIPS16 code, count extended instructions as two instructions.  */
+   enough. */
 
 int
-mips_address_insns (rtx x, enum machine_mode mode, bool might_split_p)
+riscv_address_insns (rtx x, enum machine_mode mode, bool might_split_p)
 {
   struct mips_address_info addr;
+  int n = 1;
 
-  if (mips_classify_address (&addr, x, mode, false))
-    {
-      int factor = 1;
+  if (!mips_classify_address (&addr, x, mode, false))
+    return 0;
 
-      /* BLKmode is used for single unaligned loads and stores and should
-         not count as a multiword mode. */
-      if (mode != BLKmode && might_split_p)
-        factor = (GET_MODE_SIZE (mode) + UNITS_PER_WORD - 1) / UNITS_PER_WORD;
+  if (addr.type == ADDRESS_SYMBOLIC)
+    /* Usually we only pay to load th. */
+    n = riscv_symbol_insns (addr.symbol_type);
 
-      if (addr.type == ADDRESS_SYMBOLIC)
-	factor *= riscv_symbol_insns (addr.symbol_type);
+  /* BLKmode is used for single unaligned loads and stores and should
+     not count as a multiword mode. */
+  if (mode != BLKmode && might_split_p)
+    n += (GET_MODE_SIZE (mode) + UNITS_PER_WORD - 1) / UNITS_PER_WORD;
 
-      return factor;
-    }
-
-  return 0;
+  return n;
 }
 
 /* Return the number of instructions needed to load constant X.
@@ -1018,7 +1040,7 @@ mips_load_store_insns (rtx mem, rtx insn)
 	might_split_p = false;
     }
 
-  return mips_address_insns (XEXP (mem, 0), mode, might_split_p);
+  return riscv_address_insns (XEXP (mem, 0), mode, might_split_p);
 }
 
 /* Emit a move from SRC to DEST.  Assume that the move expanders can
@@ -1150,22 +1172,20 @@ mips_split_symbol (rtx temp, rtx addr, enum machine_mode mode, rtx *low_out)
   enum mips_symbol_type symbol_type;
   rtx high;
 
-  if (!(GET_CODE (addr) == HIGH && mode == MAX_MACHINE_MODE))
+  if (GET_CODE (addr) == HIGH && mode == MAX_MACHINE_MODE
+      || !mips_symbolic_constant_p (addr, &symbol_type)
+      || riscv_symbol_insns (symbol_type) == 0
+      || !mips_split_p[symbol_type])
+    return false;
+
+  if (low_out)
     {
-      if (mips_symbolic_constant_p (addr, &symbol_type)
-	  && riscv_symbol_insns (symbol_type) > 0
-	  && mips_split_p[symbol_type])
-	{
-	  if (low_out)
-	    {
-	      high = gen_rtx_HIGH (Pmode, copy_rtx (addr));
-	      high = mips_force_temporary (temp, high);
-	      *low_out = gen_rtx_LO_SUM (Pmode, high, addr);
-	    }
-	  return true;
-	}
+      high = gen_rtx_HIGH (Pmode, copy_rtx (addr));
+      high = mips_force_temporary (temp, high);
+      *low_out = gen_rtx_LO_SUM (Pmode, high, addr);
     }
-  return false;
+
+  return true;
 }
 
 /* Return a legitimate address for REG + OFFSET.  TEMP is as for
@@ -1246,10 +1266,8 @@ mips_legitimize_tls_address (rtx loc)
   enum tls_model model;
 
   model = SYMBOL_REF_TLS_MODEL (loc);
-  /* Only TARGET_ABICALLS code can have more than one module; other
-     code must be be static and should not use a GOT.  All TLS models
-     reduce to local exec in this situation.  */
-  if (!TARGET_ABICALLS)
+  /* Local Exec suffices when we're statically-linked. */
+  if (!TARGET_USE_GOT)
     model = TLS_MODEL_LOCAL_EXEC;
 
   switch (model)
@@ -1365,7 +1383,7 @@ mips_move_integer (rtx temp, rtx dest, HOST_WIDE_INT value)
 {
   struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
   enum machine_mode mode;
-  unsigned int i, num_ops;
+  int i, num_ops;
   rtx x;
 
   mode = GET_MODE (dest);
@@ -1752,7 +1770,7 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
       /* If the address is legitimate, return the number of
 	 instructions it needs.  */
       addr = XEXP (x, 0);
-      cost = mips_address_insns (addr, mode, true);
+      cost = riscv_address_insns (addr, mode, true);
       if (cost > 0)
 	{
 	  *total = COSTS_N_INSNS (cost + (speed ? mips_cost->memory_latency : 1));
@@ -1973,9 +1991,9 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
 /* Implement TARGET_ADDRESS_COST.  */
 
 static int
-mips_address_cost (rtx addr, bool speed ATTRIBUTE_UNUSED)
+riscv_address_cost (rtx addr, bool speed ATTRIBUTE_UNUSED)
 {
-  return mips_address_insns (addr, SImode, false);
+  return riscv_address_insns (addr, SImode, false);
 }
 
 /* Return one word of double-word value OP.  HIGH_P is true to select the
@@ -2118,7 +2136,8 @@ mips_output_move (rtx dest, rtx src)
 	  /* A signed 16-bit constant formed by applying a relocation
 	     operator to a symbolic address.  */
 	  gcc_assert (!mips_split_p[symbol_type]);
-	  return "li\t%0,%R1";
+	  gcc_assert (symbol_type == SYMBOL_GPREL);
+	  return "addi\t%0,x" XSTRING(GP_REGNUM) ",%R1";
 	}
 
       if (symbolic_operand (src, VOIDmode))
@@ -3079,6 +3098,9 @@ mips_init_relocs (void)
       mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
       mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
     }
+  
+  if (g_switch_value)
+    mips_lo_relocs[SYMBOL_GPREL] = "%gp_rel(";
 
   mips_split_p[SYMBOL_TPREL] = true;
   mips_hi_relocs[SYMBOL_TPREL] = "%tprel_hi(";
@@ -3226,6 +3248,41 @@ mips_encode_section_info (tree decl, rtx rtl, int first)
 	  || mips_far_type_p (type))
 	SYMBOL_REF_FLAGS (symbol) |= SYMBOL_FLAG_LONG_CALL;
     }
+}
+
+bool
+riscv_size_ok_for_small_data_p (int size)
+{
+  return g_switch_value && IN_RANGE (size, 1, g_switch_value);
+}
+
+/* Return true if EXP should be placed in the small data section. */
+
+static bool
+riscv_in_small_data_p (const_tree x)
+{
+  if (TREE_CODE (x) == STRING_CST || TREE_CODE (x) == FUNCTION_DECL)
+    return false;
+
+  if (TREE_CODE (x) == VAR_DECL && DECL_SECTION_NAME (x))
+    {
+      const char *sec = TREE_STRING_POINTER (DECL_SECTION_NAME (x));
+      return strcmp (sec, ".sdata") == 0 || strcmp (sec, ".sbss") == 0;
+    }
+
+  return riscv_size_ok_for_small_data_p (int_size_in_bytes (TREE_TYPE (x)));
+}
+
+/* Return a section for X, handling small data. */
+
+static section *
+riscv_elf_select_rtx_section (enum machine_mode mode, rtx x,
+			      unsigned HOST_WIDE_INT align)
+{
+  if (riscv_size_ok_for_small_data_p (GET_MODE_SIZE (mode)))
+    return sdata_section;
+  else
+    return default_elf_select_rtx_section (mode, x, align);
 }
 
 /* The MIPS debug format wants all automatic variables and arguments
@@ -4879,8 +4936,8 @@ mips_option_override (void)
   if (mips_branch_cost == 0)
     mips_branch_cost = mips_cost->branch_cost;
 
-  if (flag_pic)
-    target_flags |= MASK_ABICALLS;
+  if (!TARGET_USE_GP)
+    g_switch_value = 0;
 
   /* Prefer a call to memcpy over inline code when optimizing for size,
      though see MOVE_RATIO in mips.h.  */
@@ -4900,17 +4957,13 @@ mips_option_override (void)
   /* Function to allocate machine-dependent function status.  */
   init_machine_status = &mips_init_machine_status;
 
-  targetm.min_anchor_offset = -RISCV_IMM_REACH/2;
-  targetm.max_anchor_offset = RISCV_IMM_REACH/2-1;
-
-  targetm.const_anchor = RISCV_IMM_REACH/2;
-
   mips_init_relocs ();
 }
 
 /* Implement TARGET_OPTION_OPTIMIZATION_TABLE.  */
 static const struct default_options mips_option_optimization_table[] =
   {
+    { OPT_LEVELS_1_PLUS, OPT_fsection_anchors, NULL, 1 },
     { OPT_LEVELS_1_PLUS, OPT_fomit_frame_pointer, NULL, 1 },
     { OPT_LEVELS_NONE, 0, NULL, 0 }
   };
@@ -4937,8 +4990,11 @@ mips_conditional_register_usage (void)
        regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
     call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
 
-  regno = RETURN_ADDR_REGNUM;
-  call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
+  call_used_regs[RETURN_ADDR_REGNUM] =
+    call_really_used_regs[RETURN_ADDR_REGNUM] = riscv_in_utfunc;
+
+  if (TARGET_USE_GP)
+    fixed_regs[GP_REGNUM] = call_used_regs[GP_REGNUM] = !riscv_in_utfunc;
 }
 
 /* Initialize vector TARGET to VALS.  */
@@ -5152,7 +5208,7 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 #undef TARGET_RTX_COSTS
 #define TARGET_RTX_COSTS mips_rtx_costs
 #undef TARGET_ADDRESS_COST
-#define TARGET_ADDRESS_COST mips_address_cost
+#define TARGET_ADDRESS_COST riscv_address_cost
 
 #undef TARGET_MACHINE_DEPENDENT_REORG
 #define TARGET_MACHINE_DEPENDENT_REORG mips_reorg
@@ -5260,6 +5316,18 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 #undef TARGET_TRAMPOLINE_INIT
 #define TARGET_TRAMPOLINE_INIT mips_trampoline_init
 
+#undef TARGET_IN_SMALL_DATA_P
+#define TARGET_IN_SMALL_DATA_P riscv_in_small_data_p
+
+#undef TARGET_ASM_SELECT_RTX_SECTION
+#define TARGET_ASM_SELECT_RTX_SECTION  riscv_elf_select_rtx_section
+
+#undef TARGET_MIN_ANCHOR_OFFSET
+#define TARGET_MIN_ANCHOR_OFFSET (-RISCV_IMM_REACH/2)
+
+#undef TARGET_MAX_ANCHOR_OFFSET
+#define TARGET_MAX_ANCHOR_OFFSET (RISCV_IMM_REACH/2-1)
+
 struct gcc_target targetm = TARGET_INITIALIZER;
-
+
 #include "gt-riscv.h"

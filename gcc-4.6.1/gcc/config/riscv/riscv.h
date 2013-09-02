@@ -52,7 +52,10 @@ struct mips_cpu_info {
 };
 
 /* True if we need to use a global offset table to access some symbols.  */
-#define TARGET_USE_GOT TARGET_ABICALLS
+#define TARGET_USE_GOT 0
+
+/* True if a global pointer can be used to access small data. */
+#define TARGET_USE_GP 0
 
 /* TARGET_HARD_FLOAT and TARGET_SOFT_FLOAT reflect whether the FPU is
    directly accessible, while the command-line options select
@@ -240,7 +243,6 @@ struct mips_cpu_info {
 
 #undef ASM_SPEC
 #define ASM_SPEC "\
-%{G*} \
 %(subtarget_asm_debugging_spec) \
 %{m32} %{m64} %{!m32:%{!m64: %(asm_abi_default_spec)}} \
 %{fPIC|fpic|fPIE|fpie:-fpic} \
@@ -254,7 +256,6 @@ struct mips_cpu_info {
 %{!T:-dT riscv.ld} \
 %{m64:-melf64lriscv} \
 %{m32:-melf32lriscv} \
-%{G*} %{mips1} %{mips2} %{mips3} %{mips4} %{mips32*} %{mips64*} \
 %{shared}"
 #endif  /* LINK_SPEC defined */
 
@@ -691,10 +692,10 @@ struct mips_cpu_info {
 #define MODES_TIEABLE_P mips_modes_tieable_p
 
 /* Register to use for pushing function arguments.  */
-#define STACK_POINTER_REGNUM (GP_REG_FIRST + 14)
-#define HARD_FRAME_POINTER_REGNUM (GP_REG_FIRST + 2)
-
-#define THREAD_POINTER_REGNUM (GP_REG_FIRST + 15)
+#define HARD_FRAME_POINTER_REGNUM 2
+#define STACK_POINTER_REGNUM 14
+#define GP_REGNUM 13
+#define THREAD_POINTER_REGNUM 15
 
 /* These two registers don't really exist: they get eliminated to either
    the stack or hard frame pointer.  */
@@ -1259,6 +1260,35 @@ typedef struct mips_args {
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL,PREFIX,NUM)			\
   sprintf ((LABEL), "*%s%s%ld", (LOCAL_LABEL_PREFIX), (PREFIX), (long)(NUM))
 
+/* Put small global uninitialized data in .sbss, otherwise in .bss. */
+
+#undef  ASM_OUTPUT_ALIGNED_COMMON
+#define ASM_OUTPUT_ALIGNED_COMMON(FILE, NAME, SIZE, ALIGN)		\
+do {									\
+  if (riscv_size_ok_for_small_data_p (SIZE))				\
+    switch_to_section (sbss_section);					\
+  else									\
+    switch_to_section (bss_section);					\
+  targetm.asm_out.globalize_label (FILE, NAME);				\
+  ASM_OUTPUT_ALIGN (FILE, exact_log2 ((ALIGN) / BITS_PER_UNIT));	\
+  ASM_OUTPUT_LABEL (FILE, NAME);					\
+  ASM_OUTPUT_SKIP (FILE, (SIZE) ? (SIZE) : 1);				\
+} while (0)
+
+/* Likewise, for local data. */
+
+#undef  ASM_OUTPUT_ALIGNED_LOCAL
+#define ASM_OUTPUT_ALIGNED_LOCAL(FILE, NAME, SIZE, ALIGN)		\
+do {									\
+  if (riscv_size_ok_for_small_data_p (SIZE))				\
+    switch_to_section (sbss_section);					\
+  else									\
+    switch_to_section (bss_section);					\
+  ASM_OUTPUT_ALIGN (FILE, exact_log2 ((ALIGN) / BITS_PER_UNIT));	\
+  ASM_OUTPUT_LABEL (FILE, NAME);					\
+  ASM_OUTPUT_SKIP (FILE, (SIZE) ? (SIZE) : 1);				\
+} while (0)
+
 /* This is how to output an element of a case-vector that is absolute.  */
 
 #define ASM_OUTPUT_ADDR_VEC_ELT(STREAM, VALUE)				\
@@ -1296,6 +1326,10 @@ do {									\
 /* Define the strings to put out for each section in the object file.  */
 #define TEXT_SECTION_ASM_OP	"\t.text"	/* instructions */
 #define DATA_SECTION_ASM_OP	"\t.data"	/* large data */
+#define READONLY_DATA_SECTION_ASM_OP	"\t.section\t.rodata"
+#define BSS_SECTION_ASM_OP	"\t.section\t.bss"
+#define SBSS_SECTION_ASM_OP	"\t.section\t.sbss,\"aw\""
+#define SDATA_SECTION_ASM_OP	"\t.section\t.sdata,\"aw\""
 
 #define ASM_OUTPUT_REG_PUSH(STREAM,REGNO)				\
 do									\

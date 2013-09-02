@@ -47,11 +47,6 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define OP_MASK_CIMM10	0x3ff
 #define OP_SH_CIMM10	5
 
-static const char rvc_rs1_regmap[8] = { 20, 21, 2, 3, 4, 5, 6, 7 };
-#define rvc_rd_regmap rvc_rs1_regmap
-#define rvc_rs2b_regmap rvc_rs1_regmap
-static const char rvc_rs2_regmap[8] = { 20, 21, 2, 3, 4, 5, 6, 0 };
-
 #define RVC_JUMP_BITS 10
 #define RVC_JUMP_ALIGN_BITS 1
 #define RVC_JUMP_ALIGN (1 << RVC_JUMP_ALIGN_BITS)
@@ -103,9 +98,6 @@ static const char rvc_rs2_regmap[8] = { 20, 21, 2, 3, 4, 5, 6, 0 };
 #define OP_SH_SHAMTW	10
 #define OP_MASK_RM		0x7
 #define OP_SH_RM	9
-
-static const char * const riscv_rm[8] =
-  { "rne", "rtz", "rdn", "rup", "rmm", 0, 0, "dyn" };
 
 #define OP_MASK_VRD		0x1f
 #define OP_SH_VRD		27

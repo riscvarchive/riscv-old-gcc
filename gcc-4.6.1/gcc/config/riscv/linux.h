@@ -27,9 +27,8 @@ along with GCC; see the file COPYING3.  If not see
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (RISC-V Linux/ELF)");
 
-/* If we don't set MASK_ABICALLS, we can't default to PIC.  */
-#undef TARGET_DEFAULT
-#define TARGET_DEFAULT MASK_ABICALLS
+#undef TARGET_USE_GOT
+#define TARGET_USE_GOT 1
 
 #define TARGET_OS_CPP_BUILTINS()				\
   do {								\

@@ -45,12 +45,13 @@ enum mips_symbol_type {
   SYMBOL_ABSOLUTE,
   SYMBOL_TLS,
   SYMBOL_TPREL,
+  SYMBOL_GPREL
 };
-#define NUM_SYMBOL_TYPES (SYMBOL_TPREL + 1)
+#define NUM_SYMBOL_TYPES (SYMBOL_GPREL + 1)
 
 extern bool mips_symbolic_constant_p (rtx, enum mips_symbol_type *);
 extern int mips_regno_mode_ok_for_base_p (int, enum machine_mode, bool);
-extern int mips_address_insns (rtx, enum machine_mode, bool);
+extern int riscv_address_insns (rtx, enum machine_mode, bool);
 extern int mips_const_insns (rtx);
 extern int mips_split_const_insns (rtx);
 extern int mips_load_store_insns (rtx, rtx);
@@ -113,5 +114,6 @@ extern void mips_expand_vector_init (rtx, rtx);
 
 extern bool mips_epilogue_uses (unsigned int);
 extern bool riscv_symbol_binds_local_p (const_rtx x);
+extern bool riscv_size_ok_for_small_data_p (int size);
 
 #endif /* ! GCC_MIPS_PROTOS_H */

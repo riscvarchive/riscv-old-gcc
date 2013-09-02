@@ -483,7 +483,8 @@ static bfd *reldyn_sorting_bfd;
 #endif
 
 #define IS_STORE_RELOC(bfd, reloc, opcode) \
-  ((ELF_R_TYPE (bfd, reloc) == R_RISCV_LO16		\
+  ((ELF_R_TYPE (bfd, reloc) == R_RISCV_LO16			\
+    || ELF_R_TYPE (bfd, reloc) == R_RISCV_GPREL16		\
     || ELF_R_TYPE (bfd, reloc) == R_RISCV_TLS_TPREL_LO16	\
     || ELF_R_TYPE (bfd, reloc) == R_RISCV_TLS_DTPREL_LO16)	\
    && OPCODE_IS_STORE(opcode))
@@ -662,6 +663,87 @@ static bfd_vma
 mips_elf_high (bfd_vma value)
 {
   return RISCV_LUI_HIGH_PART (value) & ((1<<RISCV_BIGIMM_BITS)-1);
+}
+
+static bfd_reloc_status_type
+riscv_elf_gprel_with_gp (bfd *abfd, asymbol *symbol,
+			        arelent *reloc_entry, asection *input_section,
+			        bfd_boolean relocatable, void *data, bfd_vma gp)
+{
+  bfd_vma relocation;
+  bfd_signed_vma val;
+  bfd_reloc_status_type status;
+
+  if (bfd_is_com_section (symbol->section))
+    relocation = 0;
+  else
+    relocation = symbol->value;
+
+  relocation += symbol->section->output_section->vma;
+  relocation += symbol->section->output_offset;
+
+  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
+    return bfd_reloc_outofrange;
+
+  /* Set val to the offset into the section or symbol.  */
+  val = reloc_entry->addend;
+
+  _bfd_riscv_elf_sign_extend (val, RISCV_IMM_BITS);
+
+  /* Adjust val for the final section location and GP value. */
+  if (!relocatable)
+    val += relocation - gp;
+
+  if (reloc_entry->howto->partial_inplace)
+    {
+      status = _bfd_relocate_contents (reloc_entry->howto, abfd, val,
+				       (bfd_byte *) data
+				       + reloc_entry->address);
+      if (status != bfd_reloc_ok)
+	return status;
+    }
+  else
+    reloc_entry->addend = val;
+
+  return bfd_reloc_ok;
+}
+
+bfd_reloc_status_type
+_bfd_riscv_elf_gprel_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
+			    void *data, asection *input_section, bfd *output_bfd,
+			    char **error_message)
+{
+  bfd_boolean relocatable;
+  bfd_vma gp;
+
+  /* If we're relocating, and this is an external symbol, we don't want
+     to change anything.  */
+  if (output_bfd != NULL
+      && (symbol->flags & BSF_SECTION_SYM) == 0
+      && (symbol->flags & BSF_LOCAL) != 0)
+    {
+      reloc_entry->address += input_section->output_offset;
+      return bfd_reloc_ok;
+    }
+
+  if (output_bfd != NULL)
+    relocatable = TRUE;
+  else
+    {
+      relocatable = FALSE;
+      output_bfd = symbol->section->output_section->owner;
+    }
+
+  gp = _bfd_get_gp_value (output_bfd);
+  if (gp == 0 && !relocatable)
+    {
+      *error_message = (char*) _("GP relative relocation when _gp not defined");
+      return bfd_reloc_dangerous;
+    }
+
+  return riscv_elf_gprel_with_gp (abfd, symbol, reloc_entry,
+				  input_section, relocatable,
+				  data, gp);
 }
 
 /* Used to store a REL high-part relocation such as R_RISCV_HI16.
@@ -2532,6 +2614,18 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_MIPS16_HI16:
       value = mips_elf_high (addend + symbol) << OP_SH_BIGIMMEDIATE;
       value &= howto->dst_mask;
+      break;
+
+    case R_RISCV_GPREL16:
+      /* Only sign-extend the addend if it was extracted from the
+	 instruction.  If the addend was separate, leave it alone,
+	 otherwise we may lose significant bits.  */
+      if (howto->partial_inplace)
+	addend = _bfd_riscv_elf_sign_extend (addend, RISCV_IMM_BITS);
+      value = symbol + addend - _bfd_get_gp_value (abfd);
+      value += _bfd_get_gp_value (input_bfd);
+      overflowed_p = mips_elf_overflow_p (value, RISCV_IMM_BITS);
+      value = (value << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
 
     case R_RISCV_LO16:
@@ -4967,6 +5061,13 @@ bfd_boolean
 _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 {
   struct mips_elf_link_hash_table *htab;
+  struct bfd_link_hash_entry *h;
+
+  h = bfd_link_hash_lookup (info->hash, "_gp", FALSE, FALSE, TRUE);
+  if (h != NULL && h->type == bfd_link_hash_defined)
+    _bfd_set_gp_value (abfd, h->u.def.value
+			     + h->u.def.section->output_section->vma
+			     + h->u.def.section->output_offset);
 
   /* Sort the dynamic symbols so that those with GOT entries come after
      those without.  */

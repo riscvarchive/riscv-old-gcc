@@ -3,8 +3,6 @@
 
 . ${srcdir}/emulparams/elf32lriscv-defs.sh
 OUTPUT_FORMAT="elf32-littleriscv"
-BIG_OUTPUT_FORMAT="elf32-bigriscv"
-LITTLE_OUTPUT_FORMAT="elf32-littleriscv"
 COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 
 # Magic sections.

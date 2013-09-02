@@ -3,9 +3,7 @@ SCRIPT_NAME=elf
 
 # Handle both big- and little-ended 32-bit MIPS objects.
 ARCH=riscv
-OUTPUT_FORMAT="elf32-bigriscv"
-BIG_OUTPUT_FORMAT="elf32-bigriscv"
-LITTLE_OUTPUT_FORMAT="elf32-littleriscv"
+OUTPUT_FORMAT="elf32-littleriscv"
 
 TEMPLATE_NAME=elf32
 EXTRA_EM_FILE=riscvelf
@@ -47,13 +45,8 @@ else
   OTHER_READWRITE_SECTIONS=".got.plt      ${RELOCATING-0} : { *(.got.plt) }"
 fi
 
-OTHER_SDATA_SECTIONS="
-  .lit8         ${RELOCATING-0} : { *(.lit8) }
-  .lit4         ${RELOCATING-0} : { *(.lit4) }
-  .srdata       ${RELOCATING-0} : { *(.srdata) }
-"
-
 # Magic symbols.
+SDATA_START_SYMBOLS='_gp = . + 0x800;'
 TEXT_START_SYMBOLS='_ftext = . ;'
 DATA_START_SYMBOLS='_fdata = . ;'
 OTHER_BSS_SYMBOLS='_fbss = .;'
