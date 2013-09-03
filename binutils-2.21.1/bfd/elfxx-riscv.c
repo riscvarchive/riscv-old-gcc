@@ -2127,29 +2127,6 @@ mips_elf_initialize_tls_index (void **entryp, void *p)
   return 1;
 }
 
-/* Returns the first relocation of type r_type found, beginning with
-   RELOCATION.  RELEND is one-past-the-end of the relocation table.  */
-
-static const Elf_Internal_Rela *
-mips_elf_next_relocation (bfd *abfd ATTRIBUTE_UNUSED, unsigned int r_type,
-			  const Elf_Internal_Rela *relocation,
-			  const Elf_Internal_Rela *relend)
-{
-  unsigned long r_symndx = ELF_R_SYM (abfd, relocation->r_info);
-
-  while (relocation < relend)
-    {
-      if (ELF_R_TYPE (abfd, relocation->r_info) == r_type
-	  && ELF_R_SYM (abfd, relocation->r_info) == r_symndx)
-	return relocation;
-
-      ++relocation;
-    }
-
-  /* We didn't find it.  */
-  return NULL;
-}
-
 /* Return whether an input relocation is against a local symbol.  */
 
 static bfd_boolean
@@ -3114,116 +3091,6 @@ _bfd_riscv_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
 
   return TRUE;
 }
-
-/* Return true if relocation REL against section SEC is a REL rather than
-   RELA relocation.  RELOCS is the first relocation in the section and
-   ABFD is the bfd that contains SEC.  */
-
-static bfd_boolean
-mips_elf_rel_relocation_p (bfd *abfd, asection *sec,
-			   const Elf_Internal_Rela *relocs,
-			   const Elf_Internal_Rela *rel)
-{
-  Elf_Internal_Shdr *rel_hdr;
-  const struct elf_backend_data *bed;
-
-  /* To determine which flavor of relocation this is, we depend on the
-     fact that the INPUT_SECTION's REL_HDR is read before RELA_HDR.  */
-  rel_hdr = elf_section_data (sec)->rel.hdr;
-  if (rel_hdr == NULL)
-    return FALSE;
-  bed = get_elf_backend_data (abfd);
-  return ((size_t) (rel - relocs)
-	  < NUM_SHDR_ENTRIES (rel_hdr) * bed->s->int_rels_per_ext_rel);
-}
-
-/* Read the addend for REL relocation REL, which belongs to bfd ABFD.
-   HOWTO is the relocation's howto and CONTENTS points to the contents
-   of the section that REL is against.  */
-
-static bfd_vma
-mips_elf_read_rel_addend (bfd *abfd, const Elf_Internal_Rela *rel,
-			  reloc_howto_type *howto, bfd_byte *contents)
-{
-  bfd_vma addend;
-
-  /* Get the addend, which is stored in the input file.  */
-  addend = mips_elf_obtain_contents (howto, rel, abfd, contents);
-
-  return addend & howto->src_mask;
-}
-
-/* REL is a relocation in ABFD that needs a partnering LO16 relocation
-   and *ADDEND is the addend for REL itself.  Look for the LO16 relocation
-   and update *ADDEND with the final addend.  Return true on success
-   or false if the LO16 could not be found.  RELEND is the exclusive
-   upper bound on the relocations for REL's section.  */
-
-static bfd_boolean
-mips_elf_add_lo16_rel_addend (bfd *abfd,
-			      const Elf_Internal_Rela *rel,
-			      const Elf_Internal_Rela *relend,
-			      bfd_byte *contents, bfd_vma *addend)
-{
-  unsigned int lo16_type;
-  const Elf_Internal_Rela *lo16_relocation;
-  reloc_howto_type *lo16_howto;
-  bfd_vma l;
-
-  lo16_type = R_RISCV_LO16;
-
-  /* The combined value is the sum of the HI16 addend, left-shifted by
-     sixteen bits, and the LO16 addend, sign extended.  (Usually, the
-     code does a `lui' of the HI16 value, and then an `addiu' of the
-     LO16 value.)
-
-     Scan ahead to find a matching LO16 relocation.
-
-     According to the MIPS ELF ABI, the R_RISCV_LO16 relocation must
-     be immediately following.  However, for the IRIX6 ABI, the next
-     relocation may be a composed relocation consisting of several
-     relocations for the same address.  In that case, the R_RISCV_LO16
-     relocation may occur as one of these.  We permit a similar
-     extension in general, as that is useful for GCC.
-
-     In some cases GCC dead code elimination removes the LO16 but keeps
-     the corresponding HI16.  This is strictly speaking a violation of
-     the ABI but not immediately harmful.  */
-  lo16_relocation = mips_elf_next_relocation (abfd, lo16_type, rel, relend);
-  if (lo16_relocation == NULL)
-    return FALSE;
-
-  /* Obtain the addend kept there.  */
-  lo16_howto = MIPS_ELF_RTYPE_TO_HOWTO (abfd, lo16_type, FALSE);
-  l = mips_elf_read_rel_addend (abfd, lo16_relocation, lo16_howto, contents);
-
-  l <<= lo16_howto->rightshift;
-  l = _bfd_riscv_elf_sign_extend (l, RISCV_IMM_BITS);
-
-  *addend <<= RISCV_IMM_BITS;
-  *addend += l;
-  return TRUE;
-}
-
-/* Try to read the contents of section SEC in bfd ABFD.  Return true and
-   store the contents in *CONTENTS on success.  Assume that *CONTENTS
-   already holds the contents if it is nonull on entry.  */
-
-static bfd_boolean
-mips_elf_get_section_contents (bfd *abfd, asection *sec, bfd_byte **contents)
-{
-  if (*contents)
-    return TRUE;
-
-  /* Get cached copy if it exists.  */
-  if (elf_section_data (sec)->this_hdr.contents != NULL)
-    {
-      *contents = elf_section_data (sec)->this_hdr.contents;
-      return TRUE;
-    }
-
-  return bfd_malloc_and_get_section (abfd, sec, contents);
-}
 
 /* Look through the relocs for a section during the first phase, and
    allocate space in the global offset table.  */
@@ -3242,8 +3109,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
   asection *sreloc;
   const struct elf_backend_data *bed;
   struct mips_elf_link_hash_table *htab;
-  bfd_byte *contents;
-  bfd_vma addend;
   reloc_howto_type *howto;
 
   if (info->relocatable)
@@ -3263,7 +3128,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
   name = bfd_get_section_name (abfd, sec);
 
   sreloc = NULL;
-  contents = NULL;
   for (rel = relocs; rel < rel_end; ++rel)
     {
       unsigned long r_symndx;
@@ -3382,20 +3246,8 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_RISCV_GOT_LO16:
 	  if (!h)
 	    {
-	      /* This relocation needs a page entry in the GOT. */
-	      if (mips_elf_rel_relocation_p (abfd, sec, relocs, rel))
-		{
-		  if (!mips_elf_get_section_contents (abfd, sec, &contents))
-		    return FALSE;
-		  howto = MIPS_ELF_RTYPE_TO_HOWTO (abfd, r_type, FALSE);
-		  addend = mips_elf_read_rel_addend (abfd, rel,
-						     howto, contents);
-		  addend <<= howto->rightshift;
-		}
-	      else
-		addend = rel->r_addend;
 	      if (!mips_elf_record_got_page_entry (info, abfd, r_symndx,
-						   addend))
+						   rel->r_addend))
 		return FALSE;
 	    }
 	  else if (!mips_elf_record_global_got_symbol (h, abfd, info, 0))
@@ -4106,19 +3958,15 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
       reloc_howto_type *howto;
       /* TRUE if the relocation is a RELA relocation, rather than a
          REL relocation.  */
-      bfd_boolean rela_relocation_p = TRUE;
       unsigned int r_type = ELF_R_TYPE (output_bfd, rel->r_info);
       const char *msg;
       unsigned long r_symndx;
       asection *sec;
       Elf_Internal_Shdr *symtab_hdr;
       struct elf_link_hash_entry *h;
-      bfd_boolean rel_reloc;
 
-      rel_reloc = mips_elf_rel_relocation_p (input_bfd, input_section,
-					     relocs, rel);
       /* Find the relocation howto for this relocation.  */
-      howto = MIPS_ELF_RTYPE_TO_HOWTO (input_bfd, r_type, !rel_reloc);
+      howto = MIPS_ELF_RTYPE_TO_HOWTO (input_bfd, r_type, TRUE);
 
       r_symndx = ELF_R_SYM (input_bfd, rel->r_info);
       symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
@@ -4151,66 +3999,14 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 
       if (!use_saved_addend_p)
 	{
-	  /* If these relocations were originally of the REL variety,
-	     we must pull the addend out of the field that will be
-	     relocated.  Otherwise, we simply use the contents of the
-	     RELA relocation.  */
-	  if (mips_elf_rel_relocation_p (input_bfd, input_section,
-					 relocs, rel))
-	    {
-	      rela_relocation_p = FALSE;
-	      addend = mips_elf_read_rel_addend (input_bfd, rel,
-						 howto, contents);
-	      if (hi16_reloc_p (r_type))
-		{
-		  if (!mips_elf_add_lo16_rel_addend (input_bfd, rel, relend,
-						     contents, &addend))
-		    {
-		      if (h)
-			name = h->root.root.string;
-		      else
-			name = bfd_elf_sym_name (input_bfd, symtab_hdr,
-						 local_syms + r_symndx,
-						 sec);
-		      (*_bfd_error_handler)
-			(_("%B: Can't find matching LO16 reloc against `%s' for %s at 0x%lx in section `%A'"),
-			 input_bfd, input_section, name, howto->name,
-			 rel->r_offset);
-		    }
-		}
-	      else
-		addend <<= howto->rightshift;
-	    }
-	  else
-	    addend = rel->r_addend;
+	  addend = rel->r_addend;
 	  mips_elf_adjust_addend (output_bfd, info, input_bfd,
 				  local_syms, local_sections, rel);
 	}
 
       if (info->relocatable)
-	{
-	  if (!rela_relocation_p && rel->r_addend)
-	    {
-	      addend += rel->r_addend;
-	      if (hi16_reloc_p (r_type))
-		addend = mips_elf_high (addend);
-	      else
-		addend >>= howto->rightshift;
-
-	      /* We use the source mask, rather than the destination
-		 mask because the place to which we are writing will be
-		 source of the addend in the final link.  */
-	      addend &= howto->src_mask;
-
-	      if (! mips_elf_perform_relocation (info, howto, rel, addend,
-						 input_bfd, input_section,
-						 contents))
-		return FALSE;
-	    }
-
-	  /* Go on to the next relocation.  */
-	  continue;
-	}
+	/* Go on to the next relocation.  */
+	continue;
 
       /* In the N32 and 64-bit ABIs there may be multiple consecutive
 	 relocations for the same offset.  In that case we are
