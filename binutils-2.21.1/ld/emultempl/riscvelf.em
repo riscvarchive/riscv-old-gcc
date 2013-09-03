@@ -44,6 +44,16 @@ riscv_after_parse (void)
   after_parse_default ();
 }
 
+static void
+riscv_before_allocation (void)
+{
+  gld${EMULATION_NAME}_before_allocation ();
+
+  if (RELAXATION_DISABLED_BY_DEFAULT)
+    ENABLE_RELAXATION;
+}
+
 EOF
 
 LDEMUL_AFTER_PARSE=riscv_after_parse
+LDEMUL_BEFORE_ALLOCATION=riscv_before_allocation

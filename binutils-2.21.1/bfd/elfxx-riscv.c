@@ -3545,16 +3545,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
   return TRUE;
 }
 
-bfd_boolean
-_bfd_riscv_relax_section (bfd *abfd ATTRIBUTE_UNUSED,
-			 asection *sec ATTRIBUTE_UNUSED,
-			 struct bfd_link_info *link_info ATTRIBUTE_UNUSED,
-			 bfd_boolean *again)
-{
-  *again = FALSE;
-  return TRUE;
-}
-
 /* Allocate space for global sym dynamic relocs.  */
 
 static bfd_boolean
@@ -5413,4 +5403,173 @@ _bfd_riscv_elf_plt_sym_val (bfd_vma i, const asection *plt,
   return (plt->vma
 	  + RISCV_PLT0_ENTRY_INSNS * 4
 	  + i * RISCV_PLT_ENTRY_INSNS * 4);
+}
+
+bfd_boolean
+_bfd_riscv_relax_section (bfd *abfd, asection *sec,
+			  struct bfd_link_info *link_info, bfd_boolean *again)
+{
+  Elf_Internal_Shdr *symtab_hdr;
+  Elf_Internal_Rela *internal_relocs;
+  Elf_Internal_Rela *irel, *irelend;
+  bfd_byte *contents = NULL;
+  Elf_Internal_Sym *isymbuf = NULL;
+
+  *again = FALSE;
+
+  if (/*link_info->relocatable
+      || (sec->flags & SEC_RELOC) == 0
+      ||*/ sec->reloc_count == 0)
+    return TRUE;
+
+  symtab_hdr = &elf_symtab_hdr (abfd);
+
+  internal_relocs = (_bfd_elf_link_read_relocs
+		     (abfd, sec, NULL, (Elf_Internal_Rela *) NULL,
+		      link_info->keep_memory));
+  if (internal_relocs == NULL)
+    goto error_return;
+
+  irelend = internal_relocs + sec->reloc_count;
+  for (irel = internal_relocs; irel < irelend; irel++)
+    {
+      bfd_vma auipc, jalr, symval;
+      bfd_signed_vma foff;
+
+      if (ELF_R_TYPE (abfd, irel->r_info) != (int) R_RISCV_CALL)
+	continue;
+
+      /* Get the section contents.  */
+      if (contents == NULL)
+	{
+	  if (elf_section_data (sec)->this_hdr.contents != NULL)
+	    contents = elf_section_data (sec)->this_hdr.contents;
+	  else
+	    {
+	      if (!bfd_malloc_and_get_section (abfd, sec, &contents))
+		goto error_return;
+	    }
+	}
+      BFD_ASSERT (irel->r_offset + 8 <= sec->size);
+
+      auipc = bfd_get_32 (abfd, contents + irel->r_offset);
+      BFD_ASSERT ((auipc & MASK_AUIPC) == MATCH_AUIPC);
+
+      jalr = bfd_get_32 (abfd, contents + irel->r_offset + 4);
+      BFD_ASSERT ((jalr & MASK_JALR) == MATCH_JALR);
+
+      printf("try to relax call reloc, o %08x a %08x i %08x\n", (int)irel->r_offset, (int)irel->r_addend, (int)auipc);
+
+      /* Read this BFD's symbols if we haven't done so already.  */
+      if (isymbuf == NULL && symtab_hdr->sh_info != 0)
+	{
+	  isymbuf = (Elf_Internal_Sym *) symtab_hdr->contents;
+	  if (isymbuf == NULL)
+	    isymbuf = bfd_elf_get_elf_syms (abfd, symtab_hdr,
+					    symtab_hdr->sh_info, 0,
+					    NULL, NULL, NULL);
+	  if (isymbuf == NULL)
+	    goto error_return;
+	}
+
+      /* Get the value of the symbol referred to by the reloc.  */
+      if (ELF_R_SYM (abfd, irel->r_info) < symtab_hdr->sh_info)
+	/* Don't relax local relocs. */
+	continue;
+      else
+	{
+	  unsigned long indx;
+	  struct elf_link_hash_entry *h;
+
+	  indx = ELF_R_SYM (abfd, irel->r_info) - symtab_hdr->sh_info;
+	  h = elf_sym_hashes (abfd)[indx];
+	  BFD_ASSERT (h != NULL);
+	  if (h->root.type != bfd_link_hash_defined
+	      && h->root.type != bfd_link_hash_defweak)
+	    {
+	      /* This appears to be a reference to an undefined
+		 symbol.  Just ignore it--it will be caught by the
+		 regular reloc processing.  */
+	      continue;
+	    }
+
+	  symval = (h->root.u.def.value
+		    + h->root.u.def.section->output_section->vma
+		    + h->root.u.def.section->output_offset);
+	}
+
+      /* See if this function call can be shortened.  */
+      foff = (symval
+	      - (irel->r_offset
+		 + sec->output_section->vma
+		 + sec->output_offset));
+      symval += irel->r_addend;
+
+      /* See if we're in JAL range, leaving some slop in case the distance
+	 is increased by a .align directive. */
+      if (foff < -(int)RISCV_JUMP_REACH/2 || foff >= (int)RISCV_JUMP_REACH/2-16)
+	continue;
+
+      /* Shorten the function call.  */
+
+      elf_section_data (sec)->relocs = internal_relocs;
+      elf_section_data (sec)->this_hdr.contents = contents;
+      symtab_hdr->contents = (unsigned char *) isymbuf;
+
+      /* Replace the R_RISCV_CALL reloc with R_RISCV_26. */
+      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_26);
+      /* Overwrite AUIPC with JAL. */
+      auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) ? MATCH_JAL : MATCH_J;
+      bfd_put_32 (abfd, auipc, contents + irel->r_offset);
+      /* Delete the JALR. */
+      jalr = MATCH_ADDI;
+      bfd_put_32 (abfd, jalr, contents + irel->r_offset + 4);
+#if 0
+      if (! sh_elf_relax_delete_bytes (abfd, sec, irel->r_offset + 4, 4))
+	goto error_return;
+#endif
+    }
+
+  if (isymbuf != NULL
+      && symtab_hdr->contents != (unsigned char *) isymbuf)
+    {
+      if (! link_info->keep_memory)
+	free (isymbuf);
+      else
+	{
+	  /* Cache the symbols for elf_link_input_bfd.  */
+	  symtab_hdr->contents = (unsigned char *) isymbuf;
+	}
+    }
+
+  if (contents != NULL
+      && elf_section_data (sec)->this_hdr.contents != contents)
+    {
+      if (! link_info->keep_memory)
+	free (contents);
+      else
+	{
+	  /* Cache the section contents for elf_link_input_bfd.  */
+	  elf_section_data (sec)->this_hdr.contents = contents;
+	}
+    }
+
+  if (internal_relocs != NULL
+      && elf_section_data (sec)->relocs != internal_relocs)
+    free (internal_relocs);
+
+  return TRUE;
+
+ error_return:
+  if (isymbuf != NULL
+      && symtab_hdr->contents != (unsigned char *) isymbuf)
+    free (isymbuf);
+  if (contents != NULL
+      && elf_section_data (sec)->this_hdr.contents != contents)
+    free (contents);
+  if (internal_relocs != NULL
+      && elf_section_data (sec)->relocs != internal_relocs)
+    free (internal_relocs);
+
+  return FALSE;
 }

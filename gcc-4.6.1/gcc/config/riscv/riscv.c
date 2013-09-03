@@ -575,11 +575,23 @@ mips_tls_symbol_p (const_rtx x)
 }
 
 bool
-riscv_symbol_binds_local_p (const_rtx x)
+riscv_call_binds_local_p (const_rtx x)
 {
   if (SYMBOL_REF_DECL (x))
-    return targetm.binds_local_p (SYMBOL_REF_DECL (x));
-  return SYMBOL_REF_LOCAL_P (x);
+  {
+    enum symbol_visibility vis;
+    bool local_p;
+    const_tree exp = SYMBOL_REF_DECL (x);
+
+    /* Determine if symbol really is local, not just locally-bound */
+    vis = DECL_VISIBILITY (exp);
+    DECL_VISIBILITY ((tree)exp) = VISIBILITY_DEFAULT;
+    local_p = targetm.binds_local_p (exp);
+    DECL_VISIBILITY ((tree)exp) = vis;
+
+    return local_p;
+  }
+  return false;
 }
 
 /* Return the method that should be used to access SYMBOL_REF or

@@ -2682,7 +2682,9 @@
 	 (match_operand 1 "" ""))
    (clobber (reg:SI V1_REGNUM))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[0]) ? "jr\t%0" : "j\t%0, v1"; }
+  { return REG_P (operands[0]) ? "jr\t%0" :
+           riscv_call_binds_local_p (operands[0]) ? "j\t%0" :
+	   "j\t%0, v1"; }
   [(set_attr "type" "call")])
 
 (define_expand "sibcall_value"
@@ -2702,7 +2704,9 @@
               (match_operand 2 "" "")))
    (clobber (reg:SI V1_REGNUM))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1, v1"; }
+  { return REG_P (operands[1]) ? "jr\t%1" :
+           riscv_call_binds_local_p (operands[1]) ? "j\t%1" :
+	   "j\t%1, v1"; }
   [(set_attr "type" "call")])
 
 (define_insn "sibcall_value_multiple_internal"
@@ -2714,7 +2718,9 @@
 	      (match_dup 2)))
    (clobber (match_scratch:SI 4 "=j,j"))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1, %4"; }
+  { return REG_P (operands[1]) ? "jr\t%1" :
+           riscv_call_binds_local_p (operands[1]) ? "j\t%1" :
+	   "j\t%1, v1"; }
   [(set_attr "type" "call")])
 
 (define_expand "call"
@@ -2734,7 +2740,9 @@
    (clobber (reg:SI V1_REGNUM))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[0]) ? "jalr\t%0" : "jal\t%0, v1"; }
+  { return REG_P (operands[0]) ? "jalr\t%0" :
+           riscv_call_binds_local_p (operands[0]) ? "jal\t%0" :
+	   "jal\t%0, v1"; }
   [(set_attr "jal" "indirect,direct")])
 
 (define_expand "call_value"
@@ -2756,7 +2764,9 @@
    (clobber (reg:SI V1_REGNUM))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" : "jal\t%1, v1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1" :
+           riscv_call_binds_local_p (operands[1]) ? "jal\t%1" :
+	   "jal\t%1, v1"; }
   [(set_attr "jal" "indirect,direct")])
 
 ;; See comment for call_internal.
@@ -2770,7 +2780,9 @@
    (clobber (reg:SI V1_REGNUM))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" : "jal\t%1, v1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1" :
+           riscv_call_binds_local_p (operands[1]) ? "jal\t%1" :
+	   "jal\t%1, v1"; }
   [(set_attr "jal" "indirect,direct")])
 
 ;; Call subroutine returning any type.
