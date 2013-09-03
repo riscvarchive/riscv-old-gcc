@@ -5405,6 +5405,126 @@ _bfd_riscv_elf_plt_sym_val (bfd_vma i, const asection *plt,
 	  + i * RISCV_PLT_ENTRY_INSNS * 4);
 }
 
+/* Delete some bytes from a section while relaxing.  */
+
+static bfd_boolean
+riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
+{
+  Elf_Internal_Shdr * symtab_hdr;
+  unsigned int        sec_shndx;
+  bfd_byte *          contents;
+  Elf_Internal_Rela * irel;
+  Elf_Internal_Rela * irelend;
+  Elf_Internal_Sym *  isym;
+  Elf_Internal_Sym *  isymend;
+  bfd_vma             toaddr;
+  unsigned int        symcount;
+  struct elf_link_hash_entry ** sym_hashes;
+  struct elf_link_hash_entry ** end_hashes;
+
+  /* TODO: handle alignment */
+  Elf_Internal_Rela *alignment_rel = NULL;
+  int force_snip = 0;
+  if (!alignment_rel)
+    force_snip = 1;
+
+  sec_shndx = _bfd_elf_section_from_bfd_section (abfd, sec);
+
+  contents = elf_section_data (sec)->this_hdr.contents;
+
+  /* The deletion must stop at the next alignment boundary, if
+     ALIGNMENT_REL is non-NULL.  */
+  toaddr = sec->size;
+  if (alignment_rel)
+    toaddr = alignment_rel->r_offset;
+
+  irel = elf_section_data (sec)->relocs;
+  irelend = irel + sec->reloc_count;
+
+  /* Actually delete the bytes.  */
+  memmove (contents + addr, contents + addr + count,
+	   (size_t) (toaddr - addr - count));
+
+  if (force_snip)
+    sec->size -= count;
+  else
+    {
+      int i;
+      BFD_ASSERT (count % 4 == 0);
+      for (i = 0; i < count; i += 4)
+	bfd_put_32 (abfd, RISCV_NOP, contents + toaddr - count + i);
+      /* TODO: RVC NOP if count % 4 == 2 */
+    }
+
+  /* Adjust all the relocs.  */
+  for (irel = elf_section_data (sec)->relocs; irel < irelend; irel++)
+    {
+      /* Get the new reloc address.  */
+      if (irel->r_offset > addr
+	  && (irel->r_offset < toaddr
+	      || (force_snip && irel->r_offset == toaddr)))
+	irel->r_offset -= count;
+    }
+
+  /* Adjust the local symbols defined in this section.  */
+  symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
+  isym = (Elf_Internal_Sym *) symtab_hdr->contents;
+  isymend = isym + symtab_hdr->sh_info;
+
+  for (; isym < isymend; isym++)
+    {
+      /* If the symbol is in the range of memory we just moved, we
+	 have to adjust its value.  */
+      if (isym->st_shndx == sec_shndx
+	  && isym->st_value > addr
+	  && isym->st_value < toaddr)
+	isym->st_value -= count;
+
+      /* If the symbol *spans* the bytes we just deleted (i.e. it's
+	 *end* is in the moved bytes but it's *start* isn't), then we
+	 must adjust its size.  */
+      if (isym->st_shndx == sec_shndx
+	  && isym->st_value < addr
+	  && isym->st_value + isym->st_size > addr
+	  && isym->st_value + isym->st_size < toaddr)
+	isym->st_size -= count;
+    }
+
+  /* Now adjust the global symbols defined in this section.  */
+  symcount = symtab_hdr->sh_size / sizeof(Elf64_External_Sym);
+  if (!ABI_64_P (abfd))
+    symcount = symtab_hdr->sh_size / sizeof(Elf32_External_Sym);
+  symcount -= symtab_hdr->sh_info;
+
+  sym_hashes = elf_sym_hashes (abfd);
+  end_hashes = sym_hashes + symcount;
+
+  for (; sym_hashes < end_hashes; sym_hashes++)
+    {
+      struct elf_link_hash_entry *sym_hash = *sym_hashes;
+
+      if ((sym_hash->root.type == bfd_link_hash_defined
+	   || sym_hash->root.type == bfd_link_hash_defweak)
+	  && sym_hash->root.u.def.section == sec)
+	{
+	  /* As above, adjust the value if needed.  */
+	  if (sym_hash->root.u.def.value > addr
+	      && sym_hash->root.u.def.value < toaddr)
+	    sym_hash->root.u.def.value -= count;
+
+	  /* As above, adjust the size if needed.  */
+	  if (sym_hash->root.u.def.value < addr
+	      && sym_hash->root.u.def.value + sym_hash->size > addr
+	      && sym_hash->root.u.def.value + sym_hash->size < toaddr)
+	    sym_hash->size -= count;
+	}
+    }
+
+  return TRUE;
+}
+
+/* Relax AUIPC/JALR into JAL. */
+
 bfd_boolean
 _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 			  struct bfd_link_info *link_info, bfd_boolean *again)
@@ -5522,12 +5642,8 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
       auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) ? MATCH_JAL : MATCH_J;
       bfd_put_32 (abfd, auipc, contents + irel->r_offset);
       /* Delete the JALR. */
-      jalr = MATCH_ADDI;
-      bfd_put_32 (abfd, jalr, contents + irel->r_offset + 4);
-#if 0
-      if (! sh_elf_relax_delete_bytes (abfd, sec, irel->r_offset + 4, 4))
+      if (! riscv_relax_delete_bytes (abfd, sec, irel->r_offset + 4, 4))
 	goto error_return;
-#endif
     }
 
   if (isymbuf != NULL
