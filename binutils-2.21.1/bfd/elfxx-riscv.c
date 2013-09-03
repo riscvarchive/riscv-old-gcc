@@ -2310,7 +2310,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 			       bfd_vma addend, reloc_howto_type *howto,
 			       Elf_Internal_Sym *local_syms,
 			       asection **local_sections, bfd_vma *valuep,
-			       const char **namep)
+			       const char **namep, bfd_byte *contents)
 {
   /* The eventual value we will return.  */
   bfd_vma value;
@@ -2560,31 +2560,47 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value &= howto->dst_mask;
       break;
 
-    case R_RISCV_CALL_HI16:
-      value = mips_elf_high (addend + symbol - p) << OP_SH_BIGIMMEDIATE;
-      value &= howto->dst_mask;
-      break;
+    case R_RISCV_CALL:
+    {
+      bfd_vma auipc = bfd_get (32, input_bfd, contents + relocation->r_offset);
+      bfd_vma jalr = bfd_get (32, input_bfd, contents + relocation->r_offset + 4);
 
-    case R_RISCV_CALL_LO16:
-      value = (addend + symbol - p) << OP_SH_IMMEDIATE;
-      value &= howto->dst_mask;
-      break;
+      BFD_ASSERT ((auipc & MASK_AUIPC) == MATCH_AUIPC);
+      BFD_ASSERT ((jalr & MASK_JALR) == MATCH_JALR);
 
+      addend += _bfd_riscv_elf_sign_extend((auipc >> OP_SH_BIGIMMEDIATE) & OP_MASK_BIGIMMEDIATE, RISCV_BIGIMM_BITS) << OP_SH_BIGIMMEDIATE;
+      addend += _bfd_riscv_elf_sign_extend((jalr >> OP_SH_IMMEDIATE) & OP_MASK_IMMEDIATE, RISCV_IMM_BITS);
+      if (symbol)
+	addend += symbol - p;
+
+      auipc &= ~(OP_MASK_BIGIMMEDIATE << OP_SH_BIGIMMEDIATE);
+      auipc |= (mips_elf_high (addend) & OP_MASK_BIGIMMEDIATE) << OP_SH_BIGIMMEDIATE;
+
+      jalr &= ~(OP_MASK_IMMEDIATE << OP_SH_IMMEDIATE);
+      jalr |= (addend & OP_MASK_IMMEDIATE) << OP_SH_IMMEDIATE;
+
+      bfd_put (32, input_bfd, auipc, contents + relocation->r_offset);
+      bfd_put (32, input_bfd, jalr, contents + relocation->r_offset + 4);
+
+      return bfd_reloc_continue;
+    }
     case R_RISCV_26:
-      if (symbol == 0)
-	{
-	  /* Need to support JAL to address 0 to statically link against libc.
-	     For now, implement as an infinite loop, "1: JAL 1b", but this is
-	     incorrect and we should relax it to JALR ra, x0. */
-	  value = 0;
-	}
-      else
-	{
-	  value = symbol + _bfd_riscv_elf_sign_extend (addend, RISCV_JUMP_BITS+RISCV_JUMP_ALIGN_BITS) - p;
-	  overflowed_p = mips_elf_overflow_p (value, RISCV_JUMP_BITS+RISCV_JUMP_ALIGN_BITS);
-	}
+      value = _bfd_riscv_elf_sign_extend (addend, RISCV_JUMP_BITS+RISCV_JUMP_ALIGN_BITS);
+      if (symbol)
+	value += symbol - p;
       value >>= howto->rightshift;
       value <<= OP_SH_TARGET;
+      value &= howto->dst_mask;
+      break;
+
+    case R_RISCV_PC16:
+      value = _bfd_riscv_elf_sign_extend (addend, RISCV_BRANCH_BITS+RISCV_BRANCH_ALIGN_BITS);
+      if (symbol)
+	value += symbol - p;
+      overflowed_p = mips_elf_overflow_p (value, RISCV_BRANCH_BITS+RISCV_BRANCH_ALIGN_BITS);
+      value >>= howto->rightshift;
+      value = ((value >> RISCV_IMMLO_BITS) << OP_SH_IMMHI) |
+	      ((value & ((1<<RISCV_IMMLO_BITS)-1)) << OP_SH_IMMLO);
       value &= howto->dst_mask;
       break;
 
@@ -2660,7 +2676,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = ((g - p) << OP_SH_IMMEDIATE) & howto->dst_mask;
       break;
 
-    case R_RISCV_PJUMP:
     case R_RISCV_GNU_VTINHERIT:
     case R_RISCV_GNU_VTENTRY:
       /* We don't do anything with these at present.  */
@@ -3348,8 +3363,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	case R_RISCV_26:
 	case R_RISCV_PC16:
-	case R_RISCV_CALL_HI16:
-	case R_RISCV_CALL_LO16:
+	case R_RISCV_CALL:
 	  if (h)
 	    ((struct mips_elf_link_hash_entry *) h)->has_static_relocs = TRUE;
 	  break;
@@ -4223,7 +4237,8 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
       switch (mips_elf_calculate_relocation (output_bfd, input_bfd,
 					     input_section, info, rel,
 					     addend, howto, local_syms,
-					     local_sections, &value, &name))
+					     local_sections, &value, &name,
+					     contents))
 	{
 	case bfd_reloc_continue:
 	  /* There's nothing to do.  */

@@ -4765,6 +4765,7 @@ value in a word.  The relocation is relative offset from  */
   BFD_RELOC_MICROBLAZE_32_GOTOFF,
 
   /* RISC-V relocations */
+  BFD_RELOC_RISCV_CALL,
   BFD_RELOC_RISCV_TLS_GOT_HI20,
   BFD_RELOC_RISCV_TLS_GOT_LO12,
   BFD_RELOC_RISCV_TLS_GD_HI20,

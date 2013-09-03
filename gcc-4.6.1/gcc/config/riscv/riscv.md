@@ -88,7 +88,8 @@
 
 (define_constants
   [(RETURN_ADDR_REGNUM		1)
-   (GOT_VERSION_REGNUM		79)
+   (V1_REGNUM			17)
+   (GOT_VERSION_REGNUM		130)
 
    (UNSPEC_RISCV_VLOAD          700)
    (UNSPEC_RISCV_VSTORE         701)
@@ -132,7 +133,7 @@
 ;; the split instructions; in some cases, it is more appropriate for the
 ;; scheduling type to be "multi" instead.
 (define_attr "move_type"
-  "unknown,load,fpload,store,fpstore,mtc,mfc,mthilo,mfhilo,move,fmove,
+  "unknown,load,fpload,store,fpstore,mtc,mfc,move,fmove,
    const,constN,signext,ext_ins,logical,arith,sll0,andi,shift_shift"
   (const_string "unknown"))
 
@@ -169,8 +170,6 @@
 ;; condmove	conditional moves
 ;; mtc		transfer to coprocessor
 ;; mfc		transfer from coprocessor
-;; mthilo	transfer to hi/lo registers
-;; mfhilo	transfer from hi/lo registers
 ;; const	load constant
 ;; arith	integer arithmetic instructions
 ;; logical      integer logical instructions
@@ -204,7 +203,7 @@
 ;; ghost	an instruction that produces no real code
 (define_attr "type"
   "unknown,branch,jump,call,load,fpload,fpidxload,store,fpstore,fpidxstore,
-   prefetch,prefetchx,condmove,mtc,mfc,mthilo,mfhilo,const,arith,logical,
+   prefetch,prefetchx,condmove,mtc,mfc,const,arith,logical,
    shift,slt,signext,clz,pop,trap,imul,idiv,move,
    fmove,fadd,fmul,fmadd,fdiv,frdiv,frdiv1,frdiv2,fabs,fneg,fcmp,fcvt,fsqrt,
    frsqrt,frsqrt1,frsqrt2,multi,nop,ghost"
@@ -224,8 +223,6 @@
 	 (eq_attr "move_type" "fpstore") (const_string "fpstore")
 	 (eq_attr "move_type" "mtc") (const_string "mtc")
 	 (eq_attr "move_type" "mfc") (const_string "mfc")
-	 (eq_attr "move_type" "mthilo") (const_string "mthilo")
-	 (eq_attr "move_type" "mfhilo") (const_string "mfhilo")
 
 	 ;; These types of move are always single insns.
 	 (eq_attr "move_type" "fmove") (const_string "fmove")
@@ -323,6 +320,13 @@
 	  (const_int 4)
 	  (const_int 8))
 
+	  ;; Conservatively assume calls take two instructions, as in:
+	  ;;   auipc t0, %pcrel_hi(target)
+	  ;;   jalr  ra, t0, %pcrel_lo(target)
+	  ;; The linker will relax these into JAL when appropriate.
+	  (eq_attr "type" "call")
+	  (const_int 8)
+
 	  ;; "Ghost" instructions occupy no space.
 	  (eq_attr "type" "ghost")
 	  (const_int 0)
@@ -330,13 +334,12 @@
 	  (eq_attr "got" "load") (const_int 8)
 
 	  ;; SHIFT_SHIFTs are decomposed into two separate instructions.
-	  ;; They are extended instructions on MIPS16 targets.
 	  (eq_attr "move_type" "shift_shift")
 		(const_int 8)
 
 	  ;; Check for doubleword moves that are decomposed into two
 	  ;; instructions.
-	  (and (eq_attr "move_type" "mtc,mfc,mthilo,mfhilo,move")
+	  (and (eq_attr "move_type" "mtc,mfc,move")
 	       (eq_attr "dword_mode" "yes"))
 	  (const_int 8)
 
@@ -2676,11 +2679,10 @@
 
 (define_insn "sibcall_internal"
   [(call (mem:SI (match_operand 0 "call_insn_operand" "j,S"))
-	 (match_operand 1 "" ""))]
+	 (match_operand 1 "" ""))
+   (clobber (reg:SI V1_REGNUM))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[0]) ? "jr\t%0" :
-           SYMBOL_REF_LONG_CALL_P (operands[0]) ? "jf\t%0, t0" :
-	   "j\t%0"; }
+  { return REG_P (operands[0]) ? "jr\t%0" : "j\t%0, v1"; }
   [(set_attr "type" "call")])
 
 (define_expand "sibcall_value"
@@ -2697,11 +2699,10 @@
 (define_insn "sibcall_value_internal"
   [(set (match_operand 0 "register_operand" "")
         (call (mem:SI (match_operand 1 "call_insn_operand" "j,S"))
-              (match_operand 2 "" "")))]
+              (match_operand 2 "" "")))
+   (clobber (reg:SI V1_REGNUM))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" :
-           SYMBOL_REF_LONG_CALL_P (operands[1]) ? "jf\t%1, t0" :
-	   "j\t%1"; }
+  { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1, v1"; }
   [(set_attr "type" "call")])
 
 (define_insn "sibcall_value_multiple_internal"
@@ -2710,11 +2711,10 @@
               (match_operand 2 "" "")))
    (set (match_operand 3 "register_operand" "")
 	(call (mem:SI (match_dup 1))
-	      (match_dup 2)))]
+	      (match_dup 2)))
+   (clobber (match_scratch:SI 4 "=j,j"))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" :
-           SYMBOL_REF_LONG_CALL_P (operands[1]) ? "jf\t%1, t0" :
-	   "j\t%1"; }
+  { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1, %4"; }
   [(set_attr "type" "call")])
 
 (define_expand "call"
@@ -2731,11 +2731,10 @@
 (define_insn "call_internal"
   [(call (mem:SI (match_operand 0 "call_insn_operand" "r,S"))
 	 (match_operand 1 "" ""))
+   (clobber (reg:SI V1_REGNUM))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[0]) ? "jalr\t%0" :
-           SYMBOL_REF_LONG_CALL_P (operands[0]) ? "jalf\t%0, t0" :
-	   "jal\t%0"; }
+  { return REG_P (operands[0]) ? "jalr\t%0" : "jal\t%0, v1"; }
   [(set_attr "jal" "indirect,direct")])
 
 (define_expand "call_value"
@@ -2754,11 +2753,10 @@
   [(set (match_operand 0 "register_operand" "")
         (call (mem:SI (match_operand 1 "call_insn_operand" "r,S"))
               (match_operand 2 "" "")))
+   (clobber (reg:SI V1_REGNUM))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" :
-           SYMBOL_REF_LONG_CALL_P (operands[1]) ? "jalf\t%1, t0" :
-	   "jal\t%1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1" : "jal\t%1, v1"; }
   [(set_attr "jal" "indirect,direct")])
 
 ;; See comment for call_internal.
@@ -2769,11 +2767,10 @@
    (set (match_operand 3 "register_operand" "")
 	(call (mem:SI (match_dup 1))
 	      (match_dup 2)))
+   (clobber (reg:SI V1_REGNUM))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" :
-           SYMBOL_REF_LONG_CALL_P (operands[1]) ? "jalf\t%1, t0" :
-	   "jal\t%1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1" : "jal\t%1, v1"; }
   [(set_attr "jal" "indirect,direct")])
 
 ;; Call subroutine returning any type.

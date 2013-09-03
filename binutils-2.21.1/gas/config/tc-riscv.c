@@ -330,11 +330,7 @@ struct mips_hi_fixup
   (((STRUCT) >> (SHIFT)) & (MASK))
 
 /* Change INSN's opcode so that the operand given by FIELD has value VALUE.
-   INSN is a mips_cl_insn structure and VALUE is evaluated exactly once.
-
-   include/opcode/mips.h specifies operand fields using the macros
-   OP_MASK_<FIELD> and OP_SH_<FIELD>.  The MIPS16 equivalents start
-   with "MIPS16OP" instead of "OP".  */
+   INSN is a mips_cl_insn structure and VALUE is evaluated exactly once. */
 #define INSERT_OPERAND(FIELD, INSN, VALUE) \
   INSERT_BITS ((INSN).insn_opcode, VALUE, OP_MASK_##FIELD, OP_SH_##FIELD)
 
@@ -1363,11 +1359,6 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	     bfd_reloc_code_real_type reloc_type)
 {
 #ifdef OBJ_ELF
-  /* The value passed to dwarf2_emit_insn is the distance between
-     the beginning of the current instruction and the address that
-     should be recorded in the debug tables.  For MIPS16 debug info
-     we want to use ISA-encoded addresses, so we pass -1 for an
-     address higher by one than the current.  */
   dwarf2_emit_insn (0);
 #endif
 
@@ -1436,27 +1427,6 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	        ip->insn_opcode |= (address_expr->X_add_number & (RISCV_IMM_REACH-1)) << OP_SH_IMMEDIATE;
 	      break;
 
-	    case BFD_RELOC_MIPS_JMP:
-	      if ((address_expr->X_add_number & 1) != 0)
-		as_bad (_("jump to misaligned address (0x%lx)"),
-			(unsigned long) address_expr->X_add_number);
-	      if ((address_expr->X_add_number + RISCV_JUMP_REACH/2) & (RISCV_JUMP_REACH-1))
-		as_bad (_("jump address range overflow (0x%lx)"),
-			(unsigned long) address_expr->X_add_number);
-	      ip->insn_opcode |= ((unsigned long long)(address_expr->X_add_number & (RISCV_JUMP_REACH-1))/RISCV_JUMP_ALIGN) << OP_SH_TARGET;
-	      break;
-
-	    case BFD_RELOC_16_PCREL_S2:
-	      if ((address_expr->X_add_number & 1) != 0)
-		as_bad (_("branch to misaligned address (0x%lx)"),
-			(unsigned long) address_expr->X_add_number);
-	      if ((address_expr->X_add_number + RISCV_BRANCH_REACH/2) & (RISCV_BRANCH_REACH-1))
-		as_bad (_("branch address range overflow (0x%lx)"),
-			(unsigned long) address_expr->X_add_number);
-	      unsigned delta = (((unsigned)address_expr->X_add_number & (RISCV_BRANCH_REACH-1)) >> RISCV_BRANCH_ALIGN_BITS) & ((1<<RISCV_BRANCH_BITS)-1);
-	      ip->insn_opcode |= ((delta & ((1<<RISCV_IMMLO_BITS)-1)) << OP_SH_IMMLO) | (((delta >> RISCV_IMMLO_BITS) & ((1<<RISCV_IMMHI_BITS)-1)) << OP_SH_IMMHI);
-	      break;
-
 	    default:
 	      internalError ();
 	    }
@@ -1469,11 +1439,12 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	  howto = bfd_reloc_type_lookup (stdoutput, reloc_type);
 	  if (howto == NULL)
 	    as_bad (_("Unsupported MIPS relocation number %d"), reloc_type);
-	  
+	 
 	  ip->fixp = fix_new_exp (ip->frag, ip->where,
 				  bfd_get_reloc_size (howto),
 				  address_expr,
 				  reloc_type == BFD_RELOC_16_PCREL_S2 ||
+				  reloc_type == BFD_RELOC_RISCV_CALL ||
 				  reloc_type == BFD_RELOC_MIPS_JMP,
 				  reloc_type);
 
@@ -1484,8 +1455,6 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	      && (reloc_type == BFD_RELOC_32
 		  || reloc_type == BFD_RELOC_64
 		  || reloc_type == BFD_RELOC_CTOR
-		  || reloc_type == BFD_RELOC_MIPS_REL16
-		  || reloc_type == BFD_RELOC_MIPS_RELGOT
 		  || reloc_type == BFD_RELOC_HI16_S
 		  || reloc_type == BFD_RELOC_LO16))
 	    ip->fixp->fx_no_overflow = 1;
@@ -1637,8 +1606,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	case 'j':
 	  r = va_arg (args, int);
 	  gas_assert (r == BFD_RELOC_LO16
-		  || r == BFD_RELOC_MIPS_GOT_LO16
-		  || r == BFD_RELOC_MIPS_CALL_LO16);
+		  || r == BFD_RELOC_MIPS_GOT_LO16);
 	  continue;
 
 	case 'u':
@@ -1649,51 +1617,17 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 			  && (r == BFD_RELOC_HI16_S
 			      || r == BFD_RELOC_HI16
 			      || r == BFD_RELOC_MIPS_GOT_HI16
-			      || r == BFD_RELOC_MIPS_CALL_HI16))));
+			      || r == BFD_RELOC_RISCV_CALL))));
 	  continue;
 
 	case 'p':
 	  gas_assert (ep != NULL);
-
-	  /*
-	   * This allows macro() to pass an immediate expression for
-	   * creating short branches without creating a symbol.
-	   *
-	   * We don't allow branch relaxation for these branches, as
-	   * they should only appear in ".set nomacro" anyway.
-	   */
-	  if (ep->X_op == O_constant)
-	    {
-	      unsigned long long delta;
-	      if ((ep->X_add_number & (RISCV_BRANCH_ALIGN-1)) != 0)
-		as_bad (_("branch to misaligned address (0x%lx)"),
-			(unsigned long) ep->X_add_number);
-	      if ((ep->X_add_number + RISCV_BRANCH_REACH/2) & ~(RISCV_BRANCH_REACH-1))
-		as_bad (_("branch address range overflow (0x%lx)"),
-			(unsigned long) ep->X_add_number);
-	      delta = (unsigned long long)(ep->X_add_number & (RISCV_BRANCH_REACH-1))/RISCV_BRANCH_ALIGN;
-	      insn.insn_opcode |= ((delta & ((1<<RISCV_IMMLO_BITS)-1)) << OP_SH_IMMLO) | (((delta >> RISCV_IMMLO_BITS) & ((1<<RISCV_IMMHI_BITS)-1)) << OP_SH_IMMHI);
-	      ep = NULL;
-	    }
-	  else
-	    r = BFD_RELOC_16_PCREL_S2;
+	  r = BFD_RELOC_16_PCREL_S2;
 	  continue;
 
 	case 'a':
 	  gas_assert (ep != NULL);
-	  if (ep->X_op == O_constant)
-	    {
-	      if ((ep->X_add_number & (RISCV_JUMP_ALIGN-1)) != 0)
-		as_bad (_("jump to misaligned address (0x%lx)"),
-			(unsigned long) ep->X_add_number);
-	      if ((ep->X_add_number + RISCV_JUMP_REACH/2) & ~(RISCV_JUMP_REACH-1))
-		as_bad (_("jump address range overflow (0x%lx)"),
-			(unsigned long) ep->X_add_number);
-	      insn.insn_opcode |= ((unsigned long long)(ep->X_add_number & (RISCV_JUMP_REACH-1))/RISCV_JUMP_ALIGN) << OP_SH_TARGET;
-	      ep = NULL;
-	    }
-	  else
-	    r = BFD_RELOC_MIPS_JMP;
+	  r = BFD_RELOC_MIPS_JMP;
 	  continue;
 
 	default:
@@ -1756,7 +1690,7 @@ macro_build_lui (const char* name, expressionS *ep, int regnum, bfd_reloc_code_r
   append_insn (&insn, ep, reloc);
 }
 
-/* Load an entry from the GOT. */
+/* Load a static address. */
 static void
 load_static_addr (int destreg, expressionS *ep)
 {
@@ -1772,6 +1706,18 @@ load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
 {
   macro_build_lui ("auipc", ep, tempreg, hi_reloc);
   macro_build (ep, lo_insn, "d,O(b)", destreg, lo_reloc, tempreg);
+}
+
+/* Load an entry from the GOT. */
+static void
+riscv_call (int destreg, int tempreg, expressionS *ep)
+{
+#if 0
+  macro_build (ep, destreg ? "jal" : "j", "a", BFD_RELOC_MIPS_JMP);
+  return;
+#endif
+  macro_build_lui ("auipc", ep, tempreg, BFD_RELOC_RISCV_CALL);
+  macro_build (NULL, "jalr", "d,b", destreg, tempreg);
 }
 
 /* Warn if an expression is not a constant.  */
@@ -1887,14 +1833,12 @@ macro (struct mips_cl_insn *ip)
                     BFD_RELOC_RISCV_TLS_GOT_HI20, BFD_RELOC_RISCV_TLS_GOT_LO12);
       break;
 
-    case M_JALF:
-      load_got_addr(LINK_REG, rs1, &offset_expr, "jalr",
-		    BFD_RELOC_MIPS_CALL_HI16, BFD_RELOC_MIPS_CALL_LO16);
+    case M_JAL:
+      riscv_call (LINK_REG, rs1, &offset_expr);
       break;
 
-    case M_JF:
-      load_got_addr(ZERO, rs1, &offset_expr, "jalr",
-		    BFD_RELOC_MIPS_CALL_HI16, BFD_RELOC_MIPS_CALL_LO16);
+    case M_J:
+      riscv_call (ZERO, rs1, &offset_expr);
       break;
 
     case M_LI:
@@ -2784,7 +2728,6 @@ void
 md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
   bfd_byte *buf;
-  long insn;
   reloc_howto_type *howto;
 
 
@@ -2803,6 +2746,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
   buf = (bfd_byte *) (fixP->fx_frag->fr_literal + fixP->fx_where);
 
   gas_assert (!fixP->fx_pcrel || (fixP->fx_r_type == BFD_RELOC_16_PCREL_S2 ||
+                                 fixP->fx_r_type == BFD_RELOC_RISCV_CALL ||
                                  fixP->fx_r_type == BFD_RELOC_MIPS_JMP));
 
   /* Don't treat parts of a composite relocation as done.  There are two
@@ -2817,8 +2761,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	 leave everything up to the linker.  */
   if (fixP->fx_addsy == NULL && !fixP->fx_pcrel && fixP->fx_tcbit == 0)
     fixP->fx_done = 1;
-
-  insn = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
 
   switch (fixP->fx_r_type)
     {
@@ -2840,18 +2782,11 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
       /* fall through */
 
-    case BFD_RELOC_MIPS_REL16:
-    case BFD_RELOC_MIPS_RELGOT:
     case BFD_RELOC_HI16:
     case BFD_RELOC_HI16_S:
     case BFD_RELOC_GPREL16:
     case BFD_RELOC_MIPS_GOT_HI16:
     case BFD_RELOC_MIPS_GOT_LO16:
-    case BFD_RELOC_MIPS_CALL_HI16:
-    case BFD_RELOC_MIPS_CALL_LO16:
-    case BFD_RELOC_MIPS16_HI16:
-    case BFD_RELOC_MIPS16_HI16_S:
-    case BFD_RELOC_MIPS16_JMP:
       /* Nothing needed to do.  The value comes from the reloc entry.  */
       break;
 
@@ -2885,81 +2820,24 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	md_number_to_chars ((char *) buf, *valP, fixP->fx_size);
       break;
 
-    case BFD_RELOC_LO16:
-      if (!fixP->fx_done)
-	break;
-
-      if (*valP + RISCV_IMM_REACH/2 > RISCV_IMM_REACH-1)
-        as_bad_where (fixP->fx_file, fixP->fx_line,
-		      _("relocation overflow"));
-
-      if (OPCODE_IS_STORE(insn)) /* Stores have a split immediate field. */
-	{
-	  valueT value = *valP & (RISCV_IMM_REACH-1);
-	  value = ((value >> RISCV_IMMLO_BITS) << OP_SH_IMMHI) |
-	          ((value & ((1<<RISCV_IMMLO_BITS)-1)) << OP_SH_IMMLO);
-	  insn |= value;
-	}
-      else
-	insn |= (*valP & ((1<<RISCV_IMM_BITS)-1)) << OP_SH_IMMEDIATE;
-
+    case BFD_RELOC_RISCV_CALL:
+#if 0
+      /* Update AUIPC part. */
+      insn |= (((*valP + RISCV_IMM_REACH/2) >> RISCV_IMM_BITS) & ((1<<RISCV_BIGIMM_BITS)-1)) << OP_SH_BIGIMMEDIATE;
       md_number_to_chars ((char *) buf, insn, 4);
-      break;
-
+      /* Update JALR part. */
+      buf += 4;
+      insn = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
+      insn |= (*valP & (RISCV_IMM_REACH-1)) << OP_SH_IMMEDIATE;
+      md_number_to_chars ((char *) buf, insn, 4);
+      /* Leave the rest to the linker. */
+      fixP->fx_done = 0;
+      return;
+#endif
+    case BFD_RELOC_LO16:
     case BFD_RELOC_MIPS_JMP:
-      if ((*valP & (RISCV_JUMP_ALIGN-1)) != 0)
-	as_bad_where (fixP->fx_file, fixP->fx_line,
-		      _("Branch to misaligned address (%lx)"), (long) *valP);
-
-      /* We need to save the bits in the instruction since fixup_segment()
-	 might be deleting the relocation entry (i.e., a branch within
-	 the current segment).  */
-      if (! fixP->fx_done)
-	break;
-
-      /* Update old instruction data.  */
-
-      if (*valP + RISCV_JUMP_REACH/2 <= RISCV_JUMP_REACH-1)
-	{
-	  insn |= ((*valP >> RISCV_JUMP_ALIGN_BITS) & ((1<<RISCV_JUMP_BITS)-1)) << OP_SH_TARGET;
-	  md_number_to_chars ((char *) buf, insn, 4);
-	}
-      else
-	{
-	  /* If we got here, we have branch-relaxation disabled,
-	     and there's nothing we can do to fix this instruction
-	     without turning it into a longer sequence.  */
-	  as_bad_where (fixP->fx_file, fixP->fx_line,
-			_("Jump out of range"));
-	}
-      break;
-
     case BFD_RELOC_16_PCREL_S2:
-      if ((*valP & (RISCV_BRANCH_ALIGN-1)) != 0)
-	as_bad_where (fixP->fx_file, fixP->fx_line,
-		      _("Branch to misaligned address (%lx)"), (long) *valP);
-
-      /* We need to save the bits in the instruction since fixup_segment()
-	 might be deleting the relocation entry (i.e., a branch within
-	 the current segment).  */
-      if (! fixP->fx_done)
-	break;
-
-      /* Update old instruction data.  */
-      if (*valP + RISCV_BRANCH_REACH/2 <= RISCV_BRANCH_REACH-1)
-	{
-	  unsigned delta = ((unsigned)*valP >> RISCV_BRANCH_ALIGN_BITS) & ((1<<RISCV_BRANCH_BITS)-1);;
-	  insn |= ((delta & ((1<<RISCV_IMMLO_BITS)-1)) << OP_SH_IMMLO) | (((delta >> RISCV_IMMLO_BITS) & ((1<<RISCV_IMMHI_BITS)-1)) << OP_SH_IMMHI);
-	  md_number_to_chars ((char *) buf, insn, 4);
-	}
-      else
-	{
-	  /* If we got here, we have branch-relaxation disabled,
-	     and there's nothing we can do to fix this instruction
-	     without turning it into a longer sequence.  */
-	  as_bad_where (fixP->fx_file, fixP->fx_line,
-			_("Branch out of range"));
-	}
+      fixP->fx_done = 0;
       break;
 
     case BFD_RELOC_VTABLE_INHERIT:
@@ -3405,6 +3283,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
   if (fixp->fx_pcrel)
     {
       gas_assert (fixp->fx_r_type == BFD_RELOC_16_PCREL_S2 ||
+                  fixp->fx_r_type == BFD_RELOC_RISCV_CALL ||
                   fixp->fx_r_type == BFD_RELOC_MIPS_JMP);
 
       /* At this point, fx_addnumber is "symbol offset - pcrel address".

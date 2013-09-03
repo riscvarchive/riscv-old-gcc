@@ -211,11 +211,24 @@ static reloc_howto_type mips_elf64_howto_table_rel[] =
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
 	 "R_RISCV_PC16",		/* name */
 	 TRUE,			/* partial_inplace */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
+	 (OP_MASK_IMMHI << OP_SH_IMMHI) | (OP_MASK_IMMLO << OP_SH_IMMLO),	/* src_mask */
+	 (OP_MASK_IMMHI << OP_SH_IMMHI) | (OP_MASK_IMMLO << OP_SH_IMMLO),	/* dst_mask */
 	 TRUE),			/* pcrel_offset */
 
-  EMPTY_HOWTO (11),
+  HOWTO (R_RISCV_CALL,		/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_CALL",		/* name */
+	 TRUE,			/* partial_inplace */
+	 (((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE) | ((RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE),	/* src_mask */
+	 (((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE) | ((RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE),	/* dst_mask */
+	 TRUE),			/* pcrel_offset */
+
   EMPTY_HOWTO (12),
   EMPTY_HOWTO (13),
   EMPTY_HOWTO (14),
@@ -278,74 +291,14 @@ static reloc_howto_type mips_elf64_howto_table_rel[] =
   EMPTY_HOWTO (27),
   EMPTY_HOWTO (28),
   EMPTY_HOWTO (29),
-
-  /* High 16 bits of displacement in global offset table.  */
-  HOWTO (R_RISCV_CALL_HI16,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_BIGIMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_BIGIMMEDIATE,	/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_CALL_HI16",	/* name */
-	 TRUE,			/* partial_inplace */
-	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* src_mask */
-	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Low 16 bits of displacement in global offset table.  */
-  HOWTO (R_RISCV_CALL_LO16,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_CALL_LO16",	/* name */
-	 TRUE,			/* partial_inplace */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (30),
+  EMPTY_HOWTO (31),
   EMPTY_HOWTO (32),
-
-  HOWTO (R_RISCV_REL16,		/* type */
-	 0,			/* rightshift */
-	 1,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_REL16",	/* name */
-	 TRUE,			/* partial_inplace */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* These two are obsolete.  */
-  EMPTY_HOWTO (R_RISCV_ADD_IMMEDIATE),
-  EMPTY_HOWTO (R_RISCV_PJUMP),
-
-  /* Similiar to R_RISCV_REL32, but used for relocations in a GOT section.
-     It must be used for multigot GOT's (and only there).  */
-  HOWTO (R_RISCV_RELGOT,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_RELGOT",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0xffffffff,		/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  EMPTY_HOWTO(37),
+  EMPTY_HOWTO (33),
+  EMPTY_HOWTO (34),
+  EMPTY_HOWTO (35),
+  EMPTY_HOWTO (36),
+  EMPTY_HOWTO (37),
 
   /* TLS relocations.  */
   EMPTY_HOWTO (R_RISCV_TLS_DTPMOD32),
@@ -728,7 +681,7 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
      and claims R_RISCV_PC16 to be not rightshifted, rendering it useless.
      We do the right thing here.  */
   HOWTO (R_RISCV_PC16,		/* type */
-	 2,			/* rightshift */
+	 RISCV_BRANCH_ALIGN_BITS,	/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
 	 TRUE,			/* pc_relative */
@@ -738,10 +691,23 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 	 "R_RISCV_PC16",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
+	 (OP_MASK_IMMHI << OP_SH_IMMHI) | (OP_MASK_IMMLO << OP_SH_IMMLO),	/* dst_mask */
 	 TRUE),			/* pcrel_offset */
 
-  EMPTY_HOWTO (11),
+  HOWTO (R_RISCV_CALL,		/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_CALL",		/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 (((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE) | ((RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE),	/* dst_mask */
+	 TRUE),			/* pcrel_offset */
+
   EMPTY_HOWTO (12),
   EMPTY_HOWTO (13),
   EMPTY_HOWTO (14),
@@ -804,74 +770,14 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
   EMPTY_HOWTO (27),
   EMPTY_HOWTO (28),
   EMPTY_HOWTO (29),
-
-  /* High 16 bits of displacement in global offset table.  */
-  HOWTO (R_RISCV_CALL_HI16,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_BIGIMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_BIGIMMEDIATE,	/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_CALL_HI16",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 ((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Low 16 bits of displacement in global offset table.  */
-  HOWTO (R_RISCV_CALL_LO16,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_CALL_LO16",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (30),
+  EMPTY_HOWTO (31),
   EMPTY_HOWTO (32),
-
-  HOWTO (R_RISCV_REL16,		/* type */
-	 0,			/* rightshift */
-	 1,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 OP_SH_IMMEDIATE,	/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_REL16",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 (RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE,	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* These two are obsolete.  */
-  EMPTY_HOWTO (R_RISCV_ADD_IMMEDIATE),
-  EMPTY_HOWTO (R_RISCV_PJUMP),
-
-  /* Similiar to R_RISCV_REL32, but used for relocations in a GOT section.
-     It must be used for multigot GOT's (and only there).  */
-  HOWTO (R_RISCV_RELGOT,		/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_RELGOT",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0xffffffff,		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  EMPTY_HOWTO(37),
+  EMPTY_HOWTO (33),
+  EMPTY_HOWTO (34),
+  EMPTY_HOWTO (35),
+  EMPTY_HOWTO (36),
+  EMPTY_HOWTO (37),
 
   /* TLS relocations.  */
   EMPTY_HOWTO (R_RISCV_TLS_DTPMOD32),
@@ -1246,14 +1152,10 @@ static const struct elf_reloc_map mips_reloc_map[] =
   { BFD_RELOC_HI16_S, R_RISCV_HI16 },
   { BFD_RELOC_LO16, R_RISCV_LO16 },
   { BFD_RELOC_GPREL16, R_RISCV_GPREL16 },
+  { BFD_RELOC_RISCV_CALL, R_RISCV_CALL },
   { BFD_RELOC_MIPS_JMP, R_RISCV_26 },
   { BFD_RELOC_MIPS_GOT_HI16, R_RISCV_GOT_HI16 },
   { BFD_RELOC_MIPS_GOT_LO16, R_RISCV_GOT_LO16 },
-  { BFD_RELOC_MIPS_CALL_HI16, R_RISCV_CALL_HI16 },
-  { BFD_RELOC_MIPS_CALL_LO16, R_RISCV_CALL_LO16 },
-  { BFD_RELOC_MIPS_REL16, R_RISCV_REL16 },
-  /* Use of R_RISCV_ADD_IMMEDIATE and R_RISCV_PJUMP is deprecated.  */
-  { BFD_RELOC_MIPS_RELGOT, R_RISCV_RELGOT },
   { BFD_RELOC_MIPS_TLS_DTPMOD32, R_RISCV_TLS_DTPMOD32 },
   { BFD_RELOC_MIPS_TLS_DTPREL32, R_RISCV_TLS_DTPREL32 },
   { BFD_RELOC_MIPS_TLS_DTPMOD64, R_RISCV_TLS_DTPMOD64 },

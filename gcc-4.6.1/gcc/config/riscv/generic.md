@@ -42,10 +42,6 @@
   (eq_attr "type" "branch,jump,call")
   "alu")
 
-(define_insn_reservation "generic_hilo" 1
-  (eq_attr "type" "mfhilo,mthilo")
-  "imuldiv*3")
-
 (define_insn_reservation "generic_imul" 17
   (eq_attr "type" "imul")
   "imuldiv*17")

@@ -3230,25 +3230,6 @@ mips_print_operand_address (FILE *file, rtx x)
       }
   gcc_unreachable ();
 }
-
-/* Implement TARGET_ENCODE_SECTION_INFO.  */
-
-static void
-mips_encode_section_info (tree decl, rtx rtl, int first)
-{
-  default_encode_section_info (decl, rtl, first);
-
-  if (TREE_CODE (decl) == FUNCTION_DECL)
-    {
-      rtx symbol = XEXP (rtl, 0);
-      tree type = TREE_TYPE (decl);
-
-      /* Encode whether the symbol is short or long.  */
-      if ((TARGET_LONG_CALLS && !mips_near_type_p (type))
-	  || mips_far_type_p (type))
-	SYMBOL_REF_FLAGS (symbol) |= SYMBOL_FLAG_LONG_CALL;
-    }
-}
 
 bool
 riscv_size_ok_for_small_data_p (int size)
@@ -5276,9 +5257,6 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 
 #undef TARGET_CANNOT_FORCE_CONST_MEM
 #define TARGET_CANNOT_FORCE_CONST_MEM mips_cannot_force_const_mem
-
-#undef TARGET_ENCODE_SECTION_INFO
-#define TARGET_ENCODE_SECTION_INFO mips_encode_section_info
 
 #undef TARGET_ATTRIBUTE_TABLE
 #define TARGET_ATTRIBUTE_TABLE mips_attribute_table

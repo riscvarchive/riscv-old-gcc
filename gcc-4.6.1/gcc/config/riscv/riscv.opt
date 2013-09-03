@@ -38,10 +38,6 @@ mips
 Target RejectNegative Joined
 -mipsN	Generate code for ISA level N
 
-mlong-calls
-Target Report Var(TARGET_LONG_CALLS)
-Use indirect calls
-
 mmemcpy
 Target Report Mask(MEMCPY)
 Don't optimize block moves

@@ -1092,11 +1092,6 @@ typedef struct mips_args {
 		 XSTR (XEXP (DECL_RTL (current_function_decl), 0), 0));	\
   else									\
     asm_fprintf ((FILE), "%U%s", (NAME))
-
-/* Flag to mark a function decl symbol that requires a long call.  */
-#define SYMBOL_FLAG_LONG_CALL	(SYMBOL_FLAG_MACH_DEP << 0)
-#define SYMBOL_REF_LONG_CALL_P(X)					\
-  ((SYMBOL_REF_FLAGS (X) & SYMBOL_FLAG_LONG_CALL) != 0)
 
 /* This flag marks functions that cannot be lazily bound.  */
 #define SYMBOL_FLAG_BIND_NOW (SYMBOL_FLAG_MACH_DEP << 1)
