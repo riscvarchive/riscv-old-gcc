@@ -111,6 +111,15 @@ extern bfd_vma _bfd_riscv_elf_plt_sym_val
 extern const struct bfd_elf_special_section _bfd_riscv_elf_special_sections [];
 
 extern bfd_boolean _bfd_riscv_elf_common_definition (Elf_Internal_Sym *);
+extern reloc_howto_type *riscv_elf_bfd_reloc_type_lookup
+  (bfd *, bfd_reloc_code_real_type);
+extern reloc_howto_type *riscv_elf_bfd_reloc_name_lookup (bfd *, const char *);
+extern reloc_howto_type *riscv_elf_rtype_to_howto
+  (unsigned int, bfd_boolean);
+extern void riscv_elf_info_to_howto_rel
+  (bfd *, arelent *, Elf_Internal_Rela *);
+extern void riscv_elf_info_to_howto_rela
+  (bfd *, arelent *, Elf_Internal_Rela *);
 
 #define elf_backend_common_definition   _bfd_riscv_elf_common_definition
 #define elf_backend_special_sections _bfd_riscv_elf_special_sections
