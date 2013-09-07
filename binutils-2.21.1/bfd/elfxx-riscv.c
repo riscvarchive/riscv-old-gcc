@@ -6161,14 +6161,17 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 	{
 	  /* A local symbol.  */
 	  Elf_Internal_Sym *isym = isymbuf + ELF_R_SYM (abfd, irel->r_info);
+	  asection *isec = sec;
 
 	  if (isym->st_shndx != SHN_UNDEF)
-	    /* XXX Why does this indcate the symbols are in the same section? */
-	    continue;
+	    {
+	      BFD_ASSERT (isym->st_shndx < elf_numsections (abfd));
+	      isec = elf_elfsections (abfd)[isym->st_shndx]->bfd_section;
+	    }
 
 	  symval = (isym->st_value
-		    + sec->output_section->vma
-		    + sec->output_offset);
+		    + isec->output_section->vma
+		    + isec->output_offset);
 	}
       else
 	{
@@ -6192,16 +6195,21 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 		    + h->root.u.def.section->output_offset);
 	}
 
+      symval += irel->r_addend;
+
       /* See if this function call can be shortened.  */
       foff = (symval
 	      - (irel->r_offset
 		 + sec->output_section->vma
 		 + sec->output_offset));
-      symval += irel->r_addend;
 
-      /* See if we're in JAL range, leaving some slop in case the distance
-	 is increased by a .align directive. */
-      if (foff < -(int)RISCV_JUMP_REACH/2 || foff >= (int)RISCV_JUMP_REACH/2-16)
+      /* See if we're in range for a relaxation. */
+      bfd_boolean near_zero = !link_info->shared
+	&& (symval >= (bfd_vma)0 - RISCV_IMM_REACH/2
+	    || symval < RISCV_IMM_REACH/2);
+      bfd_boolean jal =
+	foff >= -(int)RISCV_JUMP_REACH/2 && foff < (int)RISCV_JUMP_REACH/2;
+      if (!near_zero && !jal)
 	continue;
 
       /* Shorten the function call.  */
@@ -6210,13 +6218,23 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
       elf_section_data (sec)->this_hdr.contents = contents;
       symtab_hdr->contents = (unsigned char *) isymbuf;
 
-      /* Replace the R_RISCV_CALL reloc with R_RISCV_JAL. */
-      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_JAL);
-      /* Overwrite AUIPC with JAL. */
-      auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) | MATCH_JAL;
+      if (near_zero)
+	{
+	  /* Replace the R_RISCV_CALL reloc with R_RISCV_LO16. */
+      	  irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_LO16);
+	  /* Overwrite AUIPC with JALR rd, x0, addr. */
+	  auipc = jalr & ~(OP_MASK_RS << OP_SH_RS);
+	}
+      else
+	{
+	  /* Replace the R_RISCV_CALL reloc with R_RISCV_JAL. */
+      	  irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_JAL);
+      	  /* Overwrite AUIPC with JAL rd, addr. */
+      	  auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) | MATCH_JAL;
+	}
       bfd_put_32 (abfd, auipc, contents + irel->r_offset);
-      /* Delete the JALR. */
-      bfd_put_32 (abfd, MATCH_ADDI, contents + irel->r_offset + 4);
+
+      /* Delete unnecessary JALR. */
       if (! riscv_relax_delete_bytes (abfd, sec, irel->r_offset + 4, 4))
 	goto error_return;
 
