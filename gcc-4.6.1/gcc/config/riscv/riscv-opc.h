@@ -69,8 +69,8 @@
 #define  MASK_SRLW 0x1ffff
 #define MATCH_DIV 0x633
 #define  MASK_DIV 0x1ffff
-#define MATCH_J 0x6b
-#define  MASK_J 0x7f
+#define MATCH_FDIV_D 0x30d3
+#define  MASK_FDIV_D 0x1f1ff
 #define MATCH_FENCE 0x2f
 #define  MASK_FENCE 0x1ff
 #define MATCH_FNMSUB_S 0x4b
@@ -171,8 +171,6 @@
 #define  MASK_AMOMAXU_D 0x7fff
 #define MATCH_XORI 0x213
 #define  MASK_XORI 0x3ff
-#define MATCH_FDIV_D 0x30d3
-#define  MASK_FDIV_D 0x1f1ff
 #define MATCH_AMOMAXU_W 0x1d2b
 #define  MASK_AMOMAXU_W 0x7fff
 #define MATCH_FCVT_WU_S 0xb053

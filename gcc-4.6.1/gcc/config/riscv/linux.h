@@ -53,6 +53,7 @@ along with GCC; see the file COPYING3.  If not see
 #undef LINK_SPEC
 #define LINK_SPEC \
   "%{shared:-shared} \
+  -X \
   %{!shared: \
     %{!static: \
       %{rdynamic:-export-dynamic} \

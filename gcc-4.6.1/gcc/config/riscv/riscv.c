@@ -574,26 +574,6 @@ mips_tls_symbol_p (const_rtx x)
   return GET_CODE (x) == SYMBOL_REF && SYMBOL_REF_TLS_MODEL (x) != 0;
 }
 
-bool
-riscv_call_binds_local_p (const_rtx x)
-{
-  if (SYMBOL_REF_DECL (x))
-  {
-    enum symbol_visibility vis;
-    bool local_p;
-    const_tree exp = SYMBOL_REF_DECL (x);
-
-    /* Determine if symbol really is local, not just locally-bound */
-    vis = DECL_VISIBILITY (exp);
-    DECL_VISIBILITY ((tree)exp) = VISIBILITY_DEFAULT;
-    local_p = targetm.binds_local_p (exp);
-    DECL_VISIBILITY ((tree)exp) = vis;
-
-    return local_p;
-  }
-  return false;
-}
-
 /* Return the method that should be used to access SYMBOL_REF or
    LABEL_REF X in context CONTEXT.  */
 
@@ -2014,7 +1994,7 @@ riscv_address_cost (rtx addr, bool speed ATTRIBUTE_UNUSED)
 rtx
 mips_subword (rtx op, bool high_p)
 {
-  unsigned int byte, offset;
+  unsigned int byte;
   enum machine_mode mode;
 
   mode = GET_MODE (op);
@@ -4898,7 +4878,7 @@ mips_handle_option (size_t code, const char *arg, int value ATTRIBUTE_UNUSED)
 static void
 mips_option_override (void)
 {
-  int i, regno, mode;
+  int regno, mode;
   const struct mips_cpu_info *info;
 
 #ifdef SUBTARGET_OVERRIDE_OPTIONS

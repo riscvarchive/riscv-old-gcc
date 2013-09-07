@@ -150,7 +150,6 @@ elf32_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_backend_type_change_ok	TRUE
 #define elf_backend_can_gc_sections	TRUE
 #define elf_info_to_howto		riscv_elf_info_to_howto_rela
-#define elf_info_to_howto_rel		riscv_elf_info_to_howto_rel
 #define elf_backend_sym_is_global	mips_elf_sym_is_global
 #define elf_backend_object_p		mips_elf_n32_object_p
 #define elf_backend_symbol_processing	_bfd_riscv_elf_symbol_processing
@@ -199,7 +198,6 @@ elf32_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_backend_ignore_discarded_relocs \
 					_bfd_riscv_elf_ignore_discarded_relocs
 #define elf_backend_write_section	_bfd_riscv_elf_write_section
-#define elf_backend_mips_rtype_to_howto	riscv_elf_rtype_to_howto
 #define bfd_elf32_find_nearest_line	_bfd_riscv_elf_find_nearest_line
 #define bfd_elf32_find_inliner_info	_bfd_riscv_elf_find_inliner_info
 #define bfd_elf32_new_section_hook	_bfd_riscv_elf_new_section_hook

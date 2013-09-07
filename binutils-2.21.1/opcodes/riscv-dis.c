@@ -560,7 +560,7 @@ riscv_rvc_uncompress(unsigned long rvc_insn)
   if(IS_INSN(rvc_insn, C_OR3))
     return MATCH_OR | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2b_regmap[crs2bs] << OP_SH_RT);
   if(IS_INSN(rvc_insn, C_J))
-    return MATCH_J | (jt10 << OP_SH_TARGET);
+    return MATCH_JAL | (jt10 << OP_SH_TARGET);
   if(IS_INSN(rvc_insn, C_BEQ))
     return MATCH_BEQ | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2_regmap[crs2s] << OP_SH_RT) | (imm5lo << OP_SH_IMMLO) | (imm5hi << OP_SH_IMMHI);
   if(IS_INSN(rvc_insn, C_BNE))

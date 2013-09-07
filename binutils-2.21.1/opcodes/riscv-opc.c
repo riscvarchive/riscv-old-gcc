@@ -44,7 +44,6 @@
    jal <register> instruction is short for jalr <register>).  */
 
 #define WR_xd INSN_WRITE_GPR_D
-#define WR_ra INSN_WRITE_GPR_RA
 #define WR_fd INSN_WRITE_FPR_D
 #define RD_xs1 INSN_READ_GPR_S
 #define RD_xs2 INSN_READ_GPR_T
@@ -114,10 +113,12 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"srai",      "I",   "d,s,>",   MATCH_SRAI, MASK_SRAI,   WR_xd|RD_xs1 },
 {"sub",       "I",   "d,s,t",  MATCH_SUB, MASK_SUB,   WR_xd|RD_xs1|RD_xs2 },
 {"ret",       "I",   "",  MATCH_JALR | (LINK_REG << OP_SH_RS), MASK_JALR | MASK_RD | MASK_RS | MASK_IMM,   WR_xd|RD_xs1 },
-{"jal",       "I",   "a",  MATCH_JAL, MASK_JAL,   WR_ra },
-{"jal",       "I",   "a,s",  0,    (int) M_JAL,  INSN_MACRO },
-{"j",         "I",   "a",  MATCH_J, MASK_J,   0 },
+{"j",         "I",   "a",  MATCH_JAL, MASK_JAL | MASK_RD,   0 },
 {"j",         "I",   "a,s",  0,    (int) M_J,  INSN_MACRO },
+{"jal",       "I",   "a",  MATCH_JAL | (LINK_REG << OP_SH_RD), MASK_JAL | MASK_RD,   WR_xd },
+{"jal",       "I",   "d,a",  MATCH_JAL, MASK_JAL,   WR_xd },
+{"jal",       "I",   "a,s",  0,    (int) M_JAL_RA,  INSN_MACRO },
+{"jal",       "I",   "d,a,s",  0,    (int) M_JAL,  INSN_MACRO },
 {"jr",        "I",   "s",  MATCH_JALR, MASK_JALR | MASK_RD | MASK_IMM,   WR_xd|RD_xs1 },
 {"jr",        "I",   "s,j",  MATCH_JALR, MASK_JALR | MASK_RD,   WR_xd|RD_xs1 },
 {"jalr",      "I",   "s",  MATCH_JALR | (LINK_REG << OP_SH_RD), MASK_JALR | MASK_RD | MASK_IMM,   WR_xd|RD_xs1 },

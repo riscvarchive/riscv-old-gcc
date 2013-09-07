@@ -436,9 +436,6 @@ static bfd *reldyn_sorting_bfd;
 #define MIPS_ELF_ADD_DYNAMIC_ENTRY(info, tag, val)	\
   _bfd_elf_add_dynamic_entry (info, tag, val)
 
-#define MIPS_ELF_RTYPE_TO_HOWTO(abfd, rtype, rela)			\
-  (get_elf_backend_data (abfd)->elf_backend_mips_rtype_to_howto (rtype, rela))
-
 /* The name of the dynamic relocation section.  */
 #define MIPS_ELF_REL_DYN_NAME(INFO) ".rel.dyn"
 
@@ -504,7 +501,7 @@ static bfd *reldyn_sorting_bfd;
 
 /* The relocation table used for SHT_RELA sections.  */
 
-static reloc_howto_type mips_elf64_howto_table_rela[] =
+static reloc_howto_type riscv_elf_howto_table[] =
 {
   /* No relocation.  */
   HOWTO (R_RISCV_NONE,		/* type */
@@ -554,7 +551,7 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 	 FALSE),		/* pcrel_offset */
 
   /* 26 bit jump address.  */
-  HOWTO (R_RISCV_26,		/* type */
+  HOWTO (R_RISCV_JAL,		/* type */
 	 RISCV_JUMP_ALIGN_BITS,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_JUMP_BITS,			/* bitsize */
@@ -565,7 +562,7 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 				   detection, because the upper 36
 				   bits must match the PC + 4.  */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_26",		/* name */
+	 "R_RISCV_JAL",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
 	 ((1<<RISCV_JUMP_BITS)-1) << OP_SH_TARGET,		/* dst_mask */
@@ -1003,6 +1000,66 @@ static reloc_howto_type mips_elf64_howto_table_rela[] =
 	 0x0,			/* src_mask */
 	 0xffffffff,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
+
+  /* 32 bit in-place addition, for local label subtraction.  */
+  HOWTO (R_RISCV_ADD32,		/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_ADD32",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 MINUS_ONE,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* 64 bit in-place addition, for local label subtraction.  */
+  HOWTO (R_RISCV_ADD64,		/* type */
+	 0,			/* rightshift */
+	 4,			/* size (0 = byte, 1 = short, 2 = long) */
+	 64,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_ADD64",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 MINUS_ONE,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* 32 bit in-place addition, for local label subtraction.  */
+  HOWTO (R_RISCV_SUB32,		/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_SUB32",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 MINUS_ONE,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* 64 bit in-place addition, for local label subtraction.  */
+  HOWTO (R_RISCV_SUB64,		/* type */
+	 0,			/* rightshift */
+	 4,			/* size (0 = byte, 1 = short, 2 = long) */
+	 64,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_SUB64",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 MINUS_ONE,		/* dst_mask */
+	 FALSE),		/* pcrel_offset */
 };
 
 /* GNU extension to record C++ vtable hierarchy */
@@ -1037,22 +1094,6 @@ static reloc_howto_type elf_mips_gnu_vtentry_howto =
 	 0,			/* dst_mask */
 	 FALSE);		/* pcrel_offset */
 
-/* 16 bit offset for pc-relative branches.  */
-static reloc_howto_type elf_mips_gnu_rela16_s2 =
-  HOWTO (R_RISCV_GNU_REL16_S2,	/* type */
-	 RISCV_BRANCH_ALIGN_BITS,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_BRANCH_BITS,			/* bitsize */
-	 TRUE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_GNU_REL16_S2",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 RISCV_BRANCH_REACH-1,		/* dst_mask */
-	 TRUE);			/* pcrel_offset */
-
 /* Originally a VxWorks extension, but now used for other systems too.  */
 static reloc_howto_type elf_mips_copy_howto =
   HOWTO (R_RISCV_COPY,		/* type */
@@ -1096,15 +1137,18 @@ static const struct elf_reloc_map mips_reloc_map[] =
 {
   { BFD_RELOC_NONE, R_RISCV_NONE },
   { BFD_RELOC_32, R_RISCV_32 },
-  /* There is no BFD reloc for R_RISCV_REL32.  */
   { BFD_RELOC_64, R_RISCV_64 },
+  { BFD_RELOC_RISCV_ADD32, R_RISCV_ADD32 },
+  { BFD_RELOC_RISCV_ADD64, R_RISCV_ADD64 },
+  { BFD_RELOC_RISCV_SUB32, R_RISCV_SUB32 },
+  { BFD_RELOC_RISCV_SUB64, R_RISCV_SUB64 },
   { BFD_RELOC_CTOR, R_RISCV_64 },
   { BFD_RELOC_16_PCREL_S2, R_RISCV_PC16 },
   { BFD_RELOC_HI16_S, R_RISCV_HI16 },
   { BFD_RELOC_LO16, R_RISCV_LO16 },
   { BFD_RELOC_GPREL16, R_RISCV_GPREL16 },
   { BFD_RELOC_RISCV_CALL, R_RISCV_CALL },
-  { BFD_RELOC_MIPS_JMP, R_RISCV_26 },
+  { BFD_RELOC_MIPS_JMP, R_RISCV_JAL },
   { BFD_RELOC_MIPS_GOT_HI16, R_RISCV_GOT_HI16 },
   { BFD_RELOC_MIPS_GOT_LO16, R_RISCV_GOT_LO16 },
   { BFD_RELOC_MIPS_TLS_DTPMOD32, R_RISCV_TLS_DTPMOD32 },
@@ -1137,7 +1181,7 @@ riscv_elf_bfd_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   unsigned int i;
   /* FIXME: We default to RELA here instead of choosing the right
      relocation variant.  */
-  reloc_howto_type *howto_table = mips_elf64_howto_table_rela;
+  reloc_howto_type *howto_table = riscv_elf_howto_table;
 
   for (i = 0; i < sizeof (mips_reloc_map) / sizeof (struct elf_reloc_map);
        i++)
@@ -1169,18 +1213,16 @@ riscv_elf_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
   unsigned int i;
 
   for (i = 0;
-       i < (sizeof (mips_elf64_howto_table_rela)
-	    / sizeof (mips_elf64_howto_table_rela[0])); i++)
-    if (mips_elf64_howto_table_rela[i].name != NULL
-	&& strcasecmp (mips_elf64_howto_table_rela[i].name, r_name) == 0)
-      return &mips_elf64_howto_table_rela[i];
+       i < (sizeof (riscv_elf_howto_table)
+       / sizeof (riscv_elf_howto_table[0])); i++)
+    if (riscv_elf_howto_table[i].name != NULL
+	&& strcasecmp (riscv_elf_howto_table[i].name, r_name) == 0)
+      return &riscv_elf_howto_table[i];
 
   if (strcasecmp (elf_mips_gnu_vtinherit_howto.name, r_name) == 0)
     return &elf_mips_gnu_vtinherit_howto;
   if (strcasecmp (elf_mips_gnu_vtentry_howto.name, r_name) == 0)
     return &elf_mips_gnu_vtentry_howto;
-  if (strcasecmp (elf_mips_gnu_rela16_s2.name, r_name) == 0)
-    return &elf_mips_gnu_rela16_s2;
   if (strcasecmp (elf_mips_copy_howto.name, r_name) == 0)
     return &elf_mips_copy_howto;
   if (strcasecmp (elf_mips_jump_slot_howto.name, r_name) == 0)
@@ -1191,37 +1233,24 @@ riscv_elf_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 
 /* Given a MIPS Elf_Internal_Rel, fill in an arelent structure.  */
 
-reloc_howto_type *
-riscv_elf_rtype_to_howto (unsigned int r_type, bfd_boolean rela_p)
+static reloc_howto_type *
+riscv_elf_rtype_to_howto (unsigned int r_type)
 {
-  BFD_ASSERT (rela_p);
   switch (r_type)
     {
     case R_RISCV_GNU_VTINHERIT:
       return &elf_mips_gnu_vtinherit_howto;
     case R_RISCV_GNU_VTENTRY:
       return &elf_mips_gnu_vtentry_howto;
-    case R_RISCV_GNU_REL16_S2:
-      return &elf_mips_gnu_rela16_s2;
     case R_RISCV_COPY:
       return &elf_mips_copy_howto;
     case R_RISCV_JUMP_SLOT:
       return &elf_mips_jump_slot_howto;
     default:
       BFD_ASSERT (r_type < (unsigned int) R_RISCV_max);
-      return &mips_elf64_howto_table_rela[r_type];
+      return &riscv_elf_howto_table[r_type];
       break;
     }
-}
-
-void
-riscv_elf_info_to_howto_rel (bfd *abfd, arelent *cache_ptr,
-			     Elf_Internal_Rela *dst ATTRIBUTE_UNUSED)
-{
-  unsigned int r_type;
-
-  r_type = ELF_R_TYPE (abfd, dst->r_info);
-  cache_ptr->howto = riscv_elf_rtype_to_howto (r_type, FALSE);
 }
 
 void
@@ -1231,7 +1260,7 @@ riscv_elf_info_to_howto_rela (bfd *abfd, arelent *cache_ptr,
   unsigned int r_type;
 
   r_type = ELF_R_TYPE (abfd, dst->r_info);
-  cache_ptr->howto = riscv_elf_rtype_to_howto (r_type, TRUE);
+  cache_ptr->howto = riscv_elf_rtype_to_howto (r_type);
   cache_ptr->addend = dst->r_addend;
 }
 
@@ -3267,9 +3296,14 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value &= howto->dst_mask;
       break;
 
-    case R_RISCV_PC32:
-      value = symbol + addend - p;
-      value &= howto->dst_mask;
+    case R_RISCV_ADD32:
+    case R_RISCV_ADD64:
+      value = addend + symbol;
+      break;
+
+    case R_RISCV_SUB32:
+    case R_RISCV_SUB64:
+      value = addend - symbol;
       break;
 
     case R_RISCV_CALL:
@@ -3280,26 +3314,23 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       BFD_ASSERT ((auipc & MASK_AUIPC) == MATCH_AUIPC);
       BFD_ASSERT ((jalr & MASK_JALR) == MATCH_JALR);
 
-      addend += _bfd_riscv_elf_sign_extend((auipc >> OP_SH_BIGIMMEDIATE) & OP_MASK_BIGIMMEDIATE, RISCV_BIGIMM_BITS) << OP_SH_BIGIMMEDIATE;
-      addend += _bfd_riscv_elf_sign_extend((jalr >> OP_SH_IMMEDIATE) & OP_MASK_IMMEDIATE, RISCV_IMM_BITS);
+      value = addend;
       if (symbol)
-	addend += symbol - p;
+	value += symbol - p;
 
-      auipc &= ~(OP_MASK_BIGIMMEDIATE << OP_SH_BIGIMMEDIATE);
-      auipc |= (mips_elf_high (addend) & OP_MASK_BIGIMMEDIATE) << OP_SH_BIGIMMEDIATE;
-
-      jalr &= ~(OP_MASK_IMMEDIATE << OP_SH_IMMEDIATE);
-      jalr |= (addend & OP_MASK_IMMEDIATE) << OP_SH_IMMEDIATE;
+      auipc |= (mips_elf_high (value) & OP_MASK_BIGIMMEDIATE) << OP_SH_BIGIMMEDIATE;
+      jalr |= (value & OP_MASK_IMMEDIATE) << OP_SH_IMMEDIATE;
 
       bfd_put (32, input_bfd, auipc, contents + relocation->r_offset);
       bfd_put (32, input_bfd, jalr, contents + relocation->r_offset + 4);
 
       return bfd_reloc_continue;
     }
-    case R_RISCV_26:
+    case R_RISCV_JAL:
       value = _bfd_riscv_elf_sign_extend (addend, RISCV_JUMP_BITS+RISCV_JUMP_ALIGN_BITS);
       if (symbol)
 	value += symbol - p;
+      overflowed_p = mips_elf_overflow_p (value, RISCV_JUMP_BITS+RISCV_JUMP_ALIGN_BITS);
       value >>= howto->rightshift;
       value <<= OP_SH_TARGET;
       value &= howto->dst_mask;
@@ -3960,7 +3991,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	    h->pointer_equality_needed = TRUE;
 	  /* Fall through.  */
 
-	case R_RISCV_26:
+	case R_RISCV_JAL:
 	case R_RISCV_PC16:
 	case R_RISCV_CALL:
 	  if (h)
@@ -4089,7 +4120,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	  break;
 
-	case R_RISCV_26:
+	case R_RISCV_JAL:
 	  break;
 
 	  /* This relocation describes the C++ object vtable hierarchy.
@@ -4119,7 +4150,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  if (r_symndx == STN_UNDEF)
 	    break;
 
-	  howto = MIPS_ELF_RTYPE_TO_HOWTO (abfd, r_type, FALSE);
+	  howto = riscv_elf_rtype_to_howto (r_type);
 	  (*_bfd_error_handler)
 	    (_("%B: relocation %s against `%s' can not be used when making a shared object; recompile with -fPIC"),
 	     abfd, howto->name,
@@ -4690,18 +4721,15 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
     {
       const char *name;
       bfd_vma value = 0;
-      reloc_howto_type *howto;
       /* TRUE if the relocation is a RELA relocation, rather than a
          REL relocation.  */
-      unsigned int r_type = ELF_R_TYPE (output_bfd, rel->r_info);
       const char *msg;
       unsigned long r_symndx;
       asection *sec;
       Elf_Internal_Shdr *symtab_hdr;
       struct elf_link_hash_entry *h;
-
-      /* Find the relocation howto for this relocation.  */
-      howto = MIPS_ELF_RTYPE_TO_HOWTO (input_bfd, r_type, TRUE);
+      unsigned int r_type = ELF_R_TYPE (output_bfd, rel->r_info);
+      reloc_howto_type *howto = riscv_elf_rtype_to_howto (r_type);
 
       r_symndx = ELF_R_SYM (input_bfd, rel->r_info);
       symtab_hdr = &elf_tdata (input_bfd)->symtab_hdr;
@@ -5955,9 +5983,6 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
 
   /* TODO: handle alignment */
   Elf_Internal_Rela *alignment_rel = NULL;
-  int force_snip = 0;
-  if (!alignment_rel)
-    force_snip = 1;
 
   sec_shndx = _bfd_elf_section_from_bfd_section (abfd, sec);
 
@@ -5976,9 +6001,7 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
   memmove (contents + addr, contents + addr + count,
 	   (size_t) (toaddr - addr - count));
 
-  if (force_snip)
-    sec->size -= count;
-  else
+  if (alignment_rel)
     {
       int i;
       BFD_ASSERT (count % 4 == 0);
@@ -5986,14 +6009,26 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
 	bfd_put_32 (abfd, RISCV_NOP, contents + toaddr - count + i);
       /* TODO: RVC NOP if count % 4 == 2 */
     }
+  else
+    sec->size -= count;
 
   /* Adjust all the relocs.  */
   for (irel = elf_section_data (sec)->relocs; irel < irelend; irel++)
     {
+      unsigned r_type = ELF_R_TYPE (abfd, irel->r_info);
+      reloc_howto_type *r = riscv_elf_rtype_to_howto (r_type);
+
+      /* Adjust branches and jumps that cross the deleted bytes. */
+      if (r != NULL && r->pc_relative)
+	{
+          if (irel->r_offset < addr && irel->r_offset + irel->r_addend > addr)
+	    irel->r_addend -= count;
+          if (irel->r_offset > addr && irel->r_offset + irel->r_addend <= addr)
+	    irel->r_addend += count;
+	}
+	
       /* Get the new reloc address.  */
-      if (irel->r_offset > addr
-	  && (irel->r_offset < toaddr
-	      || (force_snip && irel->r_offset == toaddr)))
+      if (irel->r_offset > addr && irel->r_offset < toaddr)
 	irel->r_offset -= count;
     }
 
@@ -6068,9 +6103,9 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 
   *again = FALSE;
 
-  if (/*link_info->relocatable
+  if (link_info->relocatable
       || (sec->flags & SEC_RELOC) == 0
-      ||*/ sec->reloc_count == 0)
+      || sec->reloc_count == 0)
     return TRUE;
 
   symtab_hdr = &elf_symtab_hdr (abfd);
@@ -6109,8 +6144,6 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
       jalr = bfd_get_32 (abfd, contents + irel->r_offset + 4);
       BFD_ASSERT ((jalr & MASK_JALR) == MATCH_JALR);
 
-      printf("try to relax call reloc, o %08x a %08x i %08x\n", (int)irel->r_offset, (int)irel->r_addend, (int)auipc);
-
       /* Read this BFD's symbols if we haven't done so already.  */
       if (isymbuf == NULL && symtab_hdr->sh_info != 0)
 	{
@@ -6125,8 +6158,18 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 
       /* Get the value of the symbol referred to by the reloc.  */
       if (ELF_R_SYM (abfd, irel->r_info) < symtab_hdr->sh_info)
-	/* Don't relax local relocs. */
-	continue;
+	{
+	  /* A local symbol.  */
+	  Elf_Internal_Sym *isym = isymbuf + ELF_R_SYM (abfd, irel->r_info);
+
+	  if (isym->st_shndx != SHN_UNDEF)
+	    /* XXX Why does this indcate the symbols are in the same section? */
+	    continue;
+
+	  symval = (isym->st_value
+		    + sec->output_section->vma
+		    + sec->output_offset);
+	}
       else
 	{
 	  unsigned long indx;
@@ -6167,14 +6210,17 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
       elf_section_data (sec)->this_hdr.contents = contents;
       symtab_hdr->contents = (unsigned char *) isymbuf;
 
-      /* Replace the R_RISCV_CALL reloc with R_RISCV_26. */
-      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_26);
+      /* Replace the R_RISCV_CALL reloc with R_RISCV_JAL. */
+      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_JAL);
       /* Overwrite AUIPC with JAL. */
-      auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) ? MATCH_JAL : MATCH_J;
+      auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) | MATCH_JAL;
       bfd_put_32 (abfd, auipc, contents + irel->r_offset);
       /* Delete the JALR. */
+      bfd_put_32 (abfd, MATCH_ADDI, contents + irel->r_offset + 4);
       if (! riscv_relax_delete_bytes (abfd, sec, irel->r_offset + 4, 4))
 	goto error_return;
+
+      *again = FALSE;
     }
 
   if (isymbuf != NULL

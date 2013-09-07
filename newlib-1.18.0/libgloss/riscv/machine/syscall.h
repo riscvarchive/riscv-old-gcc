@@ -30,6 +30,7 @@
 #define SYS_time 1062
 #define SYS_getmainvars 2011
 #define SYS_rt_sigaction 134
+#define SYS_writev 66
 
 typedef struct
 {

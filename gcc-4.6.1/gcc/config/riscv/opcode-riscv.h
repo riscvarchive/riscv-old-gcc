@@ -57,8 +57,6 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define RVC_BRANCH_ALIGN (1 << RVC_BRANCH_ALIGN_BITS)
 #define RVC_BRANCH_REACH ((1ULL<<RVC_BRANCH_BITS)*RVC_BRANCH_ALIGN)
 
-#define RISCV_JTYPE(insn, target) \
-  ((MATCH_ ## insn) | (((target) & ((1<<RISCV_JUMP_BITS)-1)) << OP_SH_TARGET))
 #define RISCV_LTYPE(insn, rd, bigimm) \
   ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | (((bigimm) & ((1<<RISCV_BIGIMM_BITS)-1)) << OP_SH_BIGIMMEDIATE))
 #define RISCV_ITYPE(insn, rd, rs1, imm) \
@@ -68,7 +66,6 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 
 #define RISCV_NOP RISCV_ITYPE(ADDI, 0, 0, 0)
 
-#define RISCV_JUMP_TARGET(address) ((address) >> RISCV_JUMP_ALIGN_BITS)
 #define RISCV_CONST_HIGH_PART(VALUE) \
   (((VALUE) + (RISCV_IMM_REACH/2)) & ~(RISCV_IMM_REACH-1))
 #define RISCV_CONST_LOW_PART(VALUE) ((VALUE) - RISCV_CONST_HIGH_PART (VALUE))
@@ -128,13 +125,13 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 
 #define LINK_REG 1
 
-#define RISCV_JUMP_BITS 25
+#define RISCV_JUMP_BITS RISCV_BIGIMM_BITS
 #define RISCV_JUMP_ALIGN_BITS 1
 #define RISCV_JUMP_ALIGN (1 << RISCV_JUMP_ALIGN_BITS)
 #define RISCV_JUMP_REACH ((1ULL<<RISCV_JUMP_BITS)*RISCV_JUMP_ALIGN)
 
-#define OP_MASK_TARGET		((1<<RISCV_JUMP_BITS)-1)
-#define OP_SH_TARGET		7
+#define OP_MASK_TARGET		OP_MASK_BIGIMMEDIATE
+#define OP_SH_TARGET		OP_SH_BIGIMMEDIATE
 
 #define RISCV_IMM_BITS 12
 #define RISCV_IMMLO_BITS 7

@@ -668,7 +668,7 @@ riscv_rvc_compress(struct mips_cl_insn* insn)
     INSERT_OPERAND(CRDS, *insn, rvc_reg(rd, rd));
     INSERT_OPERAND(CIMM5, *insn, shamt);
   }
-  else if(INSN_MATCHES(*insn, J) && jt_bits <= 10)
+  else if(INSN_MATCHES(*insn, JAL) && rd == 0 && jt_bits <= 10)
   {
     insn->insn_opcode = MATCH_C_J;
     INSERT_OPERAND(CIMM10, *insn, jt);
@@ -1374,7 +1374,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
     int compressible_branch = reloc_type == BFD_RELOC_16_PCREL_S2 &&
       (INSN_MATCHES(*ip, BEQ) || INSN_MATCHES(*ip, BNE));
     int compressible_jump = reloc_type == BFD_RELOC_MIPS_JMP &&
-      INSN_MATCHES(*ip, J);
+      INSN_MATCHES(*ip, JAL);
     if(compressible_branch || compressible_jump)
     {
       if(riscv_rvc_compress(ip))
@@ -1712,10 +1712,6 @@ load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
 static void
 riscv_call (int destreg, int tempreg, expressionS *ep)
 {
-#if 0
-  macro_build (ep, destreg ? "jal" : "j", "a", BFD_RELOC_MIPS_JMP);
-  return;
-#endif
   macro_build_lui ("auipc", ep, tempreg, BFD_RELOC_RISCV_CALL);
   macro_build (NULL, "jalr", "d,b", destreg, tempreg);
 }
@@ -1833,8 +1829,10 @@ macro (struct mips_cl_insn *ip)
                     BFD_RELOC_RISCV_TLS_GOT_HI20, BFD_RELOC_RISCV_TLS_GOT_LO12);
       break;
 
+    case M_JAL_RA:
+      rd = LINK_REG;
     case M_JAL:
-      riscv_call (LINK_REG, rs1, &offset_expr);
+      riscv_call (rd, rs1, &offset_expr);
       break;
 
     case M_J:
@@ -2705,62 +2703,16 @@ md_pcrel_from (fixS *fixP)
   return fixP->fx_where + fixP->fx_frag->fr_address;
 }
 
-/* We may have combined relocations without symbols in the N32/N64 ABI.
-   We have to prevent gas from dropping them.  */
-
-int
-mips_force_relocation (fixS *fixp)
-{
-  if (generic_force_reloc (fixp))
-    return 1;
-
-  if (S_GET_SEGMENT (fixp->fx_addsy) == bfd_abs_section_ptr
-      && (fixp->fx_r_type == BFD_RELOC_HI16_S
-          || fixp->fx_r_type == BFD_RELOC_LO16))
-    return 1;
-
-  return 0;
-}
-
 /* Apply a fixup to the object file.  */
 
 void
 md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
-  bfd_byte *buf;
-  reloc_howto_type *howto;
-
+  bfd_byte *buf = (bfd_byte *) (fixP->fx_frag->fr_literal + fixP->fx_where);
 
   /* We ignore generic BFD relocations we don't know about.  */
-  howto = bfd_reloc_type_lookup (stdoutput, fixP->fx_r_type);
-  if (! howto)
+  if (! bfd_reloc_type_lookup (stdoutput, fixP->fx_r_type))
     return;
-
-  gas_assert (fixP->fx_size == 4
-	  || fixP->fx_r_type == BFD_RELOC_64
-	  || fixP->fx_r_type == BFD_RELOC_CTOR
-	  || fixP->fx_r_type == BFD_RELOC_VTABLE_INHERIT
-	  || fixP->fx_r_type == BFD_RELOC_VTABLE_ENTRY
-	  || fixP->fx_r_type == BFD_RELOC_MIPS_TLS_DTPREL64);
-
-  buf = (bfd_byte *) (fixP->fx_frag->fr_literal + fixP->fx_where);
-
-  gas_assert (!fixP->fx_pcrel || (fixP->fx_r_type == BFD_RELOC_16_PCREL_S2 ||
-                                 fixP->fx_r_type == BFD_RELOC_RISCV_CALL ||
-                                 fixP->fx_r_type == BFD_RELOC_MIPS_JMP));
-
-  /* Don't treat parts of a composite relocation as done.  There are two
-     reasons for this:
-
-     (1) The second and third parts will be against 0 (RSS_UNDEF) but
-	 should nevertheless be emitted if the first part is.
-
-     (2) In normal usage, composite relocations are never assembly-time
-	 constants.  The easiest way of dealing with the pathological
-	 exceptions is to generate a relocation against STN_UNDEF and
-	 leave everything up to the linker.  */
-  if (fixP->fx_addsy == NULL && !fixP->fx_pcrel && fixP->fx_tcbit == 0)
-    fixP->fx_done = 1;
 
   switch (fixP->fx_r_type)
     {
@@ -2787,69 +2739,58 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_GPREL16:
     case BFD_RELOC_MIPS_GOT_HI16:
     case BFD_RELOC_MIPS_GOT_LO16:
+    case BFD_RELOC_RISCV_ADD32:
+    case BFD_RELOC_RISCV_ADD64:
+    case BFD_RELOC_RISCV_SUB32:
+    case BFD_RELOC_RISCV_SUB64:
+      gas_assert (fixP->fx_addsy != NULL);
       /* Nothing needed to do.  The value comes from the reloc entry.  */
       break;
 
     case BFD_RELOC_64:
-      /* This is handled like BFD_RELOC_32, but we output a sign
-         extended value if we are only 32 bits.  */
-      if (fixP->fx_done)
+    case BFD_RELOC_32:
+      if (fixP->fx_addsy && fixP->fx_subsy)
 	{
-	  if (8 <= sizeof (valueT))
-	    md_number_to_chars ((char *) buf, *valP, 8);
-	  else
-	    {
-	      valueT hiv;
+	  fixP->fx_next = xmemdup (fixP, sizeof (*fixP), sizeof (*fixP));
+	  fixP->fx_next->fx_addsy = fixP->fx_subsy;
+	  fixP->fx_next->fx_subsy = NULL;
+	  fixP->fx_next->fx_offset = 0;
+	  fixP->fx_subsy = NULL;
 
-	      if ((*valP & 0x80000000) != 0)
-		hiv = 0xffffffff;
-	      else
-		hiv = 0;
-	      md_number_to_chars ((char *)buf, *valP, 4);
-	      md_number_to_chars ((char *)buf + 4, hiv, 4);
+	  fixP->fx_r_type = BFD_RELOC_RISCV_ADD32;
+	  fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB32;
+	  if (fixP->fx_r_type == BFD_RELOC_64)
+	    {
+	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD64;
+	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB64;
 	    }
 	}
-      break;
+      /* fall through */
 
     case BFD_RELOC_RVA:
-    case BFD_RELOC_32:
       /* If we are deleting this reloc entry, we must fill in the
 	 value now.  This can happen if we have a .word which is not
 	 resolved when it appears but is later defined.  */
-      if (fixP->fx_done)
-	md_number_to_chars ((char *) buf, *valP, fixP->fx_size);
-      break;
-
-    case BFD_RELOC_RISCV_CALL:
-#if 0
-      /* Update AUIPC part. */
-      insn |= (((*valP + RISCV_IMM_REACH/2) >> RISCV_IMM_BITS) & ((1<<RISCV_BIGIMM_BITS)-1)) << OP_SH_BIGIMMEDIATE;
-      md_number_to_chars ((char *) buf, insn, 4);
-      /* Update JALR part. */
-      buf += 4;
-      insn = (buf[3] << 24) | (buf[2] << 16) | (buf[1] << 8) | buf[0];
-      insn |= (*valP & (RISCV_IMM_REACH-1)) << OP_SH_IMMEDIATE;
-      md_number_to_chars ((char *) buf, insn, 4);
-      /* Leave the rest to the linker. */
-      fixP->fx_done = 0;
-      return;
-#endif
-    case BFD_RELOC_LO16:
-    case BFD_RELOC_MIPS_JMP:
-    case BFD_RELOC_16_PCREL_S2:
-      fixP->fx_done = 0;
+      if (fixP->fx_addsy == NULL)
+	{
+	  gas_assert (fixP->fx_size <= sizeof (valueT));
+	  md_number_to_chars ((char *) buf, *valP, fixP->fx_size);
+	  fixP->fx_done = 1;
+	}
       break;
 
     case BFD_RELOC_VTABLE_INHERIT:
-      fixP->fx_done = 0;
       if (fixP->fx_addsy
           && !S_IS_DEFINED (fixP->fx_addsy)
           && !S_IS_WEAK (fixP->fx_addsy))
         S_SET_WEAK (fixP->fx_addsy);
       break;
 
+    case BFD_RELOC_RISCV_CALL:
+    case BFD_RELOC_LO16:
+    case BFD_RELOC_MIPS_JMP:
+    case BFD_RELOC_16_PCREL_S2:
     case BFD_RELOC_VTABLE_ENTRY:
-      fixP->fx_done = 0;
       break;
 
     default:
@@ -3251,19 +3192,6 @@ md_estimate_size_before_relax (fragS *fragp, asection *segtype)
   return (fragp->fr_var = relaxed_branch_length (fragp, segtype, FALSE));
 }
 
-/* This is called to see whether a reloc against a defined symbol
-   should be converted into a reloc against a section.  */
-
-int
-mips_fix_adjustable (fixS *fixp)
-{
-  if (fixp->fx_r_type == BFD_RELOC_VTABLE_INHERIT
-      || fixp->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
-    return 0;
-
-  return 1;
-}
-
 /* Translate internal representation of relocation info to BFD target
    format.  */
 
@@ -3365,7 +3293,7 @@ md_convert_frag_branch (bfd *abfd ATTRIBUTE_UNUSED, segT asec ATTRIBUTE_UNUSED,
 
       if((insn & MASK_C_J) == MATCH_C_J)
       {
-        insn = MATCH_J;
+        insn = MATCH_JAL;
         reloc_type = BFD_RELOC_MIPS_JMP;
       }
       else if((insn & MASK_C_BEQ) == MATCH_C_BEQ)

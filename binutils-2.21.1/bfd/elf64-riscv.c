@@ -144,7 +144,6 @@ elf64_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_backend_type_change_ok	TRUE
 #define elf_backend_can_gc_sections	TRUE
 #define elf_info_to_howto		riscv_elf_info_to_howto_rela
-#define elf_info_to_howto_rel		riscv_elf_info_to_howto_rel
 #define elf_backend_object_p		mips_elf64_object_p
 #define elf_backend_symbol_processing	_bfd_riscv_elf_symbol_processing
 #define elf_backend_add_symbol_hook	_bfd_riscv_elf_add_symbol_hook
@@ -175,7 +174,6 @@ elf64_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 					_bfd_riscv_elf_copy_indirect_symbol
 #define elf_backend_ignore_discarded_relocs \
 					_bfd_riscv_elf_ignore_discarded_relocs
-#define elf_backend_mips_rtype_to_howto	riscv_elf_rtype_to_howto
 
 #define elf_backend_grok_prstatus	elf64_mips_grok_prstatus
 #define elf_backend_grok_psinfo		elf64_mips_grok_psinfo

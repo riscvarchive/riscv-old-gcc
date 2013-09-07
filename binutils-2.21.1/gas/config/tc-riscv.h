@@ -81,8 +81,9 @@ extern int mips_parse_long_option (const char *);
 #define tc_frob_label(sym) mips_define_label (sym)
 extern void mips_define_label (symbolS *);
 
-#define tc_fix_adjustable(fixp) mips_fix_adjustable (fixp)
-extern int mips_fix_adjustable (struct fix *);
+/* Let the linker resolve all the relocs due to relaxation. */
+#define tc_fix_adjustable(fixp) 0
+#define md_allow_local_subtract(l,r,s) 0
 
 /* Values passed to md_apply_fix don't include symbol values.  */
 #define MD_APPLY_SYM_VALUE(FIX) 0
@@ -91,13 +92,8 @@ extern int mips_fix_adjustable (struct fix *);
 #define EXTERN_FORCE_RELOC			\
   (OUTPUT_FLAVOR == bfd_target_elf_flavour)
 
-/* When generating NEWABI code, we may need to have to keep combined
-   relocations which don't have symbols.  */
-#define TC_FORCE_RELOCATION(FIX) mips_force_relocation (FIX)
-extern int mips_force_relocation (struct fix *);
-
-#define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG) \
-  (! SEG_NORMAL (SEG) || mips_force_relocation (FIX))
+#define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG) ((SEG)->flags & SEC_CODE)
+#define TC_VALIDATE_FIX_SUB(FIX, SEG) TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG)
 
 extern void mips_pop_insert (void);
 #define md_pop_insert()		mips_pop_insert()

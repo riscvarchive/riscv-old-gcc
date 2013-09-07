@@ -49,10 +49,8 @@ riscv_before_allocation (void)
 {
   gld${EMULATION_NAME}_before_allocation ();
 
-#if 0
   if (RELAXATION_DISABLED_BY_DEFAULT)
     ENABLE_RELAXATION;
-#endif
 }
 
 EOF

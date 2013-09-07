@@ -37,7 +37,7 @@ START_RELOC_NUMBERS (elf_riscv_reloc_type)
   RELOC_NUMBER (R_RISCV_NONE, 0)
   RELOC_NUMBER (R_RISCV_32, 2)
   RELOC_NUMBER (R_RISCV_REL32, 3)
-  RELOC_NUMBER (R_RISCV_26, 4)
+  RELOC_NUMBER (R_RISCV_JAL, 4)
   RELOC_NUMBER (R_RISCV_HI16, 5)
   RELOC_NUMBER (R_RISCV_LO16, 6)
   RELOC_NUMBER (R_RISCV_GPREL16, 7)
@@ -67,17 +67,13 @@ START_RELOC_NUMBERS (elf_riscv_reloc_type)
   RELOC_NUMBER (R_RISCV_TLS_LDM_HI20, 55)
   RELOC_NUMBER (R_RISCV_TLS_LDM_LO12, 56)
   RELOC_NUMBER (R_RISCV_GLOB_DAT, 57)
-  FAKE_RELOC (R_RISCV_max, 58)
-  /* These relocations are specific to VxWorks.  */
+  RELOC_NUMBER (R_RISCV_ADD32, 58)
+  RELOC_NUMBER (R_RISCV_ADD64, 59)
+  RELOC_NUMBER (R_RISCV_SUB32, 60)
+  RELOC_NUMBER (R_RISCV_SUB64, 61)
+  FAKE_RELOC (R_RISCV_max, 62)
   RELOC_NUMBER (R_RISCV_COPY, 126)
   RELOC_NUMBER (R_RISCV_JUMP_SLOT, 127)
-  /* This was a GNU extension used by embedded-PIC.  It was co-opted by
-     riscv-linux for exception-handling data.  It is no longer used, but
-     should continue to be supported by the linker for backward
-     compatibility.  (GCC stopped using it in May, 2004.)  */
-  RELOC_NUMBER (R_RISCV_PC32, 248)
-  /* FIXME: this relocation is used internally by gas.  */
-  RELOC_NUMBER (R_RISCV_GNU_REL16_S2, 250)
   /* These are GNU extensions to enable C++ vtable garbage collection.  */
   RELOC_NUMBER (R_RISCV_GNU_VTINHERIT, 253)
   RELOC_NUMBER (R_RISCV_GNU_VTENTRY, 254)
