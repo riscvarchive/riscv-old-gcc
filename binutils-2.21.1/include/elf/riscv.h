@@ -148,9 +148,6 @@ END_RELOC_NUMBERS (R_RISCV_maxext)
    format is unspecified.  It's probably ECOFF symbols.  */
 #define SHT_RISCV_DEBUG		0x70000005
 
-/* Section contains register usage information.  */
-#define SHT_RISCV_REGINFO	0x70000006
-
 /* Section contains interface information.  */
 #define SHT_RISCV_IFACE		0x7000000b
 
@@ -170,21 +167,12 @@ END_RELOC_NUMBERS (R_RISCV_maxext)
 /* Get ELf32_xxx struct definitions */
 #include "mips.h"
 
-/* RISC-V ELF .reginfo swapping routines.  */
-extern void bfd_riscv_elf32_swap_reginfo_in
-  (bfd *, const Elf32_External_RegInfo *, Elf32_RegInfo *);
-extern void bfd_riscv_elf32_swap_reginfo_out
-  (bfd *, const Elf32_RegInfo *, Elf32_External_RegInfo *);
-
 /* Processor specific section flags.  */
 
 /* This section may not be stripped.  */
 #define SHF_RISCV_NOSTRIP	0x08000000
 
 /* Processor specific program header types.  */
-
-/* Register usage information.  Identifies one .reginfo section.  */
-#define PT_RISCV_REGINFO		0x70000000
 
 /* Runtime procedure table.  */
 #define PT_RISCV_RTPROC		0x70000001

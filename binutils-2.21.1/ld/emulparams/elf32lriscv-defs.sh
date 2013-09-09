@@ -39,14 +39,10 @@ OTHER_GOT_RELOC_SECTIONS="
 GOT=".got          ${RELOCATING-0} : { *(.got) }"
 unset OTHER_READWRITE_SECTIONS
 unset OTHER_RELRO_SECTIONS
-if test -n "$RELRO_NOW"; then
-  OTHER_RELRO_SECTIONS=".got.plt      ${RELOCATING-0} : { *(.got.plt) }"
-else
-  OTHER_READWRITE_SECTIONS=".got.plt      ${RELOCATING-0} : { *(.got.plt) }"
-fi
+OTHER_SDATA_SECTIONS=".got.plt      ${RELOCATING-0} : { *(.got.plt) }"
 
 # Magic symbols.
-SDATA_START_SYMBOLS='_gp = . + 0x800;'
+SDATA_START_SYMBOLS="_gp = . + 0x800; ${_GOTPLT}"
 TEXT_START_SYMBOLS='_ftext = . ;'
 DATA_START_SYMBOLS='_fdata = . ;'
 OTHER_BSS_SYMBOLS='_fbss = .;'
@@ -55,10 +51,5 @@ INITIAL_READONLY_SECTIONS=
 if test -z "${CREATE_SHLIB}"; then
   INITIAL_READONLY_SECTIONS=".interp       ${RELOCATING-0} : { *(.interp) }"
 fi
-INITIAL_READONLY_SECTIONS="${INITIAL_READONLY_SECTIONS}
-  .reginfo      ${RELOCATING-0} : { *(.reginfo) }"
-# Discard any .MIPS.content* or .MIPS.events* sections.  The linker
-# doesn't know how to adjust them.
-OTHER_SECTIONS="/DISCARD/ : { *(.MIPS.content*) *(.MIPS.events*) }"
 
 TEXT_DYNAMIC=

@@ -1278,69 +1278,91 @@ riscv_elf_info_to_howto_rela (bfd *abfd, arelent *cache_ptr,
   cache_ptr->addend = dst->r_addend;
 }
 
+#define RISCV_PLT0_INSNS 32
+#define RISCV_PLT_INSNS 4
+#define RISCV_PLT0_SIZE (RISCV_PLT0_INSNS * 4)
+#define RISCV_PLT_SIZE (RISCV_PLT_INSNS * 4)
+
+#define X_SP 14
+#define X_V0 16
+#define X_V1 17
+#define X_A0 18
+#define X_A1 19
+#define X_NA 8
+#define X_GP 31
+
 /* The format of the first PLT entry.  */
 
-#define RISCV_PLT0_ENTRY_INSNS 32
 static void
 riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value, bfd_vma addr,
-                      bfd_vma entry[RISCV_PLT0_ENTRY_INSNS])
+                      bfd_vma entry[RISCV_PLT0_INSNS])
 {
   /* save ra and arg registers to stack
-     auipc  v0, %hi(GOTPLT)
-     addi   v0, v0, %lo(GOTPLT)
-     sub    a1, v1, v0
-     ld     a0, PTRSIZE(v0)
-     ld     v0, 0(v0)
-     slli   a1, a1, 1
-     addi   a1, a1, -4*PTRSIZE
-     jalr   v0
+     auipc  v1, %hi(GOTPLT)
+     addi   v1, v1, %lo(GOTPLT)
+     ld     a0, PTRSIZE(v1)
+     ld     v1, 0(v1)
+     auipc  a1, %hi(after first regular PLT entry)
+     addi   a1, a1, %lo(after first regular PLT entry)
+     sub    a1, v0, a1
+     srli   a1, a1, 1 [RV32 only]
+     jalr   v1
      restore ra and arg registers from stack
      jr     v0
   */
 
   int i = 0, j, regbytes = ABI_64_P(abfd) ? 8 : 4;
-  entry[i++] = RISCV_ITYPE(ADDI, 14, 14, -12*regbytes);
-  entry[i++] = RISCV_BTYPE(SREG(abfd), 14, LINK_REG, 0);
-  for (j = 0; j < 8; j++)
-    entry[i++] = RISCV_BTYPE(SREG(abfd), 14, 18+j, (j+1)*regbytes);
+  int stackadj = (((1+X_NA)*regbytes - 1)/16 + 1)*16;
+  entry[i++] = RISCV_ITYPE(ADDI, X_SP, X_SP, -stackadj);
+  entry[i++] = RISCV_BTYPE(SREG(abfd), X_SP, LINK_REG, 0);
+  for (j = 0; j < X_NA; j++)
+    entry[i++] = RISCV_BTYPE(SREG(abfd), X_SP, X_A0+j, (j+1)*regbytes);
   gotplt_value -= addr + i*4;
-  entry[i++] = RISCV_LTYPE(AUIPC, 16, RISCV_LUI_HIGH_PART(gotplt_value));
-  entry[i++] = RISCV_ITYPE(ADDI, 16, 16, RISCV_CONST_LOW_PART(gotplt_value));
-  entry[i++] = RISCV_RTYPE(SUB, 19, 17, 16);
-  entry[i++] = RISCV_ITYPE(LREG(abfd), 18, 16, regbytes);
-  entry[i++] = RISCV_ITYPE(LREG(abfd), 16, 16, 0);
-  entry[i++] = RISCV_ITYPE(SLLI, 19, 19, 1);
-  entry[i++] = RISCV_ITYPE(ADDI, 19, 19, -4*regbytes);
-  entry[i++] = RISCV_ITYPE(JALR, LINK_REG, 16, 0);
-  entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, 14, 0);
-  for (j = 0; j < 8; j++)
-    entry[i++] = RISCV_ITYPE(LREG(abfd), 18+j, 14, (j+1)*regbytes);
-  entry[i++] = RISCV_ITYPE(ADDI, 14, 14, 12*regbytes);
-  entry[i++] = RISCV_ITYPE(JALR, 0, 16, 0);
+  entry[i++] = RISCV_LTYPE(AUIPC, X_V1, RISCV_LUI_HIGH_PART(gotplt_value));
+  entry[i++] = RISCV_ITYPE(ADDI, X_V1, X_V1, RISCV_CONST_LOW_PART(gotplt_value));
+  entry[i++] = RISCV_ITYPE(LREG(abfd), X_A0, X_V1, regbytes);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), X_V1, X_V1, 0);
+  bfd_vma after_first_plt = addr + RISCV_PLT0_SIZE + RISCV_PLT_SIZE;
+  after_first_plt -= addr + i*4;
+  entry[i++] = RISCV_LTYPE(AUIPC, X_A1, RISCV_LUI_HIGH_PART(after_first_plt));
+  entry[i++] = RISCV_ITYPE(ADDI, X_A1, X_A1, RISCV_CONST_LOW_PART(after_first_plt));
+  entry[i++] = RISCV_RTYPE(SUB, X_A1, X_V0, X_A1);
+  if (RISCV_PLT_SIZE != 2*regbytes)
+  {
+    BFD_ASSERT (RISCV_PLT_SIZE == 2*2*regbytes);
+    entry[i++] = RISCV_ITYPE(SRLI, X_A1, X_A1, 1);
+  }
+  entry[i++] = RISCV_ITYPE(JALR, LINK_REG, X_V1, 0);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, X_SP, 0);
+  for (j = 0; j < X_NA; j++)
+    entry[i++] = RISCV_ITYPE(LREG(abfd), X_A0+j, X_SP, (j+1)*regbytes);
+  entry[i++] = RISCV_ITYPE(ADDI, X_SP, X_SP, stackadj);
+  entry[i++] = RISCV_ITYPE(JALR, 0, X_V0, 0);
 
-  BFD_ASSERT(i <= RISCV_PLT0_ENTRY_INSNS);
-  while (i < RISCV_PLT0_ENTRY_INSNS)
+  BFD_ASSERT(i <= RISCV_PLT0_INSNS);
+  while (i < RISCV_PLT0_INSNS)
     entry[i++] = RISCV_ITYPE(ADDI, 0, 0, 0);
 }
 
 /* The format of subsequent PLT entries.  */
 
-#define RISCV_PLT_ENTRY_INSNS 4
-static void
-riscv_make_plt_entry(bfd* abfd, bfd_vma got_address, bfd_vma addr,
-                     bfd_vma entry[RISCV_PLT_ENTRY_INSNS])
+static bfd_vma
+riscv_make_plt_entry(bfd* abfd, bfd_vma got_address, bfd_vma plt0_addr,
+		     bfd_vma addr, bfd_vma entry[RISCV_PLT_INSNS])
 {
-  /* auipc  v1, %hi(.got.plt entry)
-     l[w|d] v0, %lo(.got.plt entry)(t6)
-     addi   v1, v1, %lo(.got.plt entry)
+  /* auipc  v0, %hi(.got.plt entry)
+     l[w|d] v0, %lo(.got.plt entry)(t0)
      jr     v0
+     jal    v0, plt0 [this is where the got entry initially points]
   */
 
   got_address -= addr;
-  entry[0] = RISCV_LTYPE(AUIPC, 17, RISCV_LUI_HIGH_PART(got_address));
-  entry[1] = RISCV_ITYPE(LREG(abfd),  16, 17, RISCV_CONST_LOW_PART(got_address));
-  entry[2] = RISCV_ITYPE(ADDI, 17, 17, RISCV_CONST_LOW_PART(got_address));
-  entry[3] = RISCV_ITYPE(JALR, 0, 16, 0);
+  entry[0] = RISCV_LTYPE(AUIPC, X_V0, RISCV_LUI_HIGH_PART(got_address));
+  entry[1] = RISCV_ITYPE(LREG(abfd),  X_V0, X_V0, RISCV_CONST_LOW_PART(got_address));
+  entry[2] = RISCV_ITYPE(JALR, 0, X_V0, 0);
+  bfd_vma got_val = addr + 12;
+  entry[3] = RISCV_LTYPE(JAL, X_V0, (plt0_addr - got_val) >> RISCV_JUMP_ALIGN_BITS);
+  return got_val;
 }
 
 /* Look up an entry in a MIPS ELF linker hash table.  */
@@ -3044,6 +3066,34 @@ mips_elf_create_got_section (bfd *abfd, struct bfd_link_info *info)
   return TRUE;
 }
 
+/* Return address for Ith PLT stub in section PLT, for relocation REL
+   or (bfd_vma) -1 if it should not be included.  */
+
+bfd_vma
+_bfd_riscv_elf_plt_sym_val (bfd_vma i, const asection *plt,
+			   const arelent *rel ATTRIBUTE_UNUSED)
+{
+  return (plt->vma
+	  + RISCV_PLT0_SIZE
+	  + i * RISCV_PLT_SIZE);
+}
+
+static bfd_vma
+riscv_elf_got_plt_val (bfd_vma plt_index, struct bfd_link_info *info)
+{
+  struct mips_elf_link_hash_table *htab = mips_elf_hash_table (info);
+  return (htab->sgotplt->output_section->vma
+	  + htab->sgotplt->output_offset
+	  + (2+plt_index) * MIPS_ELF_GOT_SIZE (elf_hash_table (info)->dynobj));
+}
+
+static bfd_vma
+riscv_elf_got_plt_val_from_offset (bfd_vma plt_off, struct bfd_link_info *info)
+{
+  plt_off = (plt_off - RISCV_PLT0_SIZE) / RISCV_PLT_SIZE;
+  return riscv_elf_got_plt_val (plt_off, info);
+}
+
 /* Calculate the value produced by the RELOCATION (which comes from
    the INPUT_BFD).  The ADDEND is the addend to use for this
    RELOCATION; RELOCATION->R_ADDEND is ignored.
@@ -3323,12 +3373,27 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_LOAD:
     case R_RISCV_CALL:
     {
+      struct elf_link_hash_entry *eh = (struct elf_link_hash_entry*)h;
       bfd_vma auipc = bfd_get (32, input_bfd, contents + relocation->r_offset);
       bfd_vma jalr = bfd_get (32, input_bfd, contents + relocation->r_offset + 4);
-
+      bfd_vma got;
       value = addend + symbol - p;
-      auipc |= (mips_elf_high (value) & OP_MASK_BIGIMMEDIATE) << OP_SH_BIGIMMEDIATE;
-      jalr |= (value & OP_MASK_IMMEDIATE) << OP_SH_IMMEDIATE;
+
+      if (r_type == R_RISCV_CALL && eh != NULL && eh->plt.offset != MINUS_ONE
+	  && (got = riscv_elf_got_plt_val_from_offset (eh->plt.offset, info))
+	  && !mips_elf_overflow_p (got -= _bfd_get_gp_value (abfd), RISCV_IMM_BITS)
+	  && !mips_elf_overflow_p (addend, RISCV_IMM_BITS))
+	{
+	  got = _bfd_riscv_elf_sign_extend (got, RISCV_IMM_BITS);
+	  auipc &= OP_MASK_RD << OP_SH_RD;
+	  auipc |= MATCH_LREG (abfd) | (X_GP << OP_SH_RS);
+	  auipc |= (got & (RISCV_IMM_REACH-1)) << OP_SH_IMMEDIATE;
+	}
+      else
+	{
+      	  auipc |= (mips_elf_high (value) & OP_MASK_BIGIMMEDIATE) << OP_SH_BIGIMMEDIATE;
+      	  jalr |= (value & OP_MASK_IMMEDIATE) << OP_SH_IMMEDIATE;
+	}
 
       bfd_put (32, input_bfd, auipc, contents + relocation->r_offset);
       bfd_put (32, input_bfd, jalr, contents + relocation->r_offset + 4);
@@ -3861,8 +3926,8 @@ _bfd_riscv_elf_create_dynamic_sections (bfd *abfd, struct bfd_link_info *info)
       || !htab->splt)
     abort ();
 
-  htab->plt_header_size = RISCV_PLT0_ENTRY_INSNS * 4;
-  htab->plt_entry_size = RISCV_PLT_ENTRY_INSNS * 4;
+  htab->plt_header_size = RISCV_PLT0_SIZE;
+  htab->plt_entry_size = RISCV_PLT_SIZE;
 
   return TRUE;
 }
@@ -4885,8 +4950,8 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
     {
       /* We've decided to create a PLT entry for this symbol.  */
       bfd_byte *loc;
-      bfd_vma header_address, plt_index, got_address;
-      bfd_vma plt_entry[RISCV_PLT_ENTRY_INSNS];
+      bfd_vma header_address, plt_index, got_address, got_val;
+      bfd_vma plt_entry[RISCV_PLT_INSNS];
       int i;
 
       BFD_ASSERT (h->dynindx != -1);
@@ -4903,26 +4968,26 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
 		   / htab->plt_entry_size);
 
       /* Calculate the address of the .got.plt entry.  */
-      got_address = (htab->sgotplt->output_section->vma
-		     + htab->sgotplt->output_offset
-		     + (2 + plt_index) * MIPS_ELF_GOT_SIZE (dynobj));
-
-      /* Initially point the .got.plt entry at the PLT header.  */
-      loc = (htab->sgotplt->contents
-	     + (2 + plt_index) * MIPS_ELF_GOT_SIZE (dynobj));
-      if (ABI_64_P (output_bfd))
-	bfd_put_64 (output_bfd, header_address, loc);
-      else
-	bfd_put_32 (output_bfd, header_address, loc);
+      got_address = riscv_elf_got_plt_val (plt_index, info);
 
       /* Find out where the .plt entry should go.  */
       loc = htab->splt->contents + h->plt.offset;
 
       /* Fill in the PLT entry itself.  */
-      riscv_make_plt_entry (output_bfd, got_address,
-                            header_address + h->plt.offset, plt_entry);
-      for (i = 0; i < RISCV_PLT_ENTRY_INSNS; i++)
+      got_val = riscv_make_plt_entry (output_bfd, got_address, header_address,
+				    header_address + h->plt.offset, plt_entry);
+      for (i = 0; i < RISCV_PLT_INSNS; i++)
         bfd_put_32 (output_bfd, plt_entry[i], loc + 4*i);
+
+      /* Fill in the initial value of the .got.plt entry. */
+      loc = htab->sgotplt->contents
+	    + (got_address
+	       - htab->sgotplt->output_section->vma
+	       - htab->sgotplt->output_offset);
+      if (ABI_64_P (output_bfd))
+	bfd_put_64 (output_bfd, got_val, loc);
+      else
+	bfd_put_32 (output_bfd, got_val, loc);
 
       /* Emit an R_RISCV_JUMP_SLOT relocation against the .got.plt entry.  */
       mips_elf_output_dynamic_relocation (output_bfd, htab->srelplt,
@@ -4997,7 +5062,7 @@ mips_finish_exec_plt (bfd *output_bfd, struct bfd_link_info *info)
 {
   bfd_byte *loc;
   bfd_vma gotplt_value, plt_address;
-  bfd_vma plt_entry[RISCV_PLT0_ENTRY_INSNS];
+  bfd_vma plt_entry[RISCV_PLT0_INSNS];
   struct mips_elf_link_hash_table *htab;
   int i;
 
@@ -5012,7 +5077,7 @@ mips_finish_exec_plt (bfd *output_bfd, struct bfd_link_info *info)
   /* Install the PLT header.  */
   loc = htab->splt->contents;
   riscv_make_plt0_entry (output_bfd, gotplt_value, plt_address, plt_entry);
-  for (i = 0; i < RISCV_PLT0_ENTRY_INSNS; i++)
+  for (i = 0; i < RISCV_PLT0_INSNS; i++)
     bfd_put_32 (output_bfd, plt_entry[i], loc + 4*i);
 }
 
@@ -5959,18 +6024,6 @@ bfd_boolean
 _bfd_riscv_elf_common_definition (Elf_Internal_Sym *sym)
 {
   return (sym->st_shndx == SHN_COMMON);
-}
-
-/* Return address for Ith PLT stub in section PLT, for relocation REL
-   or (bfd_vma) -1 if it should not be included.  */
-
-bfd_vma
-_bfd_riscv_elf_plt_sym_val (bfd_vma i, const asection *plt,
-			   const arelent *rel ATTRIBUTE_UNUSED)
-{
-  return (plt->vma
-	  + RISCV_PLT0_ENTRY_INSNS * 4
-	  + i * RISCV_PLT_ENTRY_INSNS * 4);
 }
 
 /* Delete some bytes from a section while relaxing.  */
