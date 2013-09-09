@@ -124,3 +124,5 @@ if test $libc_cv_riscv_tls = yes; then
 fi
 fi
 
+$as_echo "#define PI_STATIC_AND_HIDDEN 1" >>confdefs.h
+

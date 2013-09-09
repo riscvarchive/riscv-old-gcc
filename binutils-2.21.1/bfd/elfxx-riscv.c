@@ -641,13 +641,26 @@ static reloc_howto_type riscv_elf_howto_table[] =
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_CALL",		/* name */
+	 "R_RISCV_CALL",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 (((1<<RISCV_BIGIMM_BITS)-1) << OP_SH_BIGIMMEDIATE) | ((RISCV_IMM_REACH-1) << OP_SH_IMMEDIATE),	/* dst_mask */
+	 0,			/* dst_mask */
 	 TRUE),			/* pcrel_offset */
 
-  EMPTY_HOWTO (12),
+  HOWTO (R_RISCV_LOAD,		/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_LOAD",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0,			/* dst_mask */
+	 TRUE),			/* pcrel_offset */
+
   EMPTY_HOWTO (13),
   EMPTY_HOWTO (14),
   EMPTY_HOWTO (15),
@@ -1148,6 +1161,7 @@ static const struct elf_reloc_map mips_reloc_map[] =
   { BFD_RELOC_LO16, R_RISCV_LO16 },
   { BFD_RELOC_GPREL16, R_RISCV_GPREL16 },
   { BFD_RELOC_RISCV_CALL, R_RISCV_CALL },
+  { BFD_RELOC_RISCV_LOAD, R_RISCV_LOAD },
   { BFD_RELOC_MIPS_JMP, R_RISCV_JAL },
   { BFD_RELOC_MIPS_GOT_HI16, R_RISCV_GOT_HI16 },
   { BFD_RELOC_MIPS_GOT_LO16, R_RISCV_GOT_LO16 },
@@ -3306,18 +3320,13 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = addend - symbol;
       break;
 
+    case R_RISCV_LOAD:
     case R_RISCV_CALL:
     {
       bfd_vma auipc = bfd_get (32, input_bfd, contents + relocation->r_offset);
       bfd_vma jalr = bfd_get (32, input_bfd, contents + relocation->r_offset + 4);
 
-      BFD_ASSERT ((auipc & MASK_AUIPC) == MATCH_AUIPC);
-      BFD_ASSERT ((jalr & MASK_JALR) == MATCH_JALR);
-
-      value = addend;
-      if (symbol)
-	value += symbol - p;
-
+      value = addend + symbol - p;
       auipc |= (mips_elf_high (value) & OP_MASK_BIGIMMEDIATE) << OP_SH_BIGIMMEDIATE;
       jalr |= (value & OP_MASK_IMMEDIATE) << OP_SH_IMMEDIATE;
 
@@ -6238,7 +6247,7 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
       if (! riscv_relax_delete_bytes (abfd, sec, irel->r_offset + 4, 4))
 	goto error_return;
 
-      *again = FALSE;
+      *again = TRUE;
     }
 
   if (isymbuf != NULL

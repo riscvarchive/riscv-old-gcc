@@ -918,14 +918,13 @@ riscv_address_insns (rtx x, enum machine_mode mode, bool might_split_p)
   if (!mips_classify_address (&addr, x, mode, false))
     return 0;
 
-  if (addr.type == ADDRESS_SYMBOLIC)
-    /* Usually we only pay to load th. */
-    n = riscv_symbol_insns (addr.symbol_type);
-
   /* BLKmode is used for single unaligned loads and stores and should
      not count as a multiword mode. */
   if (mode != BLKmode && might_split_p)
     n += (GET_MODE_SIZE (mode) + UNITS_PER_WORD - 1) / UNITS_PER_WORD;
+
+  if (addr.type == ADDRESS_SYMBOLIC)
+    n *= riscv_symbol_insns (addr.symbol_type);
 
   return n;
 }
@@ -2135,13 +2134,13 @@ mips_output_move (rtx dest, rtx src)
       if (symbolic_operand (src, VOIDmode))
 	{
 	  gcc_assert (flag_pic);
-	  return "la\t%0,%1";
+	  return SYMBOL_REF_LOCAL_P (src) ? "lla\t%0,%1" : "la\t%0,%1";
 	}
     }
   if (src_code == REG && FP_REG_P (REGNO (src)))
     {
       if (dest_code == REG && FP_REG_P (REGNO (dest)))
-	return dbl_p ? "fsgnj.d\t%0,%1,%1" : "fsgnj.s\t%0,%1,%1";
+	return dbl_p ? "fmv.d\t%0,%1" : "fmv.s\t%0,%1";
 
       if (dest_code == MEM)
 	return dbl_p ? "fsd\t%1,%0" : "fsw\t%1,%0";

@@ -1710,10 +1710,11 @@ load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
 
 /* Load an entry from the GOT. */
 static void
-riscv_call (int destreg, int tempreg, expressionS *ep)
+riscv_pcrel (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
+	    bfd_reloc_code_real_type reloc)
 {
-  macro_build_lui ("auipc", ep, tempreg, BFD_RELOC_RISCV_CALL);
-  macro_build (NULL, "jalr", "d,b", destreg, tempreg);
+  macro_build_lui ("auipc", ep, tempreg, reloc);
+  macro_build (NULL, lo_insn, "d,b", destreg, tempreg);
 }
 
 /* Warn if an expression is not a constant.  */
@@ -1792,7 +1793,7 @@ macro (struct mips_cl_insn *ip)
 {
   unsigned int rd, rs1;
   int mask;
-  const char* fmv_name;
+  const char* name;
 
   rd = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
   rs1 = (ip->insn_opcode >> OP_SH_RS) & OP_MASK_RS;
@@ -1800,7 +1801,12 @@ macro (struct mips_cl_insn *ip)
 
   switch (mask)
     {
-    case M_LA_AB:
+    case M_LI:
+      load_const (rd, &imm_expr);
+      break;
+
+    case M_LA:
+    case M_LLA:
       /* Load the address of a symbol into a register. */
       if (!IS_SEXT_32BIT_NUM (offset_expr.X_add_number))
         as_bad(_("offset too large"));
@@ -1809,11 +1815,13 @@ macro (struct mips_cl_insn *ip)
 
       if (offset_expr.X_op == O_constant)
         load_const (rd, &offset_expr);
-      else if (is_pic) /* O_symbol */
+      else if (!is_pic) /* non-PIC local or global symbol */
+	load_static_addr (rd, &offset_expr);
+      else if (mask == M_LA) /* PIC global symbol */
 	load_got_addr (rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
 	               BFD_RELOC_MIPS_GOT_HI16, BFD_RELOC_MIPS_GOT_LO16);
-      else /* non-PIC O_symbol */
-	load_static_addr (rd, &offset_expr);
+      else /* PIC local symbol */
+	riscv_pcrel (rd, rd, &offset_expr, "addi", BFD_RELOC_RISCV_LOAD);
 
       if (rs1 != ZERO)
         macro_build (NULL, "add", "d,s,t", rd, rd, rs1);
@@ -1832,25 +1840,34 @@ macro (struct mips_cl_insn *ip)
     case M_JAL_RA:
       rd = LINK_REG;
     case M_JAL:
-      riscv_call (rd, rs1, &offset_expr);
+      riscv_pcrel (rd, rs1, &offset_expr, "jalr", BFD_RELOC_RISCV_CALL);
       break;
 
     case M_J:
-      riscv_call (ZERO, rs1, &offset_expr);
+      riscv_pcrel (ZERO, rs1, &offset_expr, "jalr", BFD_RELOC_RISCV_CALL);
       break;
 
-    case M_LI:
-      load_const (rd, &imm_expr);
+    case M_LB:  name = "lb";  rs1 = rd; goto load_macro;
+    case M_LBU: name = "lbu"; rs1 = rd; goto load_macro;
+    case M_LH:  name = "lh";  rs1 = rd; goto load_macro;
+    case M_LHU: name = "lhu"; rs1 = rd; goto load_macro;
+    case M_LW:  name = "lw";  rs1 = rd; goto load_macro;
+    case M_LWU: name = "lwu"; rs1 = rd; goto load_macro;
+    case M_LD:  name = "ld";  rs1 = rd; goto load_macro;
+    case M_FLW: name = "flw"; goto load_macro;
+    case M_FLD: name = "fld"; goto load_macro;
+load_macro:
+      riscv_pcrel (rd, rs1, &offset_expr, name, BFD_RELOC_RISCV_LOAD);
       break;
 
-    case M_FMV_S:  fmv_name = "fsgnj.s";  goto fmv_macro;
-    case M_FMV_D:  fmv_name = "fsgnj.d";  goto fmv_macro;
-    case M_FNEG_S: fmv_name = "fsgnjn.s"; goto fmv_macro;
-    case M_FNEG_D: fmv_name = "fsgnjn.d"; goto fmv_macro;
-    case M_FABS_S: fmv_name = "fsgnjx.s"; goto fmv_macro;
-    case M_FABS_D: fmv_name = "fsgnjx.d"; goto fmv_macro;
+    case M_FMV_S:  name = "fsgnj.s";  goto fmv_macro;
+    case M_FMV_D:  name = "fsgnj.d";  goto fmv_macro;
+    case M_FNEG_S: name = "fsgnjn.s"; goto fmv_macro;
+    case M_FNEG_D: name = "fsgnjn.d"; goto fmv_macro;
+    case M_FABS_S: name = "fsgnjx.s"; goto fmv_macro;
+    case M_FABS_D: name = "fsgnjx.d"; goto fmv_macro;
 fmv_macro:
-      macro_build (NULL, fmv_name, "D,S,T", rd, rs1, rs1);
+      macro_build (NULL, name, "D,S,T", rd, rs1, rs1);
       break;
 
     default:
@@ -2787,6 +2804,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       break;
 
     case BFD_RELOC_RISCV_CALL:
+    case BFD_RELOC_RISCV_LOAD:
     case BFD_RELOC_LO16:
     case BFD_RELOC_MIPS_JMP:
     case BFD_RELOC_16_PCREL_S2:

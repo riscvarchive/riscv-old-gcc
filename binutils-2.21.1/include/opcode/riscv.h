@@ -245,9 +245,19 @@ struct riscv_opcode
 
 enum
 {
-  M_LA_AB,
+  M_LA,
+  M_LLA,
   M_LA_TLS_GD,
   M_LA_TLS_IE,
+  M_LB,
+  M_LBU,
+  M_LH,
+  M_LHU,
+  M_LW,
+  M_LWU,
+  M_LD,
+  M_FLW,
+  M_FLD,
   M_JAL_RA,
   M_JAL,
   M_J,
