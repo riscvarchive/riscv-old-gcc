@@ -57,10 +57,41 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define RVC_BRANCH_ALIGN (1 << RVC_BRANCH_ALIGN_BITS)
 #define RVC_BRANCH_REACH ((1ULL<<RVC_BRANCH_BITS)*RVC_BRANCH_ALIGN)
 
+#define RISCV_ZEXT(x, n) ((x) & ((1<<(n))-1))
+#define RISCV_SEXT(x, n) (RISCV_ZEXT(x, n) | (-(((x) >> ((n)-1))&1) << n))
+
+#define EXTRACT_LTYPE_IMM(x) \
+  RISCV_SEXT((x) >> 7, RISCV_BIGIMM_BITS)
+#define EXTRACT_ITYPE_IMM(x) \
+  RISCV_SEXT((x) >> 10, RISCV_IMM_BITS)
+#define EXTRACT_STYPE_IMM(x) \
+  (RISCV_ZEXT((x) >> 10, RISCV_IMMLO_BITS) \
+   | (RISCV_SEXT((x) >> 27, RISCV_IMMHI_BITS) << RISCV_IMMLO_BITS))
+#define EXTRACT_BTYPE_IMM(x) \
+  (EXTRACT_STYPE_IMM(x) << RISCV_BRANCH_ALIGN_BITS)
+#define EXTRACT_JTYPE_IMM(x) \
+  (EXTRACT_LTYPE_IMM(x) << RISCV_JUMP_ALIGN_BITS)
+
+#define ENCODE_LTYPE_IMM(x) \
+  (((x) & ((1<<RISCV_BIGIMM_BITS)-1)) << 7)
+#define ENCODE_ITYPE_IMM(x) \
+  (((x) & (RISCV_IMM_REACH-1)) << 10)
+#define ENCODE_STYPE_IMM(x) \
+  ((((x) & ((1<<RISCV_IMMLO_BITS)-1)) << 10) \
+   | ((((x) >> RISCV_IMMLO_BITS) & ((1<<RISCV_IMMHI_BITS)-1)) << 27))
+#define ENCODE_BTYPE_IMM(x) ENCODE_STYPE_IMM((x) >> RISCV_BRANCH_ALIGN_BITS)
+#define ENCODE_JTYPE_IMM(x) ENCODE_LTYPE_IMM((x) >> RISCV_JUMP_ALIGN_BITS)
+
 #define RISCV_LTYPE(insn, rd, bigimm) \
-  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | (((bigimm) & ((1<<RISCV_BIGIMM_BITS)-1)) << OP_SH_BIGIMMEDIATE))
+  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ENCODE_LTYPE_IMM(bigimm))
 #define RISCV_ITYPE(insn, rd, rs1, imm) \
-  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS) | (((imm) & (RISCV_IMM_REACH-1)) << OP_SH_IMMEDIATE))
+  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS) | ENCODE_ITYPE_IMM(imm))
+#define RISCV_STYPE(insn, rs1, rs2, imm) \
+  ((MATCH_ ## insn) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT) | ENCODE_STYPE_IMM(imm))
+#define RISCV_BTYPE(insn, rs1, rs2, target) \
+  ((MATCH_ ## insn) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT) | ENCODE_BTYPE_IMM(target))
+#define RISCV_JTYPE(insn, rd, target) \
+  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ENCODE_JTYPE_IMM(target))
 #define RISCV_RTYPE(insn, rd, rs1, rs2) \
   ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT))
 
@@ -130,9 +161,6 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define RISCV_JUMP_ALIGN (1 << RISCV_JUMP_ALIGN_BITS)
 #define RISCV_JUMP_REACH ((1ULL<<RISCV_JUMP_BITS)*RISCV_JUMP_ALIGN)
 
-#define OP_MASK_TARGET		OP_MASK_BIGIMMEDIATE
-#define OP_SH_TARGET		OP_SH_BIGIMMEDIATE
-
 #define RISCV_IMM_BITS 12
 #define RISCV_IMMLO_BITS 7
 #define RISCV_IMMHI_BITS (RISCV_IMM_BITS - RISCV_IMMLO_BITS)
@@ -143,15 +171,6 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #define RISCV_BRANCH_ALIGN_BITS RISCV_JUMP_ALIGN_BITS
 #define RISCV_BRANCH_ALIGN (1 << RISCV_BRANCH_ALIGN_BITS)
 #define RISCV_BRANCH_REACH (RISCV_IMM_REACH*RISCV_BRANCH_ALIGN)
-
-#define OP_MASK_BIGIMMEDIATE	((1<<RISCV_BIGIMM_BITS)-1)
-#define OP_SH_BIGIMMEDIATE		7
-#define OP_MASK_IMMEDIATE	((1<<RISCV_IMM_BITS)-1)
-#define OP_SH_IMMEDIATE		10
-#define OP_MASK_IMMLO ((1<<RISCV_IMMLO_BITS)-1)
-#define OP_SH_IMMLO   10
-#define OP_MASK_IMMHI ((1<<(RISCV_IMM_BITS-RISCV_IMMLO_BITS))-1)
-#define OP_SH_IMMHI   27
 
 #include "riscv-opc.h"
 

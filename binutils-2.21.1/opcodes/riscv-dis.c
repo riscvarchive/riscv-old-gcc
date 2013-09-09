@@ -238,8 +238,6 @@ print_insn_args (const char *d,
 		 bfd_vma pc,
 		 struct disassemble_info *info)
 {
-  int delta;
-
   for (; *d != '\0'; d++)
     {
       switch (*d)
@@ -357,8 +355,7 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'u':
-	  (*info->fprintf_func) (info->stream, "0x%lx",
-				 (l >> OP_SH_BIGIMMEDIATE) & OP_MASK_BIGIMMEDIATE);
+	  (*info->fprintf_func) (info->stream, "0x%lx", EXTRACT_LTYPE_IMM (l));
 	  break;
 
 	case 'm':
@@ -378,35 +375,20 @@ print_insn_args (const char *d,
 
 	case 'j': /* Same as i, but sign-extended.  */
 	case 'o':
-	  delta = (l >> OP_SH_IMMEDIATE) & OP_MASK_IMMEDIATE;
-	  if (delta & (RISCV_IMM_REACH/2))
-	    delta |= ~(RISCV_IMM_REACH-1);
-	  (*info->fprintf_func) (info->stream, "%d",
-				 delta);
+	  (*info->fprintf_func) (info->stream, "%d", EXTRACT_ITYPE_IMM (l));
 	  break;
 
 	case 'q':
-	  delta = ((l >> OP_SH_IMMLO) & OP_MASK_IMMLO) | (((l >> OP_SH_IMMHI) & OP_MASK_IMMHI) << RISCV_IMMLO_BITS);
-	  if (delta & (RISCV_IMM_REACH/2))
-	    delta |= ~(RISCV_IMM_REACH-1);
-	  (*info->fprintf_func) (info->stream, "%d",
-				 delta);
+	  (*info->fprintf_func) (info->stream, "%d", EXTRACT_STYPE_IMM (l));
 	  break;
 
 	case 'a':
-	  delta = (l >> OP_SH_TARGET) & OP_MASK_TARGET;
-	  if (delta & ((1<<RISCV_JUMP_BITS)/2))
-	    delta |= ~((1<<RISCV_JUMP_BITS)-1);
-	  info->target = (delta << RISCV_JUMP_ALIGN_BITS) + pc;
+	  info->target = EXTRACT_JTYPE_IMM (l) + pc;
 	  (*info->print_address_func) (info->target, info);
 	  break;
 
 	case 'p':
-	  /* Sign extend the displacement.  */
-	  delta = ((l >> OP_SH_IMMLO) & OP_MASK_IMMLO) | (((l >> OP_SH_IMMHI) & OP_MASK_IMMHI) << RISCV_IMMLO_BITS);
-	  if (delta & (RISCV_IMM_REACH/2))
-	    delta |= ~(RISCV_IMM_REACH-1);
-	  info->target = (delta << RISCV_BRANCH_ALIGN_BITS) + pc;
+	  info->target = EXTRACT_BTYPE_IMM (l) + pc;
 	  (*info->print_address_func) (info->target, info);
 	  break;
 
@@ -470,12 +452,8 @@ print_insn_args (const char *d,
 	}
     }
 }
-
-/* Print the mips instruction at address MEMADDR in debugged memory,
-   on using INFO.  Returns length of the instruction, in bytes.
-   BIGENDIAN must be 1 if this is big-endian code, 0 if
-   this is little-endian code.  */
 
+#if 0
 static unsigned long
 riscv_rvc_uncompress(unsigned long rvc_insn)
 {
@@ -492,8 +470,6 @@ riscv_rvc_uncompress(unsigned long rvc_insn)
 
   int cimm6 = EXTRACT_OPERAND(rvc_insn, CIMM6);
   int imm6 = ((int32_t)cimm6 << 26 >> 26) & (RISCV_IMM_REACH-1);
-  //int imm6lo = imm6 & ((1<<RISCV_IMMLO_BITS)-1);
-  //int imm6hi = (imm6 >> RISCV_IMMLO_BITS) & ((1<<RISCV_IMMHI_BITS)-1);
   int imm6x4 = (((int32_t)cimm6 << 26 >> 26)*4) & (RISCV_IMM_REACH-1);
   int imm6x4lo = imm6x4 & ((1<<RISCV_IMMLO_BITS)-1);
   int imm6x4hi = (imm6x4 >> RISCV_IMMLO_BITS) & ((1<<RISCV_IMMHI_BITS)-1);
@@ -596,6 +572,12 @@ riscv_rvc_uncompress(unsigned long rvc_insn)
 
   return rvc_insn;
 }
+#endif
+
+/* Print the mips instruction at address MEMADDR in debugged memory,
+   on using INFO.  Returns length of the instruction, in bytes.
+   BIGENDIAN must be 1 if this is big-endian code, 0 if
+   this is little-endian code.  */
 
 static int
 print_insn_mips (bfd_vma memaddr,
@@ -632,8 +614,10 @@ print_insn_mips (bfd_vma memaddr,
 
   insnlen = riscv_insn_length (word);
 
+#if 0
   if (insnlen == 2)
     word = riscv_rvc_uncompress(word);
+#endif
 
   info->bytes_per_chunk = insnlen;
   info->display_endian = info->endian;

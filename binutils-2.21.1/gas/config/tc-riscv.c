@@ -508,6 +508,7 @@ insn_length (const struct mips_cl_insn *insn)
   return riscv_insn_length (insn->insn_opcode);
 }
 
+#if 0
 static int
 imm_bits_needed(int32_t imm)
 {
@@ -791,6 +792,17 @@ riscv_rvc_compress(struct mips_cl_insn* insn)
 
   return 1;
 }
+
+static void
+add_relaxed_insn (struct mips_cl_insn *insn, int max_chars, int var,
+      relax_substateT subtype, symbolS *symbol, offsetT offset)
+{
+  frag_grow (max_chars);
+  move_insn (insn, frag_now, frag_more (0) - frag_now->fr_literal);
+  frag_var (rs_machine_dependent, max_chars, var,
+      subtype, symbol, offset, NULL);
+}
+#endif
 
 /* Initialise INSN from opcode entry MO.  Leave its position unspecified.  */
 
@@ -1340,16 +1352,6 @@ fixup_has_matching_lo_p (fixS *fixp)
 	  && fixp->fx_offset == fixp->fx_next->fx_offset);
 }
 
-static void
-add_relaxed_insn (struct mips_cl_insn *insn, int max_chars, int var,
-      relax_substateT subtype, symbolS *symbol, offsetT offset)
-{
-  frag_grow (max_chars);
-  move_insn (insn, frag_now, frag_more (0) - frag_now->fr_literal);
-  frag_var (rs_machine_dependent, max_chars, var,
-      subtype, symbol, offset, NULL);
-}
-
 /* Output an instruction.  IP is the instruction information.
    ADDRESS_EXPR is an operand of the instruction to be used with
    RELOC_TYPE.  */
@@ -1364,6 +1366,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 
   gas_assert(reloc_type <= BFD_RELOC_UNUSED);
 
+#if 0
   /* don't compress instructions with relocs */
   int compressible = (reloc_type == BFD_RELOC_UNUSED ||
     address_expr == NULL || address_expr->X_op == O_constant) && mips_opts.rvc;
@@ -1390,14 +1393,13 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
   }
 
   if(!compressible)
+#endif
     add_fixed_insn(ip);
 
   if (address_expr != NULL)
     {
       if (address_expr->X_op == O_constant)
 	{
-	  unsigned int tmp;
-
 	  switch (reloc_type)
 	    {
 	    case BFD_RELOC_32:
@@ -1405,26 +1407,17 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	      break;
 
 	    case BFD_RELOC_HI16_S:
-	      tmp = (address_expr->X_add_number + RISCV_IMM_REACH/2) >> RISCV_IMM_BITS;
-	      ip->insn_opcode |= (tmp & ((1<<(32-RISCV_IMM_BITS))-1)) << OP_SH_BIGIMMEDIATE; // assumes lui bits == 32 - imm bits
-	      break;
-
-	    case BFD_RELOC_HI16:
-	      ip->insn_opcode |= ((address_expr->X_add_number >> RISCV_IMM_BITS) & (RISCV_BIGIMM_REACH-1)) << OP_SH_BIGIMMEDIATE;
+	      ip->insn_opcode |= ENCODE_LTYPE_IMM (
+		RISCV_LUI_HIGH_PART (address_expr->X_add_number));
 	      break;
 
 	    case BFD_RELOC_UNUSED:
 	    case BFD_RELOC_LO16:
 		  /* Stores have a split immediate field. */
 	      if (OPCODE_IS_STORE(ip->insn_opcode))
-		{
-		  int value = address_expr->X_add_number & (RISCV_IMM_REACH-1);
-		  value = ((value >> RISCV_IMMLO_BITS) << OP_SH_IMMHI) |
-		          ((value & ((1<<RISCV_IMMLO_BITS)-1)) << OP_SH_IMMLO);
-		  ip->insn_opcode |= value;
-		}
+		ip->insn_opcode |= ENCODE_STYPE_IMM (address_expr->X_add_number);
 	      else
-	        ip->insn_opcode |= (address_expr->X_add_number & (RISCV_IMM_REACH-1)) << OP_SH_IMMEDIATE;
+		ip->insn_opcode |= ENCODE_ITYPE_IMM (address_expr->X_add_number);
 	      break;
 
 	    default:
@@ -1461,11 +1454,13 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	}
     }
 
+#if 0
   if(compressible)
   {
     riscv_rvc_compress(ip);
     add_fixed_insn (ip);
   }
+#endif
 
   install_insn (ip);
 
@@ -1599,7 +1594,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  continue;
 
 	case 'O': /* An off-by-4 PC-relative address for PIC. */
-	  INSERT_OPERAND (IMMEDIATE, insn, 4);
+	  insn.insn_opcode |= ENCODE_ITYPE_IMM (4);
 	  r = va_arg (args, int);
 	  continue;
 
@@ -1615,7 +1610,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 		  && (ep->X_op == O_constant
 		      || (ep->X_op == O_symbol
 			  && (r == BFD_RELOC_HI16_S
-			      || r == BFD_RELOC_HI16
 			      || r == BFD_RELOC_MIPS_GOT_HI16
 			      || r == BFD_RELOC_RISCV_CALL))));
 	  continue;
@@ -1941,21 +1935,19 @@ validate_mips_insn (const struct riscv_opcode *opc)
       case 'R':	USE_BITS (OP_MASK_FR,		OP_SH_FR);	break;
       case 'S':	USE_BITS (OP_MASK_FS,		OP_SH_FS);	break;
       case 'T':	USE_BITS (OP_MASK_FT,		OP_SH_FT);	break;
-      case 'a':	USE_BITS (OP_MASK_TARGET,	OP_SH_TARGET);	break;
       case 'b':	USE_BITS (OP_MASK_RS,		OP_SH_RS);	break;
       case 'd':	USE_BITS (OP_MASK_RD,		OP_SH_RD);	break;
-      case 'j':	USE_BITS (OP_MASK_IMMEDIATE,	OP_SH_IMMEDIATE);	break;
       case 'm':	USE_BITS (OP_MASK_RM,		OP_SH_RM);	break;
-      case 'o': USE_BITS (OP_MASK_IMMEDIATE,	OP_SH_IMMEDIATE);	break;
-      case 'p':	USE_BITS (OP_MASK_IMMLO,	OP_SH_IMMLO);
-              	USE_BITS (OP_MASK_IMMHI,	OP_SH_IMMHI);	break;
-      case 'q':	USE_BITS (OP_MASK_IMMLO,	OP_SH_IMMLO);
-              	USE_BITS (OP_MASK_IMMHI,	OP_SH_IMMHI);	break;
       case 's':	USE_BITS (OP_MASK_RS,		OP_SH_RS);	break;
       case 't':	USE_BITS (OP_MASK_RT,		OP_SH_RT);	break;
-      case 'u':	USE_BITS (OP_MASK_BIGIMMEDIATE,	OP_SH_BIGIMMEDIATE); break;
       case 'P':	USE_BITS (OP_MASK_PRED,		OP_SH_PRED); break;
       case 'Q':	USE_BITS (OP_MASK_SUCC,		OP_SH_SUCC); break;
+      case 'o':
+      case 'j': used_bits |= ENCODE_ITYPE_IMM(-1U); break;
+      case 'a':	used_bits |= ENCODE_JTYPE_IMM(-1U); break;
+      case 'p':	used_bits |= ENCODE_BTYPE_IMM(-1U); break;
+      case 'q':	used_bits |= ENCODE_STYPE_IMM(-1U); break;
+      case 'u':	used_bits |= ENCODE_LTYPE_IMM(-1U); break;
       case '[': break;
       case ']': break;
       case '0': break;
@@ -2459,7 +2451,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		      || imm_expr.X_add_number >= (signed)RISCV_BIGIMM_REACH)
 		    as_bad (_("lui expression not in range 0..1048575"));
 	      
-		  imm_reloc = BFD_RELOC_HI16;
+		  imm_reloc = BFD_RELOC_HI16_S;
 		  imm_expr.X_add_number <<= RISCV_IMM_BITS;
 		}
 	      s = expr_end;
@@ -2751,7 +2743,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
       /* fall through */
 
-    case BFD_RELOC_HI16:
     case BFD_RELOC_HI16_S:
     case BFD_RELOC_GPREL16:
     case BFD_RELOC_MIPS_GOT_HI16:
