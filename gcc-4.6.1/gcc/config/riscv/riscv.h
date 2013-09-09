@@ -55,7 +55,7 @@ struct mips_cpu_info {
 #define TARGET_USE_GOT 0
 
 /* True if a global pointer can be used to access small data. */
-#define TARGET_USE_GP 0
+#define TARGET_USE_GP (!flag_pic)
 
 /* TARGET_HARD_FLOAT and TARGET_SOFT_FLOAT reflect whether the FPU is
    directly accessible, while the command-line options select
@@ -575,7 +575,7 @@ struct mips_cpu_info {
 #define FIXED_REGISTERS							\
 { /* General registers.  */                                             \
   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,			\
   /* Floating-point registers.  */                                      \
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
@@ -695,8 +695,8 @@ struct mips_cpu_info {
 /* Register to use for pushing function arguments.  */
 #define HARD_FRAME_POINTER_REGNUM 2
 #define STACK_POINTER_REGNUM 14
-#define GP_REGNUM 13
 #define THREAD_POINTER_REGNUM 15
+#define GP_REGNUM 31
 
 /* These two registers don't really exist: they get eliminated to either
    the stack or hard frame pointer.  */
@@ -798,7 +798,7 @@ enum reg_class
 #define REG_CLASS_CONTENTS									\
 {												\
   { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* NO_REGS */		\
-  { 0xfc000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* T_REGS */		\
+  { 0x7c000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* T_REGS */		\
   { 0xffffffff, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* GR_REGS */		\
   { 0x00000000, 0xffffffff, 0x00000000, 0x00000000, 0x00000000 },	/* FP_REGS */		\
   { 0x00000000, 0x00000000, 0xffffffff, 0x00000000, 0x00000000 },	/* VEC_GR_REGS */	\
@@ -1209,7 +1209,7 @@ typedef struct mips_args {
   { "t2",	28 + GP_REG_FIRST },					\
   { "t3",	29 + GP_REG_FIRST },					\
   { "t4",	30 + GP_REG_FIRST },					\
-  { "t5",	31 + GP_REG_FIRST },					\
+  { "gp",	31 + GP_REG_FIRST },					\
   { "fs0",	 0 + FP_REG_FIRST },					\
   { "fs1",	 1 + FP_REG_FIRST },					\
   { "fs2",	 2 + FP_REG_FIRST },					\

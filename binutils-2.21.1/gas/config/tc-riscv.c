@@ -1009,7 +1009,7 @@ struct regname {
   { "t2",	28 | RTYPE_GP }, \
   { "t3",	29 | RTYPE_GP }, \
   { "t4",	30 | RTYPE_GP }, \
-  { "t5",	31 | RTYPE_GP }
+  { "gp",	31 | RTYPE_GP }
 
 #define F_REGISTER_NAMES  \
   { "fs0",	 0 | RTYPE_FPU }, \

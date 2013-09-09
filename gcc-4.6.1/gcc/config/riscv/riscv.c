@@ -339,7 +339,7 @@ const enum reg_class mips_regno_to_class[FIRST_PSEUDO_REGISTER] = {
   GR_REGS,	GR_REGS, 	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	T_REGS,		T_REGS,
-  T_REGS,	T_REGS,		T_REGS,		T_REGS,
+  T_REGS,	T_REGS,		T_REGS,		GR_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
@@ -4965,8 +4965,7 @@ mips_conditional_register_usage (void)
   call_used_regs[RETURN_ADDR_REGNUM] =
     call_really_used_regs[RETURN_ADDR_REGNUM] = riscv_in_utfunc;
 
-  if (TARGET_USE_GP)
-    fixed_regs[GP_REGNUM] = call_used_regs[GP_REGNUM] = !riscv_in_utfunc;
+  fixed_regs[GP_REGNUM] = call_used_regs[GP_REGNUM] = !riscv_in_utfunc;
 }
 
 /* Initialize vector TARGET to VALS.  */

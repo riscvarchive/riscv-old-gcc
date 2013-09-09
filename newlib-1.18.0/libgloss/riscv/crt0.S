@@ -96,7 +96,7 @@
         .text
         .global _start
 _start:
-        la      s11, _gp                # Initialize global pointer
+        la      gp, _gp                 # Initialize global pointer
 
         jal     _init                   # Run global initialization functions
 

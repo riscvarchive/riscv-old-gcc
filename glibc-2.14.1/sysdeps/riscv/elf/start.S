@@ -77,6 +77,7 @@
 	.globl ENTRY_POINT
 	.type ENTRY_POINT,@function
 ENTRY_POINT:
+	la    gp, _gp
 	la    a0, main
 	REG_L a1, 0(sp)      /* argc */
 	addi  a2, sp, SZREG  /* argv */
