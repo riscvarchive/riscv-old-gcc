@@ -433,10 +433,6 @@ static bfd *reldyn_sorting_bfd;
    ? bfd_put_64 (abfd, val, ptr) 		\
    : bfd_put_32 (abfd, val, ptr))
 
-/* Add a dynamic symbol table-entry.  */
-#define MIPS_ELF_ADD_DYNAMIC_ENTRY(info, tag, val)	\
-  _bfd_elf_add_dynamic_entry (info, tag, val)
-
 /* The name of the dynamic relocation section.  */
 #define MIPS_ELF_REL_DYN_NAME(INFO) ".rel.dyn"
 
@@ -444,12 +440,6 @@ static bfd *reldyn_sorting_bfd;
    from smaller values.  Start with zero, widen, *then* decrement.  */
 #define MINUS_ONE	(((bfd_vma)0) - 1)
 #define MINUS_TWO	(((bfd_vma)0) - 2)
-
-/* The value to write into got[1] for SVR4 targets, to identify it is
-   a GNU object.  The dynamic linker can then use got[1] to store the
-   module pointer.  */
-#define MIPS_ELF_GNU_GOT1_MASK(abfd) \
-  ((bfd_vma) 1 << (ABI_64_P (abfd) ? 63 : 31))
 
 #define MIPS_FUNCTION_STUB_NORMAL_SIZE 16
 #define MIPS_FUNCTION_STUB_BIG_SIZE 20
@@ -3470,9 +3460,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_GD_HI20:
     case R_RISCV_TLS_LDM_HI20:
     case R_RISCV_GOT_HI16:
-      /* We're allowed to handle these two relocations identically.
-	 The dynamic linker is allowed to handle the CALL relocations
-	 differently by creating a lazy evaluation stub.  */
       value = ENCODE_LTYPE_IMM (RISCV_LUI_HIGH_PART (g - p));
       break;
 
@@ -4651,12 +4638,12 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
       /* The DT_DEBUG entry may be filled in by the dynamic linker and
 	 used by the debugger.  */
       if (info->executable
-	  && !MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_DEBUG, 0))
+	  && !_bfd_elf_add_dynamic_entry (info, DT_DEBUG, 0))
 	return FALSE;
 
       if ((info->flags & DF_TEXTREL) != 0)
 	{
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_TEXTREL, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_TEXTREL, 0))
 	    return FALSE;
 
 	  /* Clear the DF_TEXTREL flag.  It will be set again if we
@@ -4666,56 +4653,56 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	  info->flags &= ~DF_TEXTREL;
 	}
 
-      if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_PLTGOT, 0))
+      if (! _bfd_elf_add_dynamic_entry (info, DT_PLTGOT, 0))
 	return FALSE;
 
       sreldyn = mips_elf_rel_dyn_section (info, FALSE);
 	{
 	  if (sreldyn && sreldyn->size > 0)
 	    {
-	      if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_REL, 0))
+	      if (! _bfd_elf_add_dynamic_entry (info, DT_REL, 0))
 		return FALSE;
 
-	      if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_RELSZ, 0))
+	      if (! _bfd_elf_add_dynamic_entry (info, DT_RELSZ, 0))
 		return FALSE;
 
-	      if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_RELENT, 0))
+	      if (! _bfd_elf_add_dynamic_entry (info, DT_RELENT, 0))
 		return FALSE;
 	    }
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_RLD_VERSION, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_RLD_VERSION, 0))
 	    return FALSE;
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_FLAGS, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_FLAGS, 0))
 	    return FALSE;
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_BASE_ADDRESS, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_BASE_ADDRESS, 0))
 	    return FALSE;
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_LOCAL_GOTNO, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_LOCAL_GOTNO, 0))
 	    return FALSE;
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_SYMTABNO, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_SYMTABNO, 0))
 	    return FALSE;
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_UNREFEXTNO, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_UNREFEXTNO, 0))
 	    return FALSE;
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_GOTSYM, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_GOTSYM, 0))
 	    return FALSE;
 	}
       if (htab->splt->size > 0)
 	{
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_PLTREL, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_PLTREL, 0))
 	    return FALSE;
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_JMPREL, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_JMPREL, 0))
 	    return FALSE;
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_PLTRELSZ, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_PLTRELSZ, 0))
 	    return FALSE;
 
-	  if (! MIPS_ELF_ADD_DYNAMIC_ENTRY (info, DT_MIPS_PLTGOT, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_PLTGOT, 0))
 	    return FALSE;
 	}
     }
@@ -4965,10 +4952,7 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
 	    + (got_address
 	       - htab->sgotplt->output_section->vma
 	       - htab->sgotplt->output_offset);
-      if (ABI_64_P (output_bfd))
-	bfd_put_64 (output_bfd, got_val, loc);
-      else
-	bfd_put_32 (output_bfd, got_val, loc);
+      MIPS_ELF_PUT_WORD (output_bfd, got_val, loc);
 
       /* Emit an R_RISCV_JUMP_SLOT relocation against the .got.plt entry.  */
       mips_elf_output_dynamic_relocation (output_bfd, htab->srelplt,
@@ -5252,12 +5236,10 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
   if (sgot != NULL && sgot->size > 0
       && !bfd_is_abs_section (sgot->output_section))
     {
-      /* The first entry of the global offset table will be filled at
-         runtime. The second entry will be used by some runtime loaders.
-         This isn't the case of IRIX rld.  */
+      /* The first two entries of the GOT will be filled at runtime. */
       MIPS_ELF_PUT_WORD (output_bfd, (bfd_vma) 0, sgot->contents);
-      MIPS_ELF_PUT_WORD (output_bfd, MIPS_ELF_GNU_GOT1_MASK (output_bfd),
-	                 sgot->contents + MIPS_ELF_GOT_SIZE (output_bfd));
+      MIPS_ELF_PUT_WORD (output_bfd, (bfd_vma) 0,
+			 sgot->contents + MIPS_ELF_GOT_SIZE (output_bfd));
 
       elf_section_data (sgot->output_section)->this_hdr.sh_entsize
 	 = MIPS_ELF_GOT_SIZE (output_bfd);
@@ -5924,8 +5906,6 @@ _bfd_riscv_elf_get_target_dtag (bfd_vma dtag)
       return "MIPS_HIDDEN_GOTIDX";
     case DT_MIPS_PROTECTED_GOTIDX:
       return "MIPS_PROTECTED_GOT_IDX";
-    case DT_MIPS_OPTIONS:
-      return "MIPS_OPTIONS";
     case DT_MIPS_INTERFACE:
       return "MIPS_INTERFACE";
     case DT_MIPS_DYNSTR_ALIGN:
@@ -5976,9 +5956,6 @@ _bfd_riscv_elf_print_private_bfd_data (bfd *abfd, void *ptr)
 
 const struct bfd_elf_special_section _bfd_riscv_elf_special_sections[] =
 {
-#if 0
-  { STRING_COMMA_LEN (".vtext"),  0, SHT_RISCV_VTEXT, 0 },
-#endif
   { NULL,                     0,  0, 0,              0 }
 };
 

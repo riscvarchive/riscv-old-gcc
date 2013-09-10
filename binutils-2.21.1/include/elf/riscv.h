@@ -133,205 +133,29 @@ END_RELOC_NUMBERS (R_RISCV_maxext)
 
 /* Small undefined symbol.  */
 #define SHN_RISCV_SUNDEFINED	(SHN_LORESERVE + 4)
-
-/* Processor specific section types.  */
-
-/* Section contains the set of dynamic shared objects used when
-   statically linking.  */
-#define SHT_RISCV_LIBLIST	0x70000000
-
-/* Section contains list of symbols whose definitions conflict with
-   symbols defined in shared objects.  */
-#define SHT_RISCV_CONFLICT	0x70000002
-
-/* Section contains the global pointer table.  */
-#define SHT_RISCV_GPTAB		0x70000003
-
-/* Section contains some sort of debugging information.  The exact
-   format is unspecified.  It's probably ECOFF symbols.  */
-#define SHT_RISCV_DEBUG		0x70000005
-
-/* Section contains interface information.  */
-#define SHT_RISCV_IFACE		0x7000000b
-
-/* Section contains description of contents of another section.  */
-#define SHT_RISCV_CONTENT	0x7000000c
-
-/* Section contains miscellaneous options.  */
-#define SHT_RISCV_OPTIONS	0x7000000d
-
-/* List of libraries the binary depends on.  Includes a time stamp, version
-   number.  */
-#define SHT_RISCV_SYMBOL_LIB	0x70000020
-
-/* Events section.  */
-#define SHT_RISCV_EVENTS		0x70000021
 
 /* Get ELf32_xxx struct definitions */
 #include "mips.h"
 
-/* Processor specific section flags.  */
-
-/* This section may not be stripped.  */
-#define SHF_RISCV_NOSTRIP	0x08000000
-
-/* Processor specific program header types.  */
-
-/* Runtime procedure table.  */
-#define PT_RISCV_RTPROC		0x70000001
-
-/* .RISCV.options section.  */
-#define PT_RISCV_OPTIONS		0x70000002
-
-/* Processor specific dynamic array tags.  */
-
-/* 32 bit version number for runtime linker interface.  */
-#define DT_RISCV_RLD_VERSION	0x70000001
-
-/* Time stamp.  */
-#define DT_RISCV_TIME_STAMP	0x70000002
-
-/* Checksum of external strings and common sizes.  */
-#define DT_RISCV_ICHECKSUM	0x70000003
-
-/* Index of version string in string table.  */
-#define DT_RISCV_IVERSION	0x70000004
-
-/* 32 bits of flags.  */
-#define DT_RISCV_FLAGS		0x70000005
-
-/* Base address of the segment.  */
-#define DT_RISCV_BASE_ADDRESS	0x70000006
-
-/* ??? */
-#define DT_RISCV_MSYM		0x70000007
-
-/* Address of .conflict section.  */
-#define DT_RISCV_CONFLICT	0x70000008
-
-/* Address of .liblist section.  */
-#define DT_RISCV_LIBLIST		0x70000009
-
 /* Number of local global offset table entries.  */
 #define DT_RISCV_LOCAL_GOTNO	0x7000000a
-
-/* Number of entries in the .conflict section.  */
-#define DT_RISCV_CONFLICTNO	0x7000000b
-
-/* Number of entries in the .liblist section.  */
-#define DT_RISCV_LIBLISTNO	0x70000010
 
 /* Number of entries in the .dynsym section.  */
 #define DT_RISCV_SYMTABNO	0x70000011
 
-/* Index of first external dynamic symbol not referenced locally.  */
-#define DT_RISCV_UNREFEXTNO	0x70000012
-
 /* Index of first dynamic symbol in global offset table.  */
 #define DT_RISCV_GOTSYM		0x70000013
-
-/* Number of page table entries in global offset table.  */
-#define DT_RISCV_HIPAGENO	0x70000014
 
 /* Address of run time loader map, used for debugging.  */
 #define DT_RISCV_RLD_MAP		0x70000016
 
-/* Delta C++ class definition.  */
-#define DT_RISCV_DELTA_CLASS	0x70000017
-
-/* Number of entries in DT_RISCV_DELTA_CLASS.  */
-#define DT_RISCV_DELTA_CLASS_NO	0x70000018
-
-/* Delta C++ class instances.  */
-#define DT_RISCV_DELTA_INSTANCE	0x70000019
-
-/* Number of entries in DT_RISCV_DELTA_INSTANCE.  */
-#define DT_RISCV_DELTA_INSTANCE_NO	0x7000001a
-
-/* Delta relocations.  */
-#define DT_RISCV_DELTA_RELOC	0x7000001b
-
-/* Number of entries in DT_RISCV_DELTA_RELOC.  */
-#define DT_RISCV_DELTA_RELOC_NO	0x7000001c
-
-/* Delta symbols that Delta relocations refer to.  */
-#define DT_RISCV_DELTA_SYM	0x7000001d
-
-/* Number of entries in DT_RISCV_DELTA_SYM.  */
-#define DT_RISCV_DELTA_SYM_NO	0x7000001e
-
-/* Delta symbols that hold class declarations.  */
-#define DT_RISCV_DELTA_CLASSSYM	0x70000020
-
-/* Number of entries in DT_RISCV_DELTA_CLASSSYM.  */
-#define DT_RISCV_DELTA_CLASSSYM_NO	0x70000021
-
-/* Flags indicating information about C++ flavor.  */
-#define DT_RISCV_CXX_FLAGS	0x70000022
-
-/* Pixie information (???).  */
-#define DT_RISCV_PIXIE_INIT	0x70000023
-
-/* Address of .RISCV.symlib */
-#define DT_RISCV_SYMBOL_LIB	0x70000024
-
-/* The GOT index of the first PTE for a segment */
-#define DT_RISCV_LOCALPAGE_GOTIDX	0x70000025
-
-/* The GOT index of the first PTE for a local symbol */
-#define DT_RISCV_LOCAL_GOTIDX	0x70000026
-
-/* The GOT index of the first PTE for a hidden symbol */
-#define DT_RISCV_HIDDEN_GOTIDX	0x70000027
-
-/* The GOT index of the first PTE for a protected symbol */
-#define DT_RISCV_PROTECTED_GOTIDX	0x70000028
-
-/* Address of `.RISCV.options'.  */
-#define DT_RISCV_OPTIONS		0x70000029
-
-/* Address of `.interface'.  */
-#define DT_RISCV_INTERFACE	0x7000002a
-
-/* ??? */
-#define DT_RISCV_DYNSTR_ALIGN	0x7000002b
-
-/* Size of the .interface section.  */
-#define DT_RISCV_INTERFACE_SIZE	0x7000002c
-
-/* Size of rld_text_resolve function stored in the GOT.  */
-#define DT_RISCV_RLD_TEXT_RESOLVE_ADDR	0x7000002d
-
-/* Default suffix of DSO to be added by rld on dlopen() calls.  */
-#define DT_RISCV_PERF_SUFFIX	0x7000002e
-
-/* Size of compact relocation section (O32).  */
-#define DT_RISCV_COMPACT_SIZE	0x7000002f
-
-/* GP value for auxiliary GOTs.  */
-#define DT_RISCV_GP_VALUE	0x70000030
-
-/* Address of auxiliary .dynamic.  */
-#define DT_RISCV_AUX_DYNAMIC	0x70000031
-
 /* Address of the base of the PLTGOT.  */
 #define DT_RISCV_PLTGOT         0x70000032
-
-/* Points to the base of a writable PLT.  */
-#define DT_RISCV_RWPLT          0x70000034
 
 /* The RISC-V psABI was updated in 2008 with support for PLTs and copy
    relocs.  There are therefore two types of nonzero SHN_UNDEF functions:
    PLT entries and traditional RISC-V lazy binding stubs.  We mark the former
    with STO_RISCV_PLT to distinguish them from the latter.  */
 #define STO_RISCV_PLT		0x8
-
-/* This value is used to mark PIC functions in an object that mixes
-   PIC and non-PIC.  */
-#define STO_RISCV_PIC		0x20
-#define ELF_ST_IS_RISCV_PIC(OTHER) \
-  (((OTHER) & ~ELF_ST_VISIBILITY (-1)) == STO_RISCV_PIC)
-#define ELF_ST_SET_RISCV_PIC(OTHER) \
-  (STO_RISCV_PIC | ELF_ST_VISIBILITY (OTHER))
 
 #endif /* _ELF_RISCV_H */
