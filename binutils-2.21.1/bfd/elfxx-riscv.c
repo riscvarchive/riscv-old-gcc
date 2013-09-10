@@ -622,10 +622,7 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_STYPE_IMM(-1U),		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* 16 bit PC relative reference.  Note that the ABI document has a typo
-     and claims R_RISCV_PC16 to be not rightshifted, rendering it useless.
-     We do the right thing here.  */
-  HOWTO (R_RISCV_PC16,		/* type */
+  HOWTO (R_RISCV_BRANCH,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
@@ -633,7 +630,7 @@ static reloc_howto_type howto_table[] =
 	 0,			/* bitpos */
 	 complain_overflow_signed, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_PC16",		/* name */
+	 "R_RISCV_BRANCH",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
 	 ENCODE_BTYPE_IMM(-1U),	/* dst_mask */
@@ -693,7 +690,7 @@ static reloc_howto_type howto_table[] =
   EMPTY_HOWTO (21),
 
   /* High 16 bits of displacement in global offset table.  */
-  HOWTO (R_RISCV_GOT_HI16,	/* type */
+  HOWTO (R_RISCV_GOT_HI20,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 32,			/* bitsize */
@@ -701,14 +698,14 @@ static reloc_howto_type howto_table[] =
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_GOT_HI16",	/* name */
+	 "R_RISCV_GOT_HI20",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
 	 ENCODE_LTYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of displacement in global offset table.  */
-  HOWTO (R_RISCV_GOT_LO16,	/* type */
+  HOWTO (R_RISCV_GOT_LO12,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
 	 RISCV_IMM_BITS,			/* bitsize */
@@ -716,7 +713,7 @@ static reloc_howto_type howto_table[] =
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
 	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_GOT_LO16",	/* name */
+	 "R_RISCV_GOT_LO12",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
 	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
@@ -1151,7 +1148,7 @@ static const struct elf_reloc_map riscv_reloc_map[] =
   { BFD_RELOC_RISCV_SUB32, R_RISCV_SUB32 },
   { BFD_RELOC_RISCV_SUB64, R_RISCV_SUB64 },
   { BFD_RELOC_CTOR, R_RISCV_64 },
-  { BFD_RELOC_16_PCREL_S2, R_RISCV_PC16 },
+  { BFD_RELOC_12_PCREL, R_RISCV_BRANCH },
   { BFD_RELOC_RISCV_HI20, R_RISCV_HI20 },
   { BFD_RELOC_RISCV_LO12_I, R_RISCV_LO12_I },
   { BFD_RELOC_RISCV_LO12_S, R_RISCV_LO12_S },
@@ -1160,8 +1157,8 @@ static const struct elf_reloc_map riscv_reloc_map[] =
   { BFD_RELOC_RISCV_CALL, R_RISCV_CALL },
   { BFD_RELOC_RISCV_LOAD, R_RISCV_LOAD },
   { BFD_RELOC_MIPS_JMP, R_RISCV_JAL },
-  { BFD_RELOC_MIPS_GOT_HI16, R_RISCV_GOT_HI16 },
-  { BFD_RELOC_MIPS_GOT_LO16, R_RISCV_GOT_LO16 },
+  { BFD_RELOC_MIPS_GOT_HI16, R_RISCV_GOT_HI20 },
+  { BFD_RELOC_MIPS_GOT_LO16, R_RISCV_GOT_LO12 },
   { BFD_RELOC_MIPS_TLS_DTPMOD32, R_RISCV_TLS_DTPMOD32 },
   { BFD_RELOC_MIPS_TLS_DTPREL32, R_RISCV_TLS_DTPREL32 },
   { BFD_RELOC_MIPS_TLS_DTPMOD64, R_RISCV_TLS_DTPMOD64 },
@@ -3178,8 +3175,8 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
      to need it, get it now.  */
   switch (r_type)
     {
-    case R_RISCV_GOT_HI16:
-    case R_RISCV_GOT_LO16:
+    case R_RISCV_GOT_HI20:
+    case R_RISCV_GOT_LO12:
     case R_RISCV_TLS_GD:
     case R_RISCV_TLS_GD_HI20:
     case R_RISCV_TLS_GD_LO12:
@@ -3315,7 +3312,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = ENCODE_JTYPE_IMM (value);
       break;
 
-    case R_RISCV_PC16:
+    case R_RISCV_BRANCH:
       value = addend;
       if (symbol)
 	value += symbol - p;
@@ -3378,14 +3375,14 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_GOT_HI20:
     case R_RISCV_TLS_GD_HI20:
     case R_RISCV_TLS_LDM_HI20:
-    case R_RISCV_GOT_HI16:
+    case R_RISCV_GOT_HI20:
       value = ENCODE_LTYPE_IMM (RISCV_LUI_HIGH_PART (g - p));
       break;
 
     case R_RISCV_TLS_GOT_LO12:
     case R_RISCV_TLS_GD_LO12:
     case R_RISCV_TLS_LDM_LO12:
-    case R_RISCV_GOT_LO16:
+    case R_RISCV_GOT_LO12:
       value = ENCODE_ITYPE_IMM (g - p);
       break;
 
@@ -3884,8 +3881,8 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
       can_make_dynamic_p = FALSE;
       switch (r_type)
 	{
-	case R_RISCV_GOT_HI16:
-	case R_RISCV_GOT_LO16:
+	case R_RISCV_GOT_HI20:
+	case R_RISCV_GOT_LO12:
 	case R_RISCV_TLS_GOTTPREL:
 	case R_RISCV_TLS_GOT_HI20:
 	case R_RISCV_TLS_GOT_LO12:
@@ -3948,14 +3945,14 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  /* Fall through.  */
 
 	case R_RISCV_JAL:
-	case R_RISCV_PC16:
+	case R_RISCV_BRANCH:
 	case R_RISCV_CALL:
 	  if (h)
 	    ((struct mips_elf_link_hash_entry *) h)->has_static_relocs = TRUE;
 	  break;
 	}
 
-      if (r_type == R_RISCV_GOT_LO16)
+      if (r_type == R_RISCV_GOT_LO12)
 	{
 	  if (!mips_elf_record_local_got_symbol (abfd, r_symndx,
 						 rel->r_addend, info, 0))
@@ -3964,8 +3961,8 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
       switch (r_type)
 	{
-	case R_RISCV_GOT_HI16:
-	case R_RISCV_GOT_LO16:
+	case R_RISCV_GOT_HI20:
+	case R_RISCV_GOT_LO12:
 	  if (!h)
 	    {
 	      if (!mips_elf_record_got_page_entry (info, abfd, r_symndx,
@@ -4845,15 +4842,7 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
 					  plt_index, h->dynindx,
 					  R_RISCV_JUMP_SLOT, got_address);
 
-      /* We distinguish between PLT entries and lazy-binding stubs by
-	 giving the former an st_other value of STO_MIPS_PLT.  Set the
-	 flag and leave the value if there are any relocations in the
-	 binary where pointer equality matters.  */
       sym->st_shndx = SHN_UNDEF;
-      if (h->pointer_equality_needed)
-	sym->st_other = STO_MIPS_PLT;
-      else
-	sym->st_value = 0;
     }
 
   BFD_ASSERT (h->dynindx != -1
@@ -4871,7 +4860,7 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       bfd_vma value;
 
       value = sym->st_value;
-      offset = mips_elf_global_got_index (dynobj, h, R_RISCV_GOT_HI16, info);
+      offset = mips_elf_global_got_index (dynobj, h, R_RISCV_GOT_HI20, info);
       MIPS_ELF_PUT_WORD (output_bfd, value, sgot->contents + offset);
     }
 

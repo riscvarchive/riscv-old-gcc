@@ -43,12 +43,12 @@ START_RELOC_NUMBERS (elf_riscv_reloc_type)
   RELOC_NUMBER (R_RISCV_LO12_S, 7)
   RELOC_NUMBER (R_RISCV_GPREL12_I, 8)
   RELOC_NUMBER (R_RISCV_GPREL12_S, 9)
-  RELOC_NUMBER (R_RISCV_PC16, 10)
+  RELOC_NUMBER (R_RISCV_BRANCH, 10)
   RELOC_NUMBER (R_RISCV_CALL, 11)
   RELOC_NUMBER (R_RISCV_LOAD, 12)
   RELOC_NUMBER (R_RISCV_64, 18)
-  RELOC_NUMBER (R_RISCV_GOT_HI16, 22)
-  RELOC_NUMBER (R_RISCV_GOT_LO16, 23)
+  RELOC_NUMBER (R_RISCV_GOT_HI20, 22)
+  RELOC_NUMBER (R_RISCV_GOT_LO12, 23)
   RELOC_NUMBER (R_RISCV_COPY, 24)
   RELOC_NUMBER (R_RISCV_JUMP_SLOT, 25)
   /* TLS relocations.  */
@@ -145,11 +145,5 @@ END_RELOC_NUMBERS (R_RISCV_maxext)
 
 /* Address of the base of the PLTGOT.  */
 #define DT_RISCV_PLTGOT         0x70000032
-
-/* The RISC-V psABI was updated in 2008 with support for PLTs and copy
-   relocs.  There are therefore two types of nonzero SHN_UNDEF functions:
-   PLT entries and traditional RISC-V lazy binding stubs.  We mark the former
-   with STO_RISCV_PLT to distinguish them from the latter.  */
-#define STO_RISCV_PLT		0x8
 
 #endif /* _ELF_RISCV_H */

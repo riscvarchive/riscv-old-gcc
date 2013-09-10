@@ -577,22 +577,7 @@ elf_machine_got_rel (struct link_map *map, int lazy)
   /* This loop doesn't handle Quickstart.  */
   while (i--)
     {
-      if (sym->st_shndx == SHN_UNDEF)
-	{
-	  if (ELFW(ST_TYPE) (sym->st_info) == STT_FUNC && sym->st_value
-	      && !(sym->st_other & STO_MIPS_PLT))
-	    {
-	      if (lazy)
-		*got = sym->st_value + map->l_addr;
-	      else
-		/* This is a lazy-binding stub, so we don't need the
-		   canonical address.  */
-		*got = RESOLVE_GOTSYM (sym, vernum, symidx, R_RISCV_JUMP_SLOT);
-	    }
-	  else
-	    *got = RESOLVE_GOTSYM (sym, vernum, symidx, R_MIPS_32);
-	}
-      else if (sym->st_shndx == SHN_COMMON)
+      if (sym->st_shndx == SHN_UNDEF || sym->st_shndx == SHN_COMMON)
 	*got = RESOLVE_GOTSYM (sym, vernum, symidx, R_MIPS_32);
       else if (ELFW(ST_TYPE) (sym->st_info) == STT_FUNC
 	       && *got != sym->st_value)

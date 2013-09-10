@@ -1355,7 +1355,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
   /* speculate that branches/jumps can be compressed.  if not, we'll relax. */
   if (address_expr != NULL && mips_opts.rvc)
   {
-    int compressible_branch = reloc_type == BFD_RELOC_16_PCREL_S2 &&
+    int compressible_branch = reloc_type == BFD_RELOC_12_PCREL &&
       (INSN_MATCHES(*ip, BEQ) || INSN_MATCHES(*ip, BNE));
     int compressible_jump = reloc_type == BFD_RELOC_MIPS_JMP &&
       INSN_MATCHES(*ip, JAL);
@@ -1417,7 +1417,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	  ip->fixp = fix_new_exp (ip->frag, ip->where,
 				  bfd_get_reloc_size (howto),
 				  address_expr,
-				  reloc_type == BFD_RELOC_16_PCREL_S2 ||
+				  reloc_type == BFD_RELOC_12_PCREL ||
 				  reloc_type == BFD_RELOC_RISCV_CALL ||
 				  reloc_type == BFD_RELOC_MIPS_JMP,
 				  reloc_type);
@@ -1598,7 +1598,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 
 	case 'p':
 	  gas_assert (ep != NULL);
-	  r = BFD_RELOC_16_PCREL_S2;
+	  r = BFD_RELOC_12_PCREL;
 	  continue;
 
 	case 'a':
@@ -2548,7 +2548,7 @@ load_store:
 	      continue;
 
 	    case 'p':		/* pc relative offset */
-	      offset_reloc = BFD_RELOC_16_PCREL_S2;
+	      offset_reloc = BFD_RELOC_12_PCREL;
 	      my_getExpression (&offset_expr, s);
 	      s = expr_end;
 	      continue;
@@ -2747,6 +2747,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_RISCV_HI20:
     case BFD_RELOC_RISCV_GPREL12_I:
+    case BFD_RELOC_RISCV_GPREL12_S:
     case BFD_RELOC_MIPS_GOT_HI16:
     case BFD_RELOC_MIPS_GOT_LO16:
     case BFD_RELOC_RISCV_ADD32:
@@ -2793,7 +2794,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_RISCV_LO12_I:
     case BFD_RELOC_RISCV_LO12_S:
     case BFD_RELOC_MIPS_JMP:
-    case BFD_RELOC_16_PCREL_S2:
+    case BFD_RELOC_12_PCREL:
       break;
 
     default:
@@ -3212,15 +3213,9 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
   reloc->address = fixp->fx_frag->fr_address + fixp->fx_where;
 
   if (fixp->fx_pcrel)
-    {
-      gas_assert (fixp->fx_r_type == BFD_RELOC_16_PCREL_S2 ||
-                  fixp->fx_r_type == BFD_RELOC_RISCV_CALL ||
-                  fixp->fx_r_type == BFD_RELOC_MIPS_JMP);
-
-      /* At this point, fx_addnumber is "symbol offset - pcrel address".
-	 Relocations want only the symbol offset.  */
-      reloc->addend = fixp->fx_addnumber + reloc->address;
-    }
+    /* At this point, fx_addnumber is "symbol offset - pcrel address".
+       Relocations want only the symbol offset.  */
+    reloc->addend = fixp->fx_addnumber + reloc->address;
   else
     reloc->addend = fixp->fx_addnumber;
 
@@ -3261,7 +3256,7 @@ md_convert_frag_branch (bfd *abfd ATTRIBUTE_UNUSED, segT asec ATTRIBUTE_UNUSED,
   unsigned long insn;
   expressionS exp;
   fixS *fixp;
-  bfd_reloc_code_real_type reloc_type = BFD_RELOC_16_PCREL_S2;
+  bfd_reloc_code_real_type reloc_type = BFD_RELOC_12_PCREL;
 
   buf = (bfd_byte *)fragp->fr_literal + fragp->fr_fix;
   insn = bfd_getl16 (buf);
