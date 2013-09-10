@@ -60,13 +60,7 @@
    in l_info array.  */
 #define DT_MIPS(x) (DT_MIPS_##x - DT_LOPROC + DT_NUM)
 
-/* If there is a DT_MIPS_RLD_MAP entry in the dynamic section, fill it in
-   with the run-time address of the r_debug structure  */
-#define ELF_MACHINE_DEBUG_SETUP(l,r) \
-do { if ((l)->l_info[DT_MIPS (RLD_MAP)]) \
-       *(ElfW(Addr) *)((l)->l_info[DT_MIPS (RLD_MAP)]->d_un.d_ptr) = \
-       (ElfW(Addr)) (r); \
-   } while (0)
+#define ELF_MACHINE_DEBUG_SETUP(l,r)
 
 /* Return nonzero iff ELF header is compatible with the running host.  */
 static inline int __attribute_used__

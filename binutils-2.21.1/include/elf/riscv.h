@@ -146,9 +146,6 @@ END_RELOC_NUMBERS (R_RISCV_maxext)
 /* Index of first dynamic symbol in global offset table.  */
 #define DT_RISCV_GOTSYM		0x70000013
 
-/* Address of run time loader map, used for debugging.  */
-#define DT_RISCV_RLD_MAP		0x70000016
-
 /* Address of the base of the PLTGOT.  */
 #define DT_RISCV_PLTGOT         0x70000032
 

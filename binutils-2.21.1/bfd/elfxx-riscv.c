@@ -4670,22 +4670,10 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 		return FALSE;
 	    }
 
-	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_RLD_VERSION, 0))
-	    return FALSE;
-
-	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_FLAGS, 0))
-	    return FALSE;
-
-	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_BASE_ADDRESS, 0))
-	    return FALSE;
-
 	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_LOCAL_GOTNO, 0))
 	    return FALSE;
 
 	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_SYMTABNO, 0))
-	    return FALSE;
-
-	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_UNREFEXTNO, 0))
 	    return FALSE;
 
 	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_GOTSYM, 0))
@@ -5114,47 +5102,8 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 	      dyn.d_un.d_ptr = s->output_section->vma + s->output_offset;
 	      break;
 
-	    case DT_MIPS_RLD_VERSION:
-	      dyn.d_un.d_val = 1; /* XXX */
-	      break;
-
-	    case DT_MIPS_FLAGS:
-	      dyn.d_un.d_val = RHF_NOTPOT; /* XXX */
-	      break;
-
-	    case DT_MIPS_TIME_STAMP:
-	      {
-		time_t t;
-		time (&t);
-		dyn.d_un.d_val = t;
-	      }
-	      break;
-
-	    case DT_MIPS_ICHECKSUM:
-	      /* XXX FIXME: */
-	      swap_out_p = FALSE;
-	      break;
-
-	    case DT_MIPS_IVERSION:
-	      /* XXX FIXME: */
-	      swap_out_p = FALSE;
-	      break;
-
-	    case DT_MIPS_BASE_ADDRESS:
-	      s = output_bfd->sections;
-	      BFD_ASSERT (s != NULL);
-	      dyn.d_un.d_ptr = s->vma & ~(bfd_vma) (RISCV_IMM_REACH-1);
-	      break;
-
 	    case DT_MIPS_LOCAL_GOTNO:
 	      dyn.d_un.d_val = g->local_gotno;
-	      break;
-
-	    case DT_MIPS_UNREFEXTNO:
-	      /* The index into the dynamic symbol table which is the
-		 entry of the first external symbol that is not
-		 referenced within the same object.  */
-	      dyn.d_un.d_val = bfd_count_sections (output_bfd) + 1;
 	      break;
 
 	    case DT_MIPS_GOTSYM:
@@ -5174,10 +5123,6 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 	      BFD_ASSERT (s != NULL);
 
 	      dyn.d_un.d_val = s->size / elemsize;
-	      break;
-
-	    case DT_MIPS_HIPAGENO:
-	      dyn.d_un.d_val = g->local_gotno - htab->reserved_gotno;
 	      break;
 
 	    case DT_PLTREL:
@@ -5837,95 +5782,16 @@ _bfd_riscv_elf_get_target_dtag (bfd_vma dtag)
 {
   switch (dtag)
     {
-    default: return "";
-    case DT_MIPS_RLD_VERSION:
-      return "MIPS_RLD_VERSION";
-    case DT_MIPS_TIME_STAMP:
-      return "MIPS_TIME_STAMP";
-    case DT_MIPS_ICHECKSUM:
-      return "MIPS_ICHECKSUM";
-    case DT_MIPS_IVERSION:
-      return "MIPS_IVERSION";
-    case DT_MIPS_FLAGS:
-      return "MIPS_FLAGS";
-    case DT_MIPS_BASE_ADDRESS:
-      return "MIPS_BASE_ADDRESS";
-    case DT_MIPS_MSYM:
-      return "MIPS_MSYM";
-    case DT_MIPS_CONFLICT:
-      return "MIPS_CONFLICT";
-    case DT_MIPS_LIBLIST:
-      return "MIPS_LIBLIST";
     case DT_MIPS_LOCAL_GOTNO:
       return "MIPS_LOCAL_GOTNO";
-    case DT_MIPS_CONFLICTNO:
-      return "MIPS_CONFLICTNO";
-    case DT_MIPS_LIBLISTNO:
-      return "MIPS_LIBLISTNO";
     case DT_MIPS_SYMTABNO:
       return "MIPS_SYMTABNO";
-    case DT_MIPS_UNREFEXTNO:
-      return "MIPS_UNREFEXTNO";
     case DT_MIPS_GOTSYM:
       return "MIPS_GOTSYM";
-    case DT_MIPS_HIPAGENO:
-      return "MIPS_HIPAGENO";
-    case DT_MIPS_RLD_MAP:
-      return "MIPS_RLD_MAP";
-    case DT_MIPS_DELTA_CLASS:
-      return "MIPS_DELTA_CLASS";
-    case DT_MIPS_DELTA_CLASS_NO:
-      return "MIPS_DELTA_CLASS_NO";
-    case DT_MIPS_DELTA_INSTANCE:
-      return "MIPS_DELTA_INSTANCE";
-    case DT_MIPS_DELTA_INSTANCE_NO:
-      return "MIPS_DELTA_INSTANCE_NO";
-    case DT_MIPS_DELTA_RELOC:
-      return "MIPS_DELTA_RELOC";
-    case DT_MIPS_DELTA_RELOC_NO:
-      return "MIPS_DELTA_RELOC_NO";
-    case DT_MIPS_DELTA_SYM:
-      return "MIPS_DELTA_SYM";
-    case DT_MIPS_DELTA_SYM_NO:
-      return "MIPS_DELTA_SYM_NO";
-    case DT_MIPS_DELTA_CLASSSYM:
-      return "MIPS_DELTA_CLASSSYM";
-    case DT_MIPS_DELTA_CLASSSYM_NO:
-      return "MIPS_DELTA_CLASSSYM_NO";
-    case DT_MIPS_CXX_FLAGS:
-      return "MIPS_CXX_FLAGS";
-    case DT_MIPS_PIXIE_INIT:
-      return "MIPS_PIXIE_INIT";
-    case DT_MIPS_SYMBOL_LIB:
-      return "MIPS_SYMBOL_LIB";
-    case DT_MIPS_LOCALPAGE_GOTIDX:
-      return "MIPS_LOCALPAGE_GOTIDX";
-    case DT_MIPS_LOCAL_GOTIDX:
-      return "MIPS_LOCAL_GOTIDX";
-    case DT_MIPS_HIDDEN_GOTIDX:
-      return "MIPS_HIDDEN_GOTIDX";
-    case DT_MIPS_PROTECTED_GOTIDX:
-      return "MIPS_PROTECTED_GOT_IDX";
-    case DT_MIPS_INTERFACE:
-      return "MIPS_INTERFACE";
-    case DT_MIPS_DYNSTR_ALIGN:
-      return "DT_MIPS_DYNSTR_ALIGN";
-    case DT_MIPS_INTERFACE_SIZE:
-      return "DT_MIPS_INTERFACE_SIZE";
-    case DT_MIPS_RLD_TEXT_RESOLVE_ADDR:
-      return "DT_MIPS_RLD_TEXT_RESOLVE_ADDR";
-    case DT_MIPS_PERF_SUFFIX:
-      return "DT_MIPS_PERF_SUFFIX";
-    case DT_MIPS_COMPACT_SIZE:
-      return "DT_MIPS_COMPACT_SIZE";
-    case DT_MIPS_GP_VALUE:
-      return "DT_MIPS_GP_VALUE";
-    case DT_MIPS_AUX_DYNAMIC:
-      return "DT_MIPS_AUX_DYNAMIC";
     case DT_MIPS_PLTGOT:
       return "DT_MIPS_PLTGOT";
-    case DT_MIPS_RWPLT:
-      return "DT_MIPS_RWPLT";
+    default:
+      return "";
     }
 }
 
