@@ -345,11 +345,6 @@ struct mips_hi_fixup
 #define INSN_MATCHES(INSN, OP) \
   (((INSN).insn_opcode & MASK_##OP) == MATCH_##OP)
 
-#define OPCODE_IS_STORE(OPCODE) \
-  (OPCODE_MATCHES(OPCODE, SD)  || OPCODE_MATCHES(OPCODE, SW) || \
-   OPCODE_MATCHES(OPCODE, SH)  || OPCODE_MATCHES(OPCODE, SB) || \
-   OPCODE_MATCHES(OPCODE, FSW) || OPCODE_MATCHES(OPCODE, FSD))
-
 /* Prototypes for static functions.  */
 
 #define internalError()							\
@@ -361,8 +356,6 @@ static void append_insn
   (struct mips_cl_insn *ip, expressionS *p, bfd_reloc_code_real_type r);
 static void macro (struct mips_cl_insn * ip);
 static void mips_ip (char *str, struct mips_cl_insn * ip);
-static size_t my_getSmallExpression
-  (expressionS *, bfd_reloc_code_real_type *, char *);
 static void my_getExpression (expressionS *, char *);
 static void s_align (int);
 static void s_change_sec (int);
@@ -1340,18 +1333,6 @@ md_assemble (char *str)
     }
 }
 
-/* Return true if the given fixup is followed by a matching R_MIPS_LO16
-   relocation.  */
-
-static inline bfd_boolean
-fixup_has_matching_lo_p (fixS *fixp)
-{
-  return (fixp->fx_next != NULL
-	  && fixp->fx_next->fx_r_type == BFD_RELOC_LO16
-	  && fixp->fx_addsy == fixp->fx_next->fx_addsy
-	  && fixp->fx_offset == fixp->fx_next->fx_offset);
-}
-
 /* Output an instruction.  IP is the instruction information.
    ADDRESS_EXPR is an operand of the instruction to be used with
    RELOC_TYPE.  */
@@ -1406,18 +1387,18 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	      ip->insn_opcode |= address_expr->X_add_number;
 	      break;
 
-	    case BFD_RELOC_HI16_S:
+	    case BFD_RELOC_RISCV_HI20:
 	      ip->insn_opcode |= ENCODE_LTYPE_IMM (
 		RISCV_LUI_HIGH_PART (address_expr->X_add_number));
 	      break;
 
+	    case BFD_RELOC_RISCV_LO12_S:
+	      ip->insn_opcode |= ENCODE_STYPE_IMM (address_expr->X_add_number);
+	      break;
+
 	    case BFD_RELOC_UNUSED:
-	    case BFD_RELOC_LO16:
-		  /* Stores have a split immediate field. */
-	      if (OPCODE_IS_STORE(ip->insn_opcode))
-		ip->insn_opcode |= ENCODE_STYPE_IMM (address_expr->X_add_number);
-	      else
-		ip->insn_opcode |= ENCODE_ITYPE_IMM (address_expr->X_add_number);
+	    case BFD_RELOC_RISCV_LO12_I:
+	      ip->insn_opcode |= ENCODE_ITYPE_IMM (address_expr->X_add_number);
 	      break;
 
 	    default:
@@ -1448,8 +1429,9 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	      && (reloc_type == BFD_RELOC_32
 		  || reloc_type == BFD_RELOC_64
 		  || reloc_type == BFD_RELOC_CTOR
-		  || reloc_type == BFD_RELOC_HI16_S
-		  || reloc_type == BFD_RELOC_LO16))
+		  || reloc_type == BFD_RELOC_RISCV_HI20
+		  || reloc_type == BFD_RELOC_RISCV_LO12_I
+		  || reloc_type == BFD_RELOC_RISCV_LO12_S))
 	    ip->fixp->fx_no_overflow = 1;
 	}
     }
@@ -1600,7 +1582,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 
 	case 'j':
 	  r = va_arg (args, int);
-	  gas_assert (r == BFD_RELOC_LO16
+	  gas_assert (r == BFD_RELOC_RISCV_LO12_I
 		  || r == BFD_RELOC_MIPS_GOT_LO16);
 	  continue;
 
@@ -1609,7 +1591,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  gas_assert (ep != NULL
 		  && (ep->X_op == O_constant
 		      || (ep->X_op == O_symbol
-			  && (r == BFD_RELOC_HI16_S
+			  && (r == BFD_RELOC_RISCV_HI20
 			      || r == BFD_RELOC_MIPS_GOT_HI16
 			      || r == BFD_RELOC_RISCV_CALL))));
 	  continue;
@@ -1688,8 +1670,8 @@ macro_build_lui (const char* name, expressionS *ep, int regnum, bfd_reloc_code_r
 static void
 load_static_addr (int destreg, expressionS *ep)
 {
-  macro_build_lui ("lui", ep, destreg, BFD_RELOC_HI16_S);
-  macro_build (ep, "addi", "d,s,j", destreg, destreg, BFD_RELOC_LO16);
+  macro_build_lui ("lui", ep, destreg, BFD_RELOC_RISCV_HI20);
+  macro_build (ep, "addi", "d,s,j", destreg, destreg, BFD_RELOC_RISCV_LO12_I);
 }
 
 /* Load an entry from the GOT. */
@@ -1744,7 +1726,7 @@ load_const (int reg, expressionS *ep)
 
     lower.X_add_number = ep->X_add_number & (RISCV_IMM_REACH/2-1);
     if (lower.X_add_number != 0)
-      macro_build (&lower, "addi", "d,s,j", reg, reg, BFD_RELOC_LO16);
+      macro_build (&lower, "addi", "d,s,j", reg, reg, BFD_RELOC_RISCV_LO12_I);
   }
   else // load a sign-extended 32-bit constant
   {
@@ -1755,12 +1737,12 @@ load_const (int reg, expressionS *ep)
     hi = (int32_t)ep->X_add_number - hi;
     if(hi)
     {
-      macro_build (ep, "lui", "d,u", reg, BFD_RELOC_HI16_S);
+      macro_build (ep, "lui", "d,u", reg, BFD_RELOC_RISCV_HI20);
       hi_reg = reg;
     }
 
     if((ep->X_add_number & (RISCV_IMM_REACH-1)) || hi_reg == ZERO)
-      macro_build (ep, ADD32_INSN, "d,s,j", reg, hi_reg, BFD_RELOC_LO16);
+      macro_build (ep, ADD32_INSN, "d,s,j", reg, hi_reg, BFD_RELOC_RISCV_LO12_I);
   }
 }
 
@@ -1966,6 +1948,125 @@ validate_mips_insn (const struct riscv_opcode *opc)
   return 1;
 }
 
+struct percent_op_match
+{
+  const char *str;
+  bfd_reloc_code_real_type reloc;
+};
+
+static const struct percent_op_match percent_op_ltype[] =
+{
+  {"%tprel_hi", BFD_RELOC_RISCV_TPREL_HI20},
+  {"%hi", BFD_RELOC_RISCV_HI20},
+  {0, 0}
+};
+
+static const struct percent_op_match percent_op_itype[] =
+{
+  {"%lo", BFD_RELOC_RISCV_LO12_I},
+  {"%gp_rel", BFD_RELOC_RISCV_GPREL12_I},
+  {"%tprel_lo", BFD_RELOC_RISCV_TPREL_LO12_I},
+  {0, 0}
+};
+
+static const struct percent_op_match percent_op_stype[] =
+{
+  {"%lo", BFD_RELOC_RISCV_LO12_S},
+  {"%gp_rel", BFD_RELOC_RISCV_GPREL12_S},
+  {"%tprel_lo", BFD_RELOC_RISCV_TPREL_LO12_S},
+  {0, 0}
+};
+
+static const struct percent_op_match percent_op_rtype[] =
+{
+  {0, 0}
+};
+
+/* Return true if *STR points to a relocation operator.  When returning true,
+   move *STR over the operator and store its relocation code in *RELOC.
+   Leave both *STR and *RELOC alone when returning false.  */
+
+static bfd_boolean
+parse_relocation (char **str, bfd_reloc_code_real_type *reloc,
+		  const struct percent_op_match *percent_op)
+{
+  for ( ; percent_op->str; percent_op++)
+    if (strncasecmp (*str, percent_op->str, strlen (percent_op->str)) == 0)
+      {
+	int len = strlen (percent_op->str);
+
+	if (!ISSPACE ((*str)[len]) && (*str)[len] != '(')
+	  continue;
+
+	*str += strlen (percent_op->str);
+	*reloc = percent_op->reloc;
+
+	/* Check whether the output BFD supports this relocation.
+	   If not, issue an error and fall back on something safe.  */
+	if (!bfd_reloc_type_lookup (stdoutput, percent_op->reloc))
+	  {
+	    as_bad ("relocation %s isn't supported by the current ABI",
+		    percent_op->str);
+	    *reloc = BFD_RELOC_UNUSED;
+	  }
+	return TRUE;
+      }
+  return FALSE;
+}
+
+
+/* Parse string STR as a 16-bit relocatable operand.  Store the
+   expression in *EP and the relocation, if any, in RELOC.
+   Return the number of relocation operators used (0 or 1).
+
+   On exit, EXPR_END points to the first character after the expression.  */
+
+static size_t
+my_getSmallExpression (expressionS *ep, bfd_reloc_code_real_type *reloc,
+		       char *str, const struct percent_op_match *percent_op)
+{
+  size_t reloc_index;
+  int crux_depth, str_depth;
+  char *crux;
+
+  /* Search for the start of the main expression.
+     End the loop with CRUX pointing to the start
+     of the main expression and with CRUX_DEPTH containing the number
+     of open brackets at that point.  */
+  reloc_index = -1;
+  str_depth = 0;
+  do
+    {
+      reloc_index++;
+      crux = str;
+      crux_depth = str_depth;
+
+      /* Skip over whitespace and brackets, keeping count of the number
+	 of brackets.  */
+      while (*str == ' ' || *str == '\t' || *str == '(')
+	if (*str++ == '(')
+	  str_depth++;
+    }
+  while (*str == '%'
+	 && reloc_index < 1
+	 && parse_relocation (&str, reloc, percent_op));
+
+  my_getExpression (ep, crux);
+  str = expr_end;
+
+  /* Match every open bracket.  */
+  while (crux_depth > 0 && (*str == ')' || *str == ' ' || *str == '\t'))
+    if (*str++ == ')')
+      crux_depth--;
+
+  if (crux_depth > 0)
+    as_bad ("unclosed '('");
+
+  expr_end = str;
+
+  return reloc_index;
+}
+
 /* This routine assembles an instruction into its binary format.  As a
    side effect, it sets one of the global variables imm_reloc or
    offset_reloc to the type of relocation to do if one of the operands
@@ -1983,6 +2084,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
   char save_c = 0;
   int argnum;
   unsigned int rtype;
+  const struct percent_op_match *p;
 
   insn_error = NULL;
 
@@ -2178,7 +2280,8 @@ mips_ip (char *str, struct mips_cl_insn *ip)
               break;
 
 	    case '0': /* memory instruction with 0-offset (namely, AMOs) */
-	      if (my_getSmallExpression (&offset_expr, &offset_reloc, s) == 0
+	      p = percent_op_rtype;
+	      if (!my_getSmallExpression (&offset_expr, &offset_reloc, s, p)
 		  && (offset_expr.X_op != O_constant
 		      || offset_expr.X_add_number != 0))
 		break;
@@ -2370,8 +2473,9 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      continue;
 
 	    case 'j':		/* sign-extended RISCV_IMM_BITS immediate */
-	      imm_reloc = BFD_RELOC_LO16;
-	      if (my_getSmallExpression (&imm_expr, &imm_reloc, s) == 0)
+	      imm_reloc = BFD_RELOC_RISCV_LO12_I;
+	      p = percent_op_itype;
+	      if (!my_getSmallExpression (&imm_expr, &imm_reloc, s, p))
 		{
 		  int more;
 		  offsetT minval, maxval;
@@ -2413,26 +2517,32 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      s = expr_end;
 	      continue;
 
-	    case 'q':		/* 16 bit offset */
-	    case 'o':		/* 16 bit offset */
+	    case 'q': /* store displacement */
+	      p = percent_op_stype;
+	      offset_reloc = BFD_RELOC_RISCV_LO12_S;
+	      goto load_store;
+	    case 'o': /* load displacement */
+	      p = percent_op_itype;
+	      offset_reloc = BFD_RELOC_RISCV_LO12_I;
+load_store:
 	      /* Check whether there is only a single bracketed expression
-		 left.  If so, it must be the base register and the
-		 constant must be zero.  */
+	         left.  If so, it must be the base register and the
+	         constant must be zero.  */
 	      if (*s == '(' && strchr (s + 1, '(') == 0)
-		{
-		  offset_expr.X_op = O_constant;
-		  offset_expr.X_add_number = 0;
-		  continue;
-		}
+	        {
+	          offset_expr.X_op = O_constant;
+	          offset_expr.X_add_number = 0;
+	          continue;
+	        }
 
 	      /* If this value won't fit into a 16 bit offset, then go
-		 find a macro that will generate the 32 bit offset
-		 code pattern.  */
-	      if (my_getSmallExpression (&offset_expr, &offset_reloc, s) == 0
-		  && (offset_expr.X_op != O_constant
-		      || offset_expr.X_add_number >= (signed)RISCV_IMM_REACH/2
-		      || offset_expr.X_add_number < -(signed)RISCV_IMM_REACH/2))
-		break;
+	         find a macro that will generate the 32 bit offset
+	         code pattern.  */
+	      if (!my_getSmallExpression (&offset_expr, &offset_reloc, s, p)
+	          && (offset_expr.X_op != O_constant
+	              || offset_expr.X_add_number >= (signed)RISCV_IMM_REACH/2
+	              || offset_expr.X_add_number < -(signed)RISCV_IMM_REACH/2))
+	        break;
 
 	      s = expr_end;
 	      continue;
@@ -2444,14 +2554,15 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      continue;
 
 	    case 'u':		/* upper 20 bits */
-	      if (my_getSmallExpression (&imm_expr, &imm_reloc, s) == 0
+	      p = percent_op_ltype;
+	      if (!my_getSmallExpression (&imm_expr, &imm_reloc, s, p)
 		  && imm_expr.X_op == O_constant)
 		{
 		  if (imm_expr.X_add_number < 0
 		      || imm_expr.X_add_number >= (signed)RISCV_BIGIMM_REACH)
 		    as_bad (_("lui expression not in range 0..1048575"));
 	      
-		  imm_reloc = BFD_RELOC_HI16_S;
+		  imm_reloc = BFD_RELOC_RISCV_HI20;
 		  imm_expr.X_add_number <<= RISCV_IMM_BITS;
 		}
 	      s = expr_end;
@@ -2483,113 +2594,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
       insn_error = _("illegal operands");
       return;
     }
-}
-
-struct percent_op_match
-{
-  const char *str;
-  bfd_reloc_code_real_type reloc;
-};
-
-static const struct percent_op_match mips_percent_op[] =
-{
-  {"%lo", BFD_RELOC_LO16},
-  {"%gp_rel", BFD_RELOC_GPREL16},
-#ifdef OBJ_ELF
-  {"%tprel_hi", BFD_RELOC_MIPS_TLS_TPREL_HI16},
-  {"%tprel_lo", BFD_RELOC_MIPS_TLS_TPREL_LO16},
-#endif
-  {"%hi", BFD_RELOC_HI16_S}
-};
-
-/* Return true if *STR points to a relocation operator.  When returning true,
-   move *STR over the operator and store its relocation code in *RELOC.
-   Leave both *STR and *RELOC alone when returning false.  */
-
-static bfd_boolean
-parse_relocation (char **str, bfd_reloc_code_real_type *reloc)
-{
-  const struct percent_op_match *percent_op;
-  size_t limit, i;
-
-  percent_op = mips_percent_op;
-  limit = ARRAY_SIZE (mips_percent_op);
-
-  for (i = 0; i < limit; i++)
-    if (strncasecmp (*str, percent_op[i].str, strlen (percent_op[i].str)) == 0)
-      {
-	int len = strlen (percent_op[i].str);
-
-	if (!ISSPACE ((*str)[len]) && (*str)[len] != '(')
-	  continue;
-
-	*str += strlen (percent_op[i].str);
-	*reloc = percent_op[i].reloc;
-
-	/* Check whether the output BFD supports this relocation.
-	   If not, issue an error and fall back on something safe.  */
-	if (!bfd_reloc_type_lookup (stdoutput, percent_op[i].reloc))
-	  {
-	    as_bad ("relocation %s isn't supported by the current ABI",
-		    percent_op[i].str);
-	    *reloc = BFD_RELOC_UNUSED;
-	  }
-	return TRUE;
-      }
-  return FALSE;
-}
-
-
-/* Parse string STR as a 16-bit relocatable operand.  Store the
-   expression in *EP and the relocation, if any, in RELOC.
-   Return the number of relocation operators used (0 or 1).
-
-   On exit, EXPR_END points to the first character after the expression.  */
-
-static size_t
-my_getSmallExpression (expressionS *ep, bfd_reloc_code_real_type *reloc,
-		       char *str)
-{
-  size_t reloc_index;
-  int crux_depth, str_depth;
-  char *crux;
-
-  /* Search for the start of the main expression.
-     End the loop with CRUX pointing to the start
-     of the main expression and with CRUX_DEPTH containing the number
-     of open brackets at that point.  */
-  reloc_index = -1;
-  str_depth = 0;
-  do
-    {
-      reloc_index++;
-      crux = str;
-      crux_depth = str_depth;
-
-      /* Skip over whitespace and brackets, keeping count of the number
-	 of brackets.  */
-      while (*str == ' ' || *str == '\t' || *str == '(')
-	if (*str++ == '(')
-	  str_depth++;
-    }
-  while (*str == '%'
-	 && reloc_index < 1
-	 && parse_relocation (&str, reloc));
-
-  my_getExpression (ep, crux);
-  str = expr_end;
-
-  /* Match every open bracket.  */
-  while (crux_depth > 0 && (*str == ')' || *str == ' ' || *str == '\t'))
-    if (*str++ == ')')
-      crux_depth--;
-
-  if (crux_depth > 0)
-    as_bad ("unclosed '('");
-
-  expr_end = str;
-
-  return reloc_index;
 }
 
 static void
@@ -2733,18 +2737,16 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_RISCV_TLS_LDM_LO12:
     case BFD_RELOC_MIPS_TLS_DTPREL32:
     case BFD_RELOC_MIPS_TLS_DTPREL64:
-    case BFD_RELOC_MIPS_TLS_DTPREL_HI16:
-    case BFD_RELOC_MIPS_TLS_DTPREL_LO16:
-    case BFD_RELOC_MIPS_TLS_GOTTPREL:
     case BFD_RELOC_RISCV_TLS_GOT_HI20:
     case BFD_RELOC_RISCV_TLS_GOT_LO12:
-    case BFD_RELOC_MIPS_TLS_TPREL_HI16:
-    case BFD_RELOC_MIPS_TLS_TPREL_LO16:
+    case BFD_RELOC_RISCV_TPREL_HI20:
+    case BFD_RELOC_RISCV_TPREL_LO12_I:
+    case BFD_RELOC_RISCV_TPREL_LO12_S:
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
       /* fall through */
 
-    case BFD_RELOC_HI16_S:
-    case BFD_RELOC_GPREL16:
+    case BFD_RELOC_RISCV_HI20:
+    case BFD_RELOC_RISCV_GPREL12_I:
     case BFD_RELOC_MIPS_GOT_HI16:
     case BFD_RELOC_MIPS_GOT_LO16:
     case BFD_RELOC_RISCV_ADD32:
@@ -2765,13 +2767,12 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  fixP->fx_next->fx_offset = 0;
 	  fixP->fx_subsy = NULL;
 
-	  fixP->fx_r_type = BFD_RELOC_RISCV_ADD32;
-	  fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB32;
 	  if (fixP->fx_r_type == BFD_RELOC_64)
-	    {
-	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD64;
+	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD64,
 	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB64;
-	    }
+	  else
+	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD32,
+	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB32;
 	}
       /* fall through */
 
@@ -2796,7 +2797,8 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_RISCV_CALL:
     case BFD_RELOC_RISCV_LOAD:
-    case BFD_RELOC_LO16:
+    case BFD_RELOC_RISCV_LO12_I:
+    case BFD_RELOC_RISCV_LO12_S:
     case BFD_RELOC_MIPS_JMP:
     case BFD_RELOC_16_PCREL_S2:
     case BFD_RELOC_VTABLE_ENTRY:
