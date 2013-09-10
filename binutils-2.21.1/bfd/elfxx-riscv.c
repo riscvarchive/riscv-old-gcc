@@ -480,7 +480,7 @@ static bfd *reldyn_sorting_bfd;
 
 /* The relocation table used for SHT_RELA sections.  */
 
-static reloc_howto_type riscv_elf_howto_table[] =
+static reloc_howto_type howto_table[] =
 {
   /* No relocation.  */
   HOWTO (R_RISCV_NONE,		/* type */
@@ -722,8 +722,34 @@ static reloc_howto_type riscv_elf_howto_table[] =
 	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  EMPTY_HOWTO (24),
-  EMPTY_HOWTO (25),
+  HOWTO (R_RISCV_COPY,		/* type */
+	 0,			/* rightshift */
+	 0,			/* this one is variable size */
+	 0,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_bitfield, /* complain_on_overflow */
+	 bfd_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_COPY",		/* name */
+	 FALSE,			/* partial_inplace */
+	 0x0,         		/* src_mask */
+	 0x0,		        /* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  HOWTO (R_RISCV_JUMP_SLOT,	/* type */
+	 0,			/* rightshift */
+	 4,			/* size (0 = byte, 1 = short, 2 = long) */
+	 64,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_bitfield, /* complain_on_overflow */
+	 bfd_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_JUMP_SLOT",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0x0,         		/* src_mask */
+	 0x0,		        /* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
   EMPTY_HOWTO (26),
   EMPTY_HOWTO (27),
   EMPTY_HOWTO (28),
@@ -1108,70 +1134,6 @@ static reloc_howto_type riscv_elf_howto_table[] =
 	 FALSE),		/* pcrel_offset */
 };
 
-/* GNU extension to record C++ vtable hierarchy */
-static reloc_howto_type elf_mips_gnu_vtinherit_howto =
-  HOWTO (R_RISCV_GNU_VTINHERIT,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 0,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 NULL,			/* special_function */
-	 "R_RISCV_GNU_VTINHERIT", /* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 FALSE);		/* pcrel_offset */
-
-/* GNU extension to record C++ vtable member usage */
-static reloc_howto_type elf_mips_gnu_vtentry_howto =
-  HOWTO (R_RISCV_GNU_VTENTRY,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 0,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_elf_rel_vtable_reloc_fn, /* special_function */
-	 "R_RISCV_GNU_VTENTRY",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 0,			/* dst_mask */
-	 FALSE);		/* pcrel_offset */
-
-/* Originally a VxWorks extension, but now used for other systems too.  */
-static reloc_howto_type elf_mips_copy_howto =
-  HOWTO (R_RISCV_COPY,		/* type */
-	 0,			/* rightshift */
-	 0,			/* this one is variable size */
-	 0,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
-	 bfd_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_COPY",		/* name */
-	 FALSE,			/* partial_inplace */
-	 0x0,         		/* src_mask */
-	 0x0,		        /* dst_mask */
-	 FALSE);		/* pcrel_offset */
-
-/* Originally a VxWorks extension, but now used for other systems too.  */
-static reloc_howto_type elf_mips_jump_slot_howto =
-  HOWTO (R_RISCV_JUMP_SLOT,	/* type */
-	 0,			/* rightshift */
-	 4,			/* size (0 = byte, 1 = short, 2 = long) */
-	 64,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_bitfield, /* complain_on_overflow */
-	 bfd_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_JUMP_SLOT",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0x0,         		/* src_mask */
-	 0x0,		        /* dst_mask */
-	 FALSE);		/* pcrel_offset */
-
 /* A mapping from BFD reloc types to MIPS ELF reloc types.  */
 
 struct elf_reloc_map {
@@ -1179,7 +1141,7 @@ struct elf_reloc_map {
   enum elf_riscv_reloc_type elf_val;
 };
 
-static const struct elf_reloc_map mips_reloc_map[] =
+static const struct elf_reloc_map riscv_reloc_map[] =
 {
   { BFD_RELOC_NONE, R_RISCV_NONE },
   { BFD_RELOC_32, R_RISCV_32 },
@@ -1226,31 +1188,13 @@ riscv_elf_bfd_reloc_type_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 				 bfd_reloc_code_real_type code)
 {
   unsigned int i;
-  /* FIXME: We default to RELA here instead of choosing the right
-     relocation variant.  */
-  reloc_howto_type *howto_table = riscv_elf_howto_table;
 
-  for (i = 0; i < sizeof (mips_reloc_map) / sizeof (struct elf_reloc_map);
-       i++)
-    {
-      if (mips_reloc_map[i].bfd_val == code)
-	return &howto_table[(int) mips_reloc_map[i].elf_val];
-    }
+  for (i = 0; i < sizeof (riscv_reloc_map) / sizeof (riscv_reloc_map[0]); i++)
+    if (riscv_reloc_map[i].bfd_val == code)
+      return &howto_table[(int) riscv_reloc_map[i].elf_val];
 
-  switch (code)
-    {
-    case BFD_RELOC_VTABLE_INHERIT:
-      return &elf_mips_gnu_vtinherit_howto;
-    case BFD_RELOC_VTABLE_ENTRY:
-      return &elf_mips_gnu_vtentry_howto;
-    case BFD_RELOC_MIPS_COPY:
-      return &elf_mips_copy_howto;
-    case BFD_RELOC_MIPS_JUMP_SLOT:
-      return &elf_mips_jump_slot_howto;
-    default:
-      bfd_set_error (bfd_error_bad_value);
-      return NULL;
-    }
+  bfd_set_error (bfd_error_bad_value);
+  return NULL;
 }
 
 reloc_howto_type *
@@ -1259,21 +1203,9 @@ riscv_elf_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 {
   unsigned int i;
 
-  for (i = 0;
-       i < (sizeof (riscv_elf_howto_table)
-       / sizeof (riscv_elf_howto_table[0])); i++)
-    if (riscv_elf_howto_table[i].name != NULL
-	&& strcasecmp (riscv_elf_howto_table[i].name, r_name) == 0)
-      return &riscv_elf_howto_table[i];
-
-  if (strcasecmp (elf_mips_gnu_vtinherit_howto.name, r_name) == 0)
-    return &elf_mips_gnu_vtinherit_howto;
-  if (strcasecmp (elf_mips_gnu_vtentry_howto.name, r_name) == 0)
-    return &elf_mips_gnu_vtentry_howto;
-  if (strcasecmp (elf_mips_copy_howto.name, r_name) == 0)
-    return &elf_mips_copy_howto;
-  if (strcasecmp (elf_mips_jump_slot_howto.name, r_name) == 0)
-    return &elf_mips_jump_slot_howto;
+  for (i = 0; i < sizeof (howto_table) / sizeof (howto_table[0]); i++)
+    if (howto_table[i].name && strcasecmp (howto_table[i].name, r_name) == 0)
+      return &howto_table[i];
 
   return NULL;
 }
@@ -1283,21 +1215,8 @@ riscv_elf_bfd_reloc_name_lookup (bfd *abfd ATTRIBUTE_UNUSED,
 static reloc_howto_type *
 riscv_elf_rtype_to_howto (unsigned int r_type)
 {
-  switch (r_type)
-    {
-    case R_RISCV_GNU_VTINHERIT:
-      return &elf_mips_gnu_vtinherit_howto;
-    case R_RISCV_GNU_VTENTRY:
-      return &elf_mips_gnu_vtentry_howto;
-    case R_RISCV_COPY:
-      return &elf_mips_copy_howto;
-    case R_RISCV_JUMP_SLOT:
-      return &elf_mips_jump_slot_howto;
-    default:
-      BFD_ASSERT (r_type < (unsigned int) R_RISCV_max);
-      return &riscv_elf_howto_table[r_type];
-      break;
-    }
+  BFD_ASSERT (r_type < (unsigned int) R_RISCV_max);
+  return &howto_table[r_type];
 }
 
 void
@@ -3470,11 +3389,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = ENCODE_ITYPE_IMM (g - p);
       break;
 
-    case R_RISCV_GNU_VTINHERIT:
-    case R_RISCV_GNU_VTENTRY:
-      /* We don't do anything with these at present.  */
-      return bfd_reloc_continue;
-
     default:
       /* An unrecognized relocation type.  */
       return bfd_reloc_notsupported;
@@ -4163,22 +4077,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  break;
 
 	case R_RISCV_JAL:
-	  break;
-
-	  /* This relocation describes the C++ object vtable hierarchy.
-	     Reconstruct it for later use during GC.  */
-	case R_RISCV_GNU_VTINHERIT:
-	  if (!bfd_elf_gc_record_vtinherit (abfd, sec, h, rel->r_offset))
-	    return FALSE;
-	  break;
-
-	  /* This relocation describes which C++ vtable entries are actually
-	     used.  Record for later use during GC.  */
-	case R_RISCV_GNU_VTENTRY:
-	  BFD_ASSERT (h != NULL);
-	  if (h != NULL
-	      && !bfd_elf_gc_record_vtentry (abfd, sec, h, rel->r_offset))
-	    return FALSE;
 	  break;
 
 	default:
@@ -5348,41 +5246,7 @@ _bfd_riscv_elf_modify_segment_map (bfd *abfd,
 
   return TRUE;
 }
-
-/* Return the section that should be marked against GC for a given
-   relocation.  */
 
-asection *
-_bfd_riscv_elf_gc_mark_hook (asection *sec,
-			    struct bfd_link_info *info,
-			    Elf_Internal_Rela *rel,
-			    struct elf_link_hash_entry *h,
-			    Elf_Internal_Sym *sym)
-{
-  /* ??? Do mips16 stub sections need to be handled special?  */
-
-  if (h != NULL)
-    switch (ELF_R_TYPE (sec->owner, rel->r_info))
-      {
-      case R_RISCV_GNU_VTINHERIT:
-      case R_RISCV_GNU_VTENTRY:
-	return NULL;
-      }
-
-  return _bfd_elf_gc_mark_hook (sec, info, rel, h, sym);
-}
-
-/* Update the got entry reference counts for the section being removed.  */
-
-bfd_boolean
-_bfd_riscv_elf_gc_sweep_hook (bfd *abfd ATTRIBUTE_UNUSED,
-			     struct bfd_link_info *info ATTRIBUTE_UNUSED,
-			     asection *sec ATTRIBUTE_UNUSED,
-			     const Elf_Internal_Rela *relocs ATTRIBUTE_UNUSED)
-{
-  return TRUE;
-}
-
 /* Copy data from a MIPS ELF indirect symbol to its direct symbol,
    hiding the old indirect symbol.  Process additional relocation
    information.  Also called for weakdefs, in which case we just let

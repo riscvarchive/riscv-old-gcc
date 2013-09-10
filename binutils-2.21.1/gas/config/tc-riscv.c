@@ -2788,20 +2788,12 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	}
       break;
 
-    case BFD_RELOC_VTABLE_INHERIT:
-      if (fixP->fx_addsy
-          && !S_IS_DEFINED (fixP->fx_addsy)
-          && !S_IS_WEAK (fixP->fx_addsy))
-        S_SET_WEAK (fixP->fx_addsy);
-      break;
-
     case BFD_RELOC_RISCV_CALL:
     case BFD_RELOC_RISCV_LOAD:
     case BFD_RELOC_RISCV_LO12_I:
     case BFD_RELOC_RISCV_LO12_S:
     case BFD_RELOC_MIPS_JMP:
     case BFD_RELOC_16_PCREL_S2:
-    case BFD_RELOC_VTABLE_ENTRY:
       break;
 
     default:

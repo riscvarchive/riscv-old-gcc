@@ -25,6 +25,10 @@
 
 #define ELF_MACHINE_NAME "RISC-V"
 
+/* Relocs. */
+#define R_RISCV_COPY      24
+#define R_RISCV_JUMP_SLOT 25
+
 #include <entry.h>
 
 #ifndef ENTRY_POINT
@@ -49,10 +53,10 @@
 /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.
    This only makes sense on MIPS when using PLTs, so choose the
    PLT relocation (not encountered when not using PLTs).  */
-#define ELF_MACHINE_JMP_SLOT			R_MIPS_JUMP_SLOT
+#define ELF_MACHINE_JMP_SLOT			R_RISCV_JUMP_SLOT
 #define elf_machine_type_class(type) \
   ((((type) == ELF_MACHINE_JMP_SLOT) * ELF_RTYPE_CLASS_PLT)	\
-   | (((type) == R_MIPS_COPY) * ELF_RTYPE_CLASS_COPY))
+   | (((type) == R_RISCV_COPY) * ELF_RTYPE_CLASS_COPY))
 
 #define ELF_MACHINE_PLT_REL 1
 
@@ -403,7 +407,7 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
     case R_MIPS_NONE:		/* Alright, Wilbur.  */
       break;
 
-    case R_MIPS_JUMP_SLOT:
+    case R_RISCV_JUMP_SLOT:
       {
 	struct link_map *sym_map;
 	ElfW(Addr) value;
@@ -422,7 +426,7 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
 	break;
       }
 
-    case R_MIPS_COPY:
+    case R_RISCV_COPY:
       {
 	const ElfW(Sym) *const refsym = sym;
 	struct link_map *sym_map;
@@ -487,7 +491,7 @@ elf_machine_lazy_rel (struct link_map *map,
   ElfW(Addr) *const reloc_addr = (void *) (l_addr + reloc->r_offset);
   const unsigned int r_type = ELFW(R_TYPE) (reloc->r_info);
   /* Check for unexpected PLT reloc type.  */
-  if (__builtin_expect (r_type == R_MIPS_JUMP_SLOT, 1))
+  if (__builtin_expect (r_type == R_RISCV_JUMP_SLOT, 1))
     {
       if (__builtin_expect (map->l_mach.plt, 0) == 0)
 	{
@@ -583,7 +587,7 @@ elf_machine_got_rel (struct link_map *map, int lazy)
 	      else
 		/* This is a lazy-binding stub, so we don't need the
 		   canonical address.  */
-		*got = RESOLVE_GOTSYM (sym, vernum, symidx, R_MIPS_JUMP_SLOT);
+		*got = RESOLVE_GOTSYM (sym, vernum, symidx, R_RISCV_JUMP_SLOT);
 	    }
 	  else
 	    *got = RESOLVE_GOTSYM (sym, vernum, symidx, R_MIPS_32);
@@ -598,7 +602,7 @@ elf_machine_got_rel (struct link_map *map, int lazy)
 	  else
 	    /* This is a lazy-binding stub, so we don't need the
 	       canonical address.  */
-	    *got = RESOLVE_GOTSYM (sym, vernum, symidx, R_MIPS_JUMP_SLOT);
+	    *got = RESOLVE_GOTSYM (sym, vernum, symidx, R_RISCV_JUMP_SLOT);
 	}
       else if (ELFW(ST_TYPE) (sym->st_info) == STT_SECTION)
 	{
