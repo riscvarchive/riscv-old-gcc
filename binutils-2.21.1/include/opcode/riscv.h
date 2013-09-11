@@ -68,43 +68,49 @@ static inline unsigned int riscv_insn_length (unsigned int insn)
 #define RVC_BRANCH_ALIGN (1 << RVC_BRANCH_ALIGN_BITS)
 #define RVC_BRANCH_REACH ((1ULL<<RVC_BRANCH_BITS)*RVC_BRANCH_ALIGN)
 
-#define RISCV_ZEXT(x, n) ((x) & ((1<<(n))-1))
-#define RISCV_SEXT(x, n) (RISCV_ZEXT(x, n) | (-(((x) >> ((n)-1))&1) << n))
+#define RV_X(x, s, n) (((x) >> (s)) & ((1<<(n))-1))
+#define RV_IMM_SIGN(x) (-(((x) >> 10) & 1))
 
-#define EXTRACT_LTYPE_IMM(x) \
-  RISCV_SEXT((x) >> 7, RISCV_BIGIMM_BITS)
 #define EXTRACT_ITYPE_IMM(x) \
-  RISCV_SEXT((x) >> 10, RISCV_IMM_BITS)
+  (RV_X(x, 11, 11) | (RV_IMM_SIGN(x) << 11))
 #define EXTRACT_STYPE_IMM(x) \
-  (RISCV_ZEXT((x) >> 10, RISCV_IMMLO_BITS) \
-   | (RISCV_SEXT((x) >> 27, RISCV_IMMHI_BITS) << RISCV_IMMLO_BITS))
-#define EXTRACT_BTYPE_IMM(x) \
-  (EXTRACT_STYPE_IMM(x) << RISCV_BRANCH_ALIGN_BITS)
-#define EXTRACT_JTYPE_IMM(x) \
-  (EXTRACT_LTYPE_IMM(x) << RISCV_JUMP_ALIGN_BITS)
+  (RV_X(x, 11, 6) | (RV_X(x, 27, 5) << 6) | (RV_IMM_SIGN(x) << 11))
+#define EXTRACT_SBTYPE_IMM(x) \
+  ((RV_X(x, 12, 5) << 1) | (RV_X(x, 27, 5) << 6) | (RV_X(x, 11, 1) << 11) | (RV_IMM_SIGN(x) << 12))
+#define EXTRACT_UTYPE_IMM(x) \
+  (RV_X(x, 22, 5) | (RV_X(x, 7, 3) << 5) | (RV_X(x, 11, 11) << 8) | (RV_IMM_SIGN(x) << 19))
+#define EXTRACT_UJTYPE_IMM(x) \
+  ((RV_X(x, 12, 10) << 1) | (RV_X(x, 11, 1) << 11) | (RV_X(x, 22, 5) << 12) | (RV_X(x, 7, 3) << 17) | (RV_IMM_SIGN(x) << 20))
 
-#define ENCODE_LTYPE_IMM(x) \
-  (((x) & ((1<<RISCV_BIGIMM_BITS)-1)) << 7)
 #define ENCODE_ITYPE_IMM(x) \
-  (((x) & (RISCV_IMM_REACH-1)) << 10)
+  ((RV_X(x, 0, 11) << 11) | (RV_X(x, 11, 1) << 10))
 #define ENCODE_STYPE_IMM(x) \
-  ((((x) & ((1<<RISCV_IMMLO_BITS)-1)) << 10) \
-   | ((((x) >> RISCV_IMMLO_BITS) & ((1<<RISCV_IMMHI_BITS)-1)) << 27))
-#define ENCODE_BTYPE_IMM(x) ENCODE_STYPE_IMM((x) >> RISCV_BRANCH_ALIGN_BITS)
-#define ENCODE_JTYPE_IMM(x) ENCODE_LTYPE_IMM((x) >> RISCV_JUMP_ALIGN_BITS)
+  ((RV_X(x, 0, 6) << 11) | (RV_X(x, 6, 5) << 27) | (RV_X(x, 11, 1) << 10))
+#define ENCODE_SBTYPE_IMM(x) \
+  ((RV_X(x, 1, 5) << 12) | (RV_X(x, 6, 5) << 27) | (RV_X(x, 11, 1) << 11) | (RV_X(x, 12, 1) << 10))
+#define ENCODE_UTYPE_IMM(x) \
+  ((RV_X(x, 0, 5) << 22) | (RV_X(x, 5, 3) << 7) | (RV_X(x, 8, 11) << 11) | (RV_X(x, 19, 1) << 10))
+#define ENCODE_UJTYPE_IMM(x) \
+  ((RV_X(x, 1, 10) << 12) | (RV_X(x, 11, 1) << 11) | (RV_X(x, 12, 5) << 22) | (RV_X(x, 17, 3) << 7) | (RV_X(x, 20, 1) << 10))
 
-#define RISCV_LTYPE(insn, rd, bigimm) \
-  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ENCODE_LTYPE_IMM(bigimm))
+#define VALID_ITYPE_IMM(x) (EXTRACT_ITYPE_IMM(ENCODE_ITYPE_IMM(x)) == (x))
+#define VALID_STYPE_IMM(x) (EXTRACT_STYPE_IMM(ENCODE_STYPE_IMM(x)) == (x))
+#define VALID_SBTYPE_IMM(x) (EXTRACT_SBTYPE_IMM(ENCODE_SBTYPE_IMM(x)) == (x))
+#define VALID_UTYPE_IMM(x) (EXTRACT_UTYPE_IMM(ENCODE_UTYPE_IMM(x)) == (x))
+#define VALID_UJTYPE_IMM(x) (EXTRACT_UJTYPE_IMM(ENCODE_UJTYPE_IMM(x)) == (x))
+
+#define RISCV_RTYPE(insn, rd, rs1, rs2) \
+  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT))
 #define RISCV_ITYPE(insn, rd, rs1, imm) \
   ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS) | ENCODE_ITYPE_IMM(imm))
 #define RISCV_STYPE(insn, rs1, rs2, imm) \
   ((MATCH_ ## insn) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT) | ENCODE_STYPE_IMM(imm))
-#define RISCV_BTYPE(insn, rs1, rs2, target) \
-  ((MATCH_ ## insn) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT) | ENCODE_BTYPE_IMM(target))
-#define RISCV_JTYPE(insn, rd, target) \
-  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ENCODE_JTYPE_IMM(target))
-#define RISCV_RTYPE(insn, rd, rs1, rs2) \
-  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT))
+#define RISCV_SBTYPE(insn, rs1, rs2, target) \
+  ((MATCH_ ## insn) | ((rs1) << OP_SH_RS) | ((rs2) << OP_SH_RT) | ENCODE_SBTYPE_IMM(target))
+#define RISCV_UTYPE(insn, rd, bigimm) \
+  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ENCODE_UTYPE_IMM(bigimm))
+#define RISCV_UJTYPE(insn, rd, target) \
+  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ENCODE_UJTYPE_IMM(target))
 
 #define RISCV_NOP RISCV_ITYPE(ADDI, 0, 0, 0)
 
@@ -132,9 +138,9 @@ static inline unsigned int riscv_insn_length (unsigned int insn)
 #define OP_MASK_FD		0x1f
 #define OP_SH_FD		27
 #define OP_MASK_SHAMT		0x3f
-#define OP_SH_SHAMT		10
+#define OP_SH_SHAMT		11
 #define OP_MASK_SHAMTW		0x1f
-#define OP_SH_SHAMTW		10
+#define OP_SH_SHAMTW		11
 #define OP_MASK_RM		0x7
 #define OP_SH_RM		9
 #define OP_MASK_PRED		0xf

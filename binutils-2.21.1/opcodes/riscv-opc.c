@@ -38,10 +38,7 @@
    registers.
 
    Because of the lookup algorithm used, entries with the same opcode
-   name must be contiguous.
- 
-   Many instructions are short hand for other instructions (i.e., The
-   jal <register> instruction is short for jalr <register>).  */
+   name must be contiguous. */
 
 #define WR_xd INSN_WRITE_GPR_D
 #define WR_fd INSN_WRITE_FPR_D
@@ -55,7 +52,7 @@
 #define MASK_RT (OP_MASK_RT << OP_SH_RT)
 #define MASK_RD (OP_MASK_RD << OP_SH_RD)
 #define MASK_IMM ENCODE_ITYPE_IMM(-1U)
-#define MASK_BIGIMM ENCODE_LTYPE_IMM(-1U)
+#define MASK_UIMM ENCODE_UTYPE_IMM(-1U)
 #define MASK_RM (OP_MASK_RM << OP_SH_RM)
 #define MASK_PRED (OP_MASK_PRED << OP_SH_PRED)
 #define MASK_SUCC (OP_MASK_SUCC << OP_SH_SUCC)
@@ -142,7 +139,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"or",        "I",   "d,s,j",  MATCH_ORI, MASK_ORI,   WR_xd|RD_xs1 },
 {"ori",       "I",   "d,s,j",  MATCH_ORI, MASK_ORI,   WR_xd|RD_xs1 },
 {"auipc",     "I",   "d,u",  MATCH_AUIPC, MASK_AUIPC,  WR_xd },
-{"rdpc",      "I",   "d",    MATCH_AUIPC, MASK_AUIPC | MASK_BIGIMM,  WR_xd },
+{"rdpc",      "I",   "d",    MATCH_AUIPC, MASK_AUIPC | MASK_UIMM,  WR_xd },
 {"seqz",      "I",   "d,s",  MATCH_SLTIU | ENCODE_ITYPE_IMM(1), MASK_SLTIU | MASK_IMM,   WR_xd|RD_xs1 },
 {"snez",      "I",   "d,t",  MATCH_SLTU, MASK_SLTU | MASK_RS,   WR_xd|RD_xs2 },
 {"sltz",      "I",   "d,s",  MATCH_SLT, MASK_SLT | MASK_RT,   WR_xd|RD_xs1 },

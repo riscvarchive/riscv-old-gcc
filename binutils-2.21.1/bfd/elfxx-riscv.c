@@ -544,7 +544,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_JAL",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_JTYPE_IMM(-1U),	/* dst_mask */
+	 ENCODE_UJTYPE_IMM(-1U),	/* dst_mask */
 	 TRUE),		/* pcrel_offset */
 
   /* High 16 bits of symbol value.  */
@@ -559,7 +559,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_HI20",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_LTYPE_IMM(-1U),		/* dst_mask */
+	 ENCODE_UTYPE_IMM(-1U),		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of symbol value.  */
@@ -633,7 +633,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_BRANCH",		/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_BTYPE_IMM(-1U),	/* dst_mask */
+	 ENCODE_SBTYPE_IMM(-1U),	/* dst_mask */
 	 TRUE),			/* pcrel_offset */
 
   HOWTO (R_RISCV_CALL,		/* type */
@@ -701,7 +701,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_GOT_HI20",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_LTYPE_IMM(-1U),	/* dst_mask */
+	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of displacement in global offset table.  */
@@ -764,7 +764,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_TPREL_HI20",	/* name */
 	 TRUE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_LTYPE_IMM(-1U),	/* dst_mask */
+	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS thread pointer offset.  */
@@ -901,7 +901,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_TLS_DTPREL_HI16",	/* name */
 	 TRUE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_LTYPE_IMM(-1U),	/* dst_mask */
+	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* TLS local dynamic offset.  */
@@ -977,7 +977,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_TLS_GOT_HI20",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_LTYPE_IMM(-1U),	/* dst_mask */
+	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of displacement in global offset table.  */
@@ -1007,7 +1007,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_TLS_GD_HI20",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_LTYPE_IMM(-1U),	/* dst_mask */
+	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of displacement in global offset table.  */
@@ -1037,7 +1037,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_TLS_LDM_HI20",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_LTYPE_IMM(-1U),	/* dst_mask */
+	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of displacement in global offset table.  */
@@ -1267,13 +1267,13 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value, bfd_vma addr,
   for (j = 0; j < X_NA; j++)
     entry[i++] = RISCV_STYPE(SREG(abfd), X_SP, X_A0+j, (j+1)*regbytes);
   gotplt_value -= addr + i*4;
-  entry[i++] = RISCV_LTYPE(AUIPC, X_V1, RISCV_LUI_HIGH_PART(gotplt_value));
+  entry[i++] = RISCV_UTYPE(AUIPC, X_V1, RISCV_LUI_HIGH_PART(gotplt_value));
   entry[i++] = RISCV_ITYPE(ADDI, X_V1, X_V1, RISCV_CONST_LOW_PART(gotplt_value));
   entry[i++] = RISCV_ITYPE(LREG(abfd), X_A0, X_V1, regbytes);
   entry[i++] = RISCV_ITYPE(LREG(abfd), X_V1, X_V1, 0);
   bfd_vma after_first_plt = addr + RISCV_PLT0_SIZE + RISCV_PLT_SIZE;
   after_first_plt -= addr + i*4;
-  entry[i++] = RISCV_LTYPE(AUIPC, X_A1, RISCV_LUI_HIGH_PART(after_first_plt));
+  entry[i++] = RISCV_UTYPE(AUIPC, X_A1, RISCV_LUI_HIGH_PART(after_first_plt));
   entry[i++] = RISCV_ITYPE(ADDI, X_A1, X_A1, RISCV_CONST_LOW_PART(after_first_plt));
   entry[i++] = RISCV_RTYPE(SUB, X_A1, X_V0, X_A1);
   if (RISCV_PLT_SIZE != 2*regbytes)
@@ -1306,11 +1306,11 @@ riscv_make_plt_entry(bfd* abfd, bfd_vma got_address, bfd_vma plt0_addr,
   */
 
   got_address -= addr;
-  entry[0] = RISCV_LTYPE(AUIPC, X_V0, RISCV_LUI_HIGH_PART(got_address));
+  entry[0] = RISCV_UTYPE(AUIPC, X_V0, RISCV_LUI_HIGH_PART(got_address));
   entry[1] = RISCV_ITYPE(LREG(abfd),  X_V0, X_V0, RISCV_CONST_LOW_PART(got_address));
   entry[2] = RISCV_ITYPE(JALR, 0, X_V0, 0);
   bfd_vma got_val = addr + 12;
-  entry[3] = RISCV_JTYPE(JAL, X_V0, plt0_addr - got_val);
+  entry[3] = RISCV_UJTYPE(JAL, X_V0, plt0_addr - got_val);
   return got_val;
 }
 
@@ -3275,6 +3275,19 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       break;
 
     case R_RISCV_LOAD:
+    {
+      bfd_vma auipc = bfd_get (32, input_bfd, contents + relocation->r_offset);
+      bfd_vma load = bfd_get (32, input_bfd, contents + relocation->r_offset + 4);
+      value = addend + symbol - p;
+
+      auipc |= ENCODE_UTYPE_IMM (RISCV_LUI_HIGH_PART (value));
+      load |= ENCODE_ITYPE_IMM (value);
+
+      bfd_put (32, input_bfd, auipc, contents + relocation->r_offset);
+      bfd_put (32, input_bfd, load, contents + relocation->r_offset + 4);
+
+      return bfd_reloc_continue;
+    }
     case R_RISCV_CALL:
     {
       struct elf_link_hash_entry *eh = (struct elf_link_hash_entry*)h;
@@ -3283,11 +3296,11 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       bfd_vma got;
       value = addend + symbol - p;
 
-      if (r_type == R_RISCV_CALL && eh != NULL && eh->plt.offset != MINUS_ONE
+      if (eh != NULL && eh->plt.offset != MINUS_ONE
 	  && (got = riscv_elf_got_plt_val_from_offset (eh->plt.offset, info),
 	      got -= _bfd_get_gp_value (abfd),
-	      EXTRACT_ITYPE_IMM (ENCODE_ITYPE_IMM (got)) == got)
-	  && EXTRACT_ITYPE_IMM (ENCODE_ITYPE_IMM (addend)) == addend)
+	      VALID_ITYPE_IMM (got))
+	  && VALID_ITYPE_IMM (addend))
 	{
 	  auipc &= OP_MASK_RD << OP_SH_RD;
 	  auipc |= MATCH_LREG (abfd) | (X_GP << OP_SH_RS);
@@ -3295,7 +3308,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	}
       else
 	{
-      	  auipc |= ENCODE_LTYPE_IMM (RISCV_LUI_HIGH_PART (value));
+      	  auipc |= ENCODE_UTYPE_IMM (RISCV_LUI_HIGH_PART (value));
       	  jalr |= ENCODE_ITYPE_IMM (value);
 	}
 
@@ -3308,21 +3321,21 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = addend;
       if (symbol)
 	value += symbol - p;
-      overflowed_p = EXTRACT_JTYPE_IMM (ENCODE_JTYPE_IMM (value)) != value;
-      value = ENCODE_JTYPE_IMM (value);
+      overflowed_p = !VALID_UJTYPE_IMM (value);
+      value = ENCODE_UJTYPE_IMM (value);
       break;
 
     case R_RISCV_BRANCH:
       value = addend;
       if (symbol)
 	value += symbol - p;
-      overflowed_p = EXTRACT_BTYPE_IMM (ENCODE_BTYPE_IMM (value)) != value;
-      value = ENCODE_BTYPE_IMM (value);
+      overflowed_p = !VALID_SBTYPE_IMM (value);
+      value = ENCODE_SBTYPE_IMM (value);
       break;
 
     case R_RISCV_TLS_DTPREL_HI16:
       value = RISCV_LUI_HIGH_PART (addend + symbol - dtprel_base (info));
-      value = ENCODE_LTYPE_IMM (value);
+      value = ENCODE_UTYPE_IMM (value);
       break;
 
     case R_RISCV_TLS_DTPREL_LO16:
@@ -3333,7 +3346,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 
     case R_RISCV_TPREL_HI20:
       value = RISCV_LUI_HIGH_PART (addend + symbol - tprel_base (info));
-      value = ENCODE_LTYPE_IMM (value);
+      value = ENCODE_UTYPE_IMM (value);
       break;
     case R_RISCV_TPREL_LO12_I:
       value = ENCODE_ITYPE_IMM (addend + symbol - tprel_base (info));
@@ -3345,18 +3358,18 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_GPREL12_I:
       value = symbol + addend - _bfd_get_gp_value (abfd);
       value += _bfd_get_gp_value (input_bfd);
-      overflowed_p = EXTRACT_ITYPE_IMM (ENCODE_ITYPE_IMM (value)) != value;
+      overflowed_p = !VALID_ITYPE_IMM (value);
       value = ENCODE_ITYPE_IMM (value);
       break;
     case R_RISCV_GPREL12_S:
       value = symbol + addend - _bfd_get_gp_value (abfd);
       value += _bfd_get_gp_value (input_bfd);
-      overflowed_p = EXTRACT_STYPE_IMM (ENCODE_STYPE_IMM (value)) != value;
+      overflowed_p = !VALID_STYPE_IMM (value);
       value = ENCODE_STYPE_IMM (value);
       break;
 
     case R_RISCV_HI20:
-      value = ENCODE_LTYPE_IMM (RISCV_LUI_HIGH_PART (addend + symbol));
+      value = ENCODE_UTYPE_IMM (RISCV_LUI_HIGH_PART (addend + symbol));
       break;
     case R_RISCV_LO12_I:
       value = ENCODE_ITYPE_IMM (symbol + addend);
@@ -3369,21 +3382,22 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_GOTTPREL:
     case R_RISCV_TLS_LDM:
       value = ENCODE_ITYPE_IMM (g);
-      overflowed_p = EXTRACT_ITYPE_IMM (value) != g;
+      overflowed_p = !VALID_ITYPE_IMM (value);
       break;
 
     case R_RISCV_TLS_GOT_HI20:
     case R_RISCV_TLS_GD_HI20:
     case R_RISCV_TLS_LDM_HI20:
     case R_RISCV_GOT_HI20:
-      value = ENCODE_LTYPE_IMM (RISCV_LUI_HIGH_PART (g - p));
+      value = ENCODE_UTYPE_IMM (RISCV_LUI_HIGH_PART (g - p));
       break;
 
     case R_RISCV_TLS_GOT_LO12:
     case R_RISCV_TLS_GD_LO12:
     case R_RISCV_TLS_LDM_LO12:
     case R_RISCV_GOT_LO12:
-      value = ENCODE_ITYPE_IMM (g - p);
+      /* This address is relative to the preceding AUIPC (4 bytes ago). */
+      value = ENCODE_ITYPE_IMM (g - (p - 4));
       break;
 
     default:
@@ -3438,8 +3452,8 @@ mips_elf_perform_relocation (struct bfd_link_info *info ATTRIBUTE_UNUSED,
   /* Obtain the current value.  */
   x = mips_elf_obtain_contents (howto, relocation, input_bfd, contents);
 
-  /* Update the field, adding in any nonzero bits in the original. */
-  x = (x &~ dst_mask) | (((x & dst_mask) + value) & dst_mask);
+  /* Update the field. */
+  x = (x &~ dst_mask) | (value & dst_mask);
 
   /* Put the value into the output.  */
   bfd_put (8 * bfd_get_reloc_size (howto), input_bfd, x, location);
@@ -5943,11 +5957,8 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 		 + sec->output_offset));
 
       /* See if we're in range for a relaxation. */
-      bfd_boolean near_zero = !link_info->shared
-	&& (symval >= (bfd_vma)0 - RISCV_IMM_REACH/2
-	    || symval < RISCV_IMM_REACH/2);
-      bfd_boolean jal =
-	foff >= -(int)RISCV_JUMP_REACH/2 && foff < (int)RISCV_JUMP_REACH/2;
+      bfd_boolean near_zero = !link_info->shared && VALID_ITYPE_IMM (symval);
+      bfd_boolean jal = VALID_UJTYPE_IMM (foff);
       if (!near_zero && !jal)
 	continue;
 

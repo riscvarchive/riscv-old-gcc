@@ -1388,7 +1388,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	      break;
 
 	    case BFD_RELOC_RISCV_HI20:
-	      ip->insn_opcode |= ENCODE_LTYPE_IMM (
+	      ip->insn_opcode |= ENCODE_UTYPE_IMM (
 		RISCV_LUI_HIGH_PART (address_expr->X_add_number));
 	      break;
 
@@ -1575,25 +1575,10 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  INSERT_OPERAND (SUCC, insn, va_arg (args, int));
 	  continue;
 
-	case 'O': /* An off-by-4 PC-relative address for PIC. */
-	  insn.insn_opcode |= ENCODE_ITYPE_IMM (4);
-	  r = va_arg (args, int);
-	  continue;
-
 	case 'j':
-	  r = va_arg (args, int);
-	  gas_assert (r == BFD_RELOC_RISCV_LO12_I
-		  || r == BFD_RELOC_MIPS_GOT_LO16);
-	  continue;
-
 	case 'u':
+	  gas_assert (ep != NULL);
 	  r = va_arg (args, int);
-	  gas_assert (ep != NULL
-		  && (ep->X_op == O_constant
-		      || (ep->X_op == O_symbol
-			  && (r == BFD_RELOC_RISCV_HI20
-			      || r == BFD_RELOC_MIPS_GOT_HI16
-			      || r == BFD_RELOC_RISCV_CALL))));
 	  continue;
 
 	case 'p':
@@ -1681,7 +1666,7 @@ load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
 	       bfd_reloc_code_real_type lo_reloc)
 {
   macro_build_lui ("auipc", ep, tempreg, hi_reloc);
-  macro_build (ep, lo_insn, "d,O(b)", destreg, lo_reloc, tempreg);
+  macro_build (ep, lo_insn, "d,s,j", destreg, tempreg, lo_reloc);
 }
 
 /* Load an entry from the GOT. */
@@ -1690,7 +1675,7 @@ riscv_pcrel (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
 	    bfd_reloc_code_real_type reloc)
 {
   macro_build_lui ("auipc", ep, tempreg, reloc);
-  macro_build (NULL, lo_insn, "d,b", destreg, tempreg);
+  macro_build (NULL, lo_insn, "d,s", destreg, tempreg);
 }
 
 /* Warn if an expression is not a constant.  */
@@ -1926,10 +1911,10 @@ validate_mips_insn (const struct riscv_opcode *opc)
       case 'Q':	USE_BITS (OP_MASK_SUCC,		OP_SH_SUCC); break;
       case 'o':
       case 'j': used_bits |= ENCODE_ITYPE_IMM(-1U); break;
-      case 'a':	used_bits |= ENCODE_JTYPE_IMM(-1U); break;
-      case 'p':	used_bits |= ENCODE_BTYPE_IMM(-1U); break;
+      case 'a':	used_bits |= ENCODE_UJTYPE_IMM(-1U); break;
+      case 'p':	used_bits |= ENCODE_SBTYPE_IMM(-1U); break;
       case 'q':	used_bits |= ENCODE_STYPE_IMM(-1U); break;
-      case 'u':	used_bits |= ENCODE_LTYPE_IMM(-1U); break;
+      case 'u':	used_bits |= ENCODE_UTYPE_IMM(-1U); break;
       case '[': break;
       case ']': break;
       case '0': break;

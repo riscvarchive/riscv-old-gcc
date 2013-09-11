@@ -5040,7 +5040,7 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
      jr      v1
   */
 
-  trampoline[0] = OP (RISCV_LTYPE (AUIPC, STATIC_CHAIN_REGNUM, 0));
+  trampoline[0] = OP (RISCV_UTYPE (AUIPC, STATIC_CHAIN_REGNUM, 0));
   trampoline[1] = OP (RISCV_ITYPE (LREG, MIPS_PROLOGUE_TEMP_REGNUM,
 		    STATIC_CHAIN_REGNUM, target_function_offset));
   trampoline[2] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,

@@ -355,7 +355,7 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'u':
-	  (*info->fprintf_func) (info->stream, "0x%lx", EXTRACT_LTYPE_IMM (l));
+	  (*info->fprintf_func) (info->stream, "0x%lx", EXTRACT_UTYPE_IMM (l));
 	  break;
 
 	case 'm':
@@ -373,7 +373,7 @@ print_insn_args (const char *d,
 	            riscv_pred_succ, ARRAY_SIZE(riscv_pred_succ));
 	  break;
 
-	case 'j': /* Same as i, but sign-extended.  */
+	case 'j':
 	case 'o':
 	  (*info->fprintf_func) (info->stream, "%d", EXTRACT_ITYPE_IMM (l));
 	  break;
@@ -383,12 +383,12 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'a':
-	  info->target = EXTRACT_JTYPE_IMM (l) + pc;
+	  info->target = EXTRACT_UJTYPE_IMM (l) + pc;
 	  (*info->print_address_func) (info->target, info);
 	  break;
 
 	case 'p':
-	  info->target = EXTRACT_BTYPE_IMM (l) + pc;
+	  info->target = EXTRACT_SBTYPE_IMM (l) + pc;
 	  (*info->print_address_func) (info->target, info);
 	  break;
 
