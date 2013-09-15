@@ -29,6 +29,7 @@
 #include "elf-bfd.h"
 #include "elf/riscv.h"
 
+#include <stdint.h>
 #include <assert.h>
 
 /* FIXME: These should be shared with gdb somehow.  */
@@ -355,7 +356,7 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'u':
-	  (*info->fprintf_func) (info->stream, "0x%lx", EXTRACT_UTYPE_IMM (l));
+	  (*info->fprintf_func) (info->stream, "0x%lx", (uint32_t)EXTRACT_UTYPE_IMM (l) << RISCV_IMM_BITS >> RISCV_IMM_BITS);
 	  break;
 
 	case 'm':

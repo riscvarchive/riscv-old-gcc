@@ -191,7 +191,7 @@
 #define  MASK_FSGNJN_D 0x1ffff
 #define MATCH_FNMADD_S 0x4f
 #define  MASK_FNMADD_S 0x1ff
-#define MATCH_JAL 0x6f
+#define MATCH_JAL 0x67
 #define  MASK_JAL 0x7f
 #define MATCH_LWU 0x303
 #define  MASK_LWU 0x3ff
@@ -297,7 +297,7 @@
 #define  MASK_DIVU 0x1ffff
 #define MATCH_AMOSWAP_W 0x52b
 #define  MASK_AMOSWAP_W 0x7fff
-#define MATCH_JALR 0x67
+#define MATCH_JALR 0x6f
 #define  MASK_JALR 0x3ff
 #define MATCH_FADD_S 0x53
 #define  MASK_FADD_S 0x1f1ff
