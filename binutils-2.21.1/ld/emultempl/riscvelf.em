@@ -20,6 +20,7 @@
 
 fragment <<EOF
 
+#include "ldmain.h"
 #include "ldctor.h"
 #include "elf/riscv.h"
 #include "elfxx-riscv.h"
@@ -48,6 +49,9 @@ static void
 riscv_before_allocation (void)
 {
   gld${EMULATION_NAME}_before_allocation ();
+
+  if (link_info.discard == discard_sec_merge)
+    link_info.discard = discard_l;
 
   if (RELAXATION_DISABLED_BY_DEFAULT)
     ENABLE_RELAXATION;

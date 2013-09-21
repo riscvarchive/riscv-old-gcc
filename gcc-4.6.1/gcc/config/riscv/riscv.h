@@ -254,7 +254,6 @@ struct mips_cpu_info {
 #ifndef LINK_SPEC
 #define LINK_SPEC "\
 %{!T:-dT riscv.ld} \
--X \
 %{m64:-melf64lriscv} \
 %{m32:-melf32lriscv} \
 %{shared}"
