@@ -1929,6 +1929,9 @@ static const struct percent_op_match percent_op_utype[] =
   {"%tprel_hi", BFD_RELOC_RISCV_TPREL_HI20},
   {"%hi", BFD_RELOC_RISCV_HI20},
   {"%pcrel_hi", BFD_RELOC_RISCV_PCREL_HI20},
+  {"%got_hi", BFD_RELOC_MIPS_GOT_HI16},
+  {"%tlsgd_hi", BFD_RELOC_RISCV_TLS_GD_HI20},
+  {"%tlsie_hi", BFD_RELOC_RISCV_TLS_GOT_HI20},
   {0, 0}
 };
 
@@ -1937,6 +1940,9 @@ static const struct percent_op_match percent_op_itype[] =
   {"%lo", BFD_RELOC_RISCV_LO12_I},
   {"%gp_rel", BFD_RELOC_RISCV_GPREL12_I},
   {"%tprel_lo", BFD_RELOC_RISCV_TPREL_LO12_I},
+  {"%got_lo", BFD_RELOC_MIPS_GOT_LO16},
+  {"%tlsgd_lo", BFD_RELOC_RISCV_TLS_GD_LO12},
+  {"%tlsie_lo", BFD_RELOC_RISCV_TLS_GOT_LO12},
   {0, 0}
 };
 

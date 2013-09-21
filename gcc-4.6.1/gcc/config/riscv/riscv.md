@@ -1726,12 +1726,22 @@
 ;;
 ;;  ....................
 
-(define_insn "got_load<mode>"
+;; Convenience expander that generates the rhs of a load_got<mode> insn.
+(define_expand "unspec_got<mode>"
+  [(unspec:P [(match_operand:P 0)
+	      (match_operand:P 1)] UNSPEC_LOAD_GOT)])
+
+;; Lower-level instructions for loading an address from the GOT.
+;; We could use MEMs, but an unspec gives more optimization
+;; opportunities.
+
+(define_insn "load_got<mode>"
   [(set (match_operand:P 0 "register_operand" "=d")
-       (unspec:P [(match_operand:P 1 "symbolic_operand" "")]
-                 UNSPEC_LOAD_GOT))]
-  "TARGET_USE_GOT"
-  "la\t%0,%1"
+	(unspec:P [(match_operand:P 1 "register_operand" "d")
+		   (match_operand:P 2 "immediate_operand" "")]
+		  UNSPEC_LOAD_GOT))]
+  ""
+  "<load>\t%0,%R2(%1)"
   [(set_attr "got" "load")
    (set_attr "mode" "<MODE>")])
 

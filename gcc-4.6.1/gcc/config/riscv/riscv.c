@@ -574,6 +574,31 @@ mips_tls_symbol_p (const_rtx x)
   return GET_CODE (x) == SYMBOL_REF && SYMBOL_REF_TLS_MODEL (x) != 0;
 }
 
+/* Return true if SYMBOL_REF X is associated with a global symbol
+   (in the STB_GLOBAL sense).  */
+
+static bool
+mips_global_symbol_p (const_rtx x)
+{
+  const_tree decl = SYMBOL_REF_DECL (x);
+
+  if (!decl)
+    return !SYMBOL_REF_LOCAL_P (x) || SYMBOL_REF_EXTERNAL_P (x);
+
+  /* Weakref symbols are not TREE_PUBLIC, but their targets are global
+     or weak symbols.  Relocations in the object file will be against
+     the target symbol, so it's that symbol's binding that matters here.  */
+  return DECL_P (decl) && (TREE_PUBLIC (decl) || DECL_WEAK (decl));
+}
+
+static bool
+riscv_symbol_binds_local_p (const_rtx x)
+{
+  return (SYMBOL_REF_DECL (x)
+	  ? targetm.binds_local_p (SYMBOL_REF_DECL (x))
+	  : SYMBOL_REF_LOCAL_P (x));
+}
+
 /* Return the method that should be used to access SYMBOL_REF or
    LABEL_REF X in context CONTEXT.  */
 
@@ -582,10 +607,22 @@ mips_classify_symbol (const_rtx x)
 {
   if (mips_tls_symbol_p (x))
     return SYMBOL_TLS;
+
   if (GET_CODE (x) == LABEL_REF)
-    return SYMBOL_ABSOLUTE;
+    {
+      if (LABEL_REF_NONLOCAL_P (x))
+	return SYMBOL_GOT_DISP;
+      return SYMBOL_ABSOLUTE;
+    }
+
+  gcc_assert (GET_CODE (x) == SYMBOL_REF);
+
   if (SYMBOL_REF_SMALL_P (x) && !SYMBOL_REF_WEAK (x))
     return SYMBOL_GPREL;
+
+  if (flag_pic && !riscv_symbol_binds_local_p (x))
+    return SYMBOL_GOT_DISP;
+
   return SYMBOL_ABSOLUTE;
 }
 
@@ -666,6 +703,8 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
       return mips_offset_within_alignment_p (x, INTVAL (offset));
 
     case SYMBOL_TLS:
+    case SYMBOL_GOT_DISP:
+    case SYMBOL_GOTOFF_DISP:
       return false;
     }
   gcc_unreachable ();
@@ -675,25 +714,12 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
 
 static int riscv_symbol_insns (enum mips_symbol_type type)
 {
-  switch (type)
-    {
-    case SYMBOL_ABSOLUTE:
-      /* LUI + reference for non-PIC; AUIPC + LW/LD + reference for PIC. */
-      return 2 + flag_pic;
+  /* We don't treat a bare TLS symbol as constants.  */
+  if (type == SYMBOL_TLS)
+    return 0;
 
-    case SYMBOL_TPREL:
-      /* As above, but we must add in the thread pointer. */
-      return 3 + flag_pic;
-
-    case SYMBOL_GPREL:
-      /* Just the reference itself. */
-      return 1;
-
-    case SYMBOL_TLS:
-      /* We don't treat a bare TLS symbol as a constant.  */
-      return 0;
-    }
-  gcc_unreachable ();
+  /* The reference itself, plus LUI or AUIPC for most symbols. */
+  return 1 + mips_split_p[type];
 }
 
 /* A for_each_rtx callback.  Stop the search if *X references a
@@ -1139,9 +1165,32 @@ mips_unspec_offset_high (rtx temp, rtx base, rtx addr,
     {
       addr = gen_rtx_HIGH (Pmode, mips_unspec_address (addr, symbol_type));
       addr = mips_force_temporary (temp, addr);
-      base = mips_force_temporary (temp, gen_rtx_PLUS (Pmode, addr, base));
+      if (base)
+	addr = mips_force_temporary (temp, gen_rtx_PLUS (Pmode, addr, base));
+      return addr;
     }
   return base;
+}
+
+/* Load an entry from the GOT. */
+static rtx riscv_got_load(rtx temp, rtx sym)
+{
+  rtx hi, lo_sum;
+
+  hi = mips_unspec_offset_high (temp, NULL, sym, SYMBOL_GOTOFF_DISP);
+  lo_sum = mips_unspec_address (sym, SYMBOL_GOTOFF_DISP);
+
+  return (Pmode == DImode ? gen_unspec_gotdi(hi, lo_sum) : gen_unspec_gotsi(hi, lo_sum));
+}
+
+static rtx riscv_got_load_tls_gd(rtx dest, rtx sym)
+{
+  return (Pmode == DImode ? gen_got_load_tls_gddi(dest, sym) : gen_got_load_tls_gdsi(dest, sym));
+}
+
+static rtx riscv_got_load_tls_ie(rtx dest, rtx sym)
+{
+  return (Pmode == DImode ? gen_got_load_tls_iedi(dest, sym) : gen_got_load_tls_iesi(dest, sym));
 }
 
 /* If MODE is MAX_MACHINE_MODE, ADDR appears as a move operand, otherwise
@@ -1163,7 +1212,7 @@ mips_split_symbol (rtx temp, rtx addr, enum machine_mode mode, rtx *low_out)
   enum mips_symbol_type symbol_type;
   rtx high;
 
-  if (GET_CODE (addr) == HIGH && mode == MAX_MACHINE_MODE
+  if ((GET_CODE (addr) == HIGH && mode == MAX_MACHINE_MODE)
       || !mips_symbolic_constant_p (addr, &symbol_type)
       || riscv_symbol_insns (symbol_type) == 0
       || !mips_split_p[symbol_type])
@@ -1171,9 +1220,18 @@ mips_split_symbol (rtx temp, rtx addr, enum machine_mode mode, rtx *low_out)
 
   if (low_out)
     {
-      high = gen_rtx_HIGH (Pmode, copy_rtx (addr));
-      high = mips_force_temporary (temp, high);
-      *low_out = gen_rtx_LO_SUM (Pmode, high, addr);
+      switch (symbol_type)
+	{
+	case SYMBOL_GOT_DISP:
+	  *low_out = riscv_got_load (temp, addr);
+	  break;
+
+	default:
+	  high = gen_rtx_HIGH (Pmode, copy_rtx (addr));
+      	  high = mips_force_temporary (temp, high);
+      	  *low_out = gen_rtx_LO_SUM (Pmode, high, addr);
+	  break;
+	}
     }
 
   return true;
@@ -1199,20 +1257,6 @@ mips_add_offset (rtx temp, rtx reg, HOST_WIDE_INT offset)
       reg = mips_force_temporary (temp, gen_rtx_PLUS (Pmode, high, reg));
     }
   return plus_constant (reg, offset);
-}
-
-/* Load an entry from the GOT. */
-static rtx riscv_got_load(rtx dest, rtx sym)
-{
-  return (Pmode == DImode ? gen_got_loaddi(dest, sym) : gen_got_loadsi(dest, sym));
-}
-static rtx riscv_got_load_tls_gd(rtx dest, rtx sym)
-{
-  return (Pmode == DImode ? gen_got_load_tls_gddi(dest, sym) : gen_got_load_tls_gdsi(dest, sym));
-}
-static rtx riscv_got_load_tls_ie(rtx dest, rtx sym)
-{
-  return (Pmode == DImode ? gen_got_load_tls_iedi(dest, sym) : gen_got_load_tls_iesi(dest, sym));
 }
 
 /* The __tls_get_attr symbol.  */
@@ -2119,7 +2163,7 @@ mips_output_move (rtx dest, rtx src)
 	return "li\t%0,%1";
 
       if (src_code == HIGH)
-	return "lui\t%0,%h1";
+	return flag_pic ? "auipc\t%0,%h1" : "lui\t%0,%h1";
 
       if (mips_symbolic_constant_p (src, &symbol_type)
 	  && mips_lo_relocs[symbol_type] != 0)
@@ -3087,6 +3131,18 @@ mips_init_relocs (void)
     {
       mips_split_p[SYMBOL_ABSOLUTE] = true;
       mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
+      mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
+    }
+  else
+    {
+      mips_split_p[SYMBOL_GOT_DISP] = true;
+
+      mips_split_p[SYMBOL_GOTOFF_DISP] = true;
+      mips_hi_relocs[SYMBOL_GOTOFF_DISP] = "%got_hi(";
+      mips_lo_relocs[SYMBOL_GOTOFF_DISP] = "%got_lo(";
+
+      mips_split_p[SYMBOL_ABSOLUTE] = true;
+      mips_hi_relocs[SYMBOL_ABSOLUTE] = "%pcrel_hi(";
       mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
     }
   
