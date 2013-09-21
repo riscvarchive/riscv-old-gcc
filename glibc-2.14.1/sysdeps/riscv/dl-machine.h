@@ -85,13 +85,9 @@ elf_mips_got_from_gpreg (ElfW(Addr) gpreg)
 static inline ElfW(Addr)
 elf_machine_dynamic (void)
 {
-  ElfW(Addr) load, link, got;
-  asm ("   la   %0, 1f\n"
-       "   la   %1, _GLOBAL_OFFSET_TABLE_\n"
-       "1: rdpc %2"
-       : "=r"(link), "=r"(got), "=r"(load));
-
-  return *elf_mips_got_from_gpreg(load - link + got);
+  ElfW(Addr) addr;
+  asm ("lla %0, _GLOBAL_OFFSET_TABLE_\n" : "=r"(addr));
+  return *elf_mips_got_from_gpreg(addr);
 }
 
 #define STRINGXP(X) __STRING(X)
@@ -102,12 +98,9 @@ elf_machine_dynamic (void)
 static inline ElfW(Addr)
 elf_machine_load_address (void)
 {
-  ElfW(Addr) load, link;
-  asm ("   la   %0, 1f\n"
-       "1: rdpc %1\n"
-       : "=r"(link), "=r"(load));
-
-  return load - link;
+  ElfW(Addr) addr;
+  asm ("lla %0, _begin" : "=r"(addr));
+  return addr;
 }
 
 /* We can't rely on elf_machine_got_rel because _dl_object_relocation_scope
@@ -172,13 +165,9 @@ do {									\
 	".text\n\
 	" _RTLD_PROLOGUE(ENTRY_POINT) "\
 	# Store &_DYNAMIC in the first entry of the GOT.\n\
-	la a1, 1f\n\
-	la a2, _GLOBAL_OFFSET_TABLE_\n\
-	la a3, _DYNAMIC\n\
-	1: rdpc a0\n\
-	sub a0, a0, a1\n\
-	add a0, a0, a2\n\
-	" STRINGXP(REG_S) " a3, 0(a0)\n\
+	lla a0, _GLOBAL_OFFSET_TABLE_\n\
+	la a1, _DYNAMIC\n\
+	" STRINGXP(REG_S) " a1, 0(a0)\n\
 	move a0, sp\n\
 	jal _dl_start\n\
 	# Fall through to _dl_start_user \

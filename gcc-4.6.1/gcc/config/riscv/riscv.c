@@ -5018,7 +5018,7 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 {
   rtx addr, end_addr, mem;
   rtx trampoline[4];
-  unsigned int i;
+  unsigned int i, label;
   HOST_WIDE_INT static_chain_offset, target_function_offset;
 
   /* Work out the offsets of the pointers from the start of the
@@ -5030,21 +5030,22 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
   /* Get pointers to the beginning and end of the code block.  */
   addr = force_reg (Pmode, XEXP (m_tramp, 0));
   end_addr = mips_force_binary (Pmode, PLUS, addr, GEN_INT (TRAMPOLINE_CODE_SIZE));
+  label = 4;
 
 #define OP(X) gen_int_mode (X, SImode)
 #define MATCH_LREG ((Pmode) == DImode ? MATCH_LD : MATCH_LW)
 
-  /* auipc   v0, 0x0
-     l[wd]   v1, target_function_offset(v0)
+  /* jal     v0, 1f
+   1:l[wd]   v1, target_function_offset(v0)
      l[wd]   $static_chain, static_chain_offset(v0)
      jr      v1
   */
 
-  trampoline[0] = OP (RISCV_UTYPE (AUIPC, STATIC_CHAIN_REGNUM, 0));
+  trampoline[0] = OP (RISCV_UJTYPE (JAL, STATIC_CHAIN_REGNUM, label));
   trampoline[1] = OP (RISCV_ITYPE (LREG, MIPS_PROLOGUE_TEMP_REGNUM,
-		    STATIC_CHAIN_REGNUM, target_function_offset));
+		    STATIC_CHAIN_REGNUM, target_function_offset - label));
   trampoline[2] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,
-		    STATIC_CHAIN_REGNUM, static_chain_offset));
+		    STATIC_CHAIN_REGNUM, static_chain_offset - label));
   trampoline[3] = OP (RISCV_ITYPE (JALR, 0, MIPS_PROLOGUE_TEMP_REGNUM, 0));
 
 #undef MATCH_LREG

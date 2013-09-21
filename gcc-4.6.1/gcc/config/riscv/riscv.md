@@ -322,7 +322,7 @@
 
 	  ;; Conservatively assume calls take two instructions, as in:
 	  ;;   auipc t0, %pcrel_hi(target)
-	  ;;   jalr  ra, t0, %pcrel_lo(target)
+	  ;;   jalr  ra, t0, %lo(target)
 	  ;; The linker will relax these into JAL when appropriate.
 	  (eq_attr "type" "call")
 	  (const_int 8)

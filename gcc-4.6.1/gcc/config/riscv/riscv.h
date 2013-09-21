@@ -1033,16 +1033,12 @@ typedef struct mips_args {
 
 #define EXIT_IGNORE_STACK 1
 
-
+
 /* Trampolines are a block of code followed by two pointers.  */
 
 #define TRAMPOLINE_CODE_SIZE 16
-#define TRAMPOLINE_SIZE (TRAMPOLINE_CODE_SIZE + GET_MODE_SIZE (ptr_mode) * 2)
-
-/* Forcing a 64-bit alignment for 32-bit targets allows us to load two
-   pointers from a single LUI base.  */
-
-#define TRAMPOLINE_ALIGNMENT 64
+#define TRAMPOLINE_SIZE (TRAMPOLINE_CODE_SIZE + POINTER_SIZE * 2)
+#define TRAMPOLINE_ALIGNMENT POINTER_SIZE
 
 /* Addressing modes, and classification of registers for them.  */
 

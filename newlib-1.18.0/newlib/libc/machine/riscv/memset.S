@@ -57,11 +57,11 @@ memset:
   sll a3, a3, 2
 .set push
 .set norvc
-  rdpc a4
+  auipc a4, %pcrel_hi(1f)
   add a3, a3, a4
-  jalr x0, a3, 12
+  jalr x0, a3, %lo(1f)
 
-  sb a1, 6(a0)
+1:sb a1, 6(a0)
   sb a1, 5(a0)
   sb a1, 4(a0)
   sb a1, 3(a0)
@@ -87,9 +87,9 @@ memset:
   sll a3, a5, 2
 .set push
 .set norvc
-  rdpc a4
+  auipc a4, %pcrel_hi(1f)
   add a3, a3, a4
-  jalr x0, a3, 8
+1:jalr x0, a3, %lo(1b)
 
   sb a1, 6(a0)
   sb a1, 5(a0)

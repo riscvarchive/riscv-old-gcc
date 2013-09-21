@@ -4766,6 +4766,7 @@ value in a word.  The relocation is relative offset from  */
 
   /* RISC-V relocations */
   BFD_RELOC_RISCV_HI20,
+  BFD_RELOC_RISCV_PCREL_HI20,
   BFD_RELOC_RISCV_LO12_I,
   BFD_RELOC_RISCV_LO12_S,
   BFD_RELOC_RISCV_GPREL12_I,
@@ -4774,7 +4775,6 @@ value in a word.  The relocation is relative offset from  */
   BFD_RELOC_RISCV_TPREL_LO12_I,
   BFD_RELOC_RISCV_TPREL_LO12_S,
   BFD_RELOC_RISCV_CALL,
-  BFD_RELOC_RISCV_LOAD,
   BFD_RELOC_RISCV_ADD32,
   BFD_RELOC_RISCV_ADD64,
   BFD_RELOC_RISCV_SUB32,

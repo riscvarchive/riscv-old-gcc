@@ -253,11 +253,11 @@ print_insn_args (const char *d,
               break;
             case 's':
               (*info->fprintf_func)
-                ( info->stream, "%d", ((l >> OP_SH_RS) & OP_MASK_RS));
+                ( info->stream, "%d", ((l >> OP_SH_RS1) & OP_MASK_RS1));
               break;
             case 't':
               (*info->fprintf_func)
-                ( info->stream, "%d", ((l >> OP_SH_RT) & OP_MASK_RT));
+                ( info->stream, "%d", ((l >> OP_SH_RS2) & OP_MASK_RS2));
               break;
             case 'j':
               (*info->fprintf_func)
@@ -347,12 +347,12 @@ print_insn_args (const char *d,
 	case 'b':
 	case 's':
 	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_gpr_names[(l >> OP_SH_RS) & OP_MASK_RS]);
+				 mips_gpr_names[(l >> OP_SH_RS1) & OP_MASK_RS1]);
 	  break;
 
 	case 't':
 	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_gpr_names[(l >> OP_SH_RT) & OP_MASK_RT]);
+				 mips_gpr_names[(l >> OP_SH_RS2) & OP_MASK_RS2]);
 	  break;
 
 	case 'u':
@@ -414,22 +414,22 @@ print_insn_args (const char *d,
 
 	case 'S':
 	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_fpr_names[(l >> OP_SH_FS) & OP_MASK_FS]);
+				 mips_fpr_names[(l >> OP_SH_RS1) & OP_MASK_RS1]);
 	  break;
 
 	case 'T':
 	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_fpr_names[(l >> OP_SH_FT) & OP_MASK_FT]);
+				 mips_fpr_names[(l >> OP_SH_RS2) & OP_MASK_RS2]);
 	  break;
 
 	case 'D':
 	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_fpr_names[(l >> OP_SH_FD) & OP_MASK_FD]);
+				 mips_fpr_names[(l >> OP_SH_RD) & OP_MASK_RD]);
 	  break;
 
 	case 'R':
 	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_fpr_names[(l >> OP_SH_FR) & OP_MASK_FR]);
+				 mips_fpr_names[(l >> OP_SH_RS3) & OP_MASK_RS3]);
 	  break;
 
 	case 'E':
@@ -441,7 +441,7 @@ print_insn_args (const char *d,
 	     cp2 register names, we can simply print the register
 	     numbers.  */
 	  (*info->fprintf_func) (info->stream, "cr%ld",
-				 (l >> OP_SH_RS) & OP_MASK_RS);
+				 (l >> OP_SH_RS1) & OP_MASK_RS1);
 	  break;
 
 	default:
@@ -497,79 +497,79 @@ riscv_rvc_uncompress(unsigned long rvc_insn)
     if(crd == 0)
     {
       if(imm6 & 0x20)
-        return MATCH_JALR | (LINK_REG << OP_SH_RD) | (crs1 << OP_SH_RS);
+        return MATCH_JALR | (LINK_REG << OP_SH_RD) | (crs1 << OP_SH_RS1);
       else
-        return MATCH_JALR | (crs1 << OP_SH_RS);
+        return MATCH_JALR | (crs1 << OP_SH_RS1);
     }
-    return MATCH_ADDI | (crd << OP_SH_RD) | (crd << OP_SH_RS) |
+    return MATCH_ADDI | (crd << OP_SH_RD) | (crd << OP_SH_RS1) |
            (imm6 << OP_SH_IMMEDIATE);
   }
   if(IS_INSN(rvc_insn, C_ADDIW))
-    return MATCH_ADDIW | (crd << OP_SH_RD) | (crd << OP_SH_RS) | (imm6 << OP_SH_IMMEDIATE);
+    return MATCH_ADDIW | (crd << OP_SH_RD) | (crd << OP_SH_RS1) | (imm6 << OP_SH_IMMEDIATE);
   if(IS_INSN(rvc_insn, C_LI))
     return MATCH_ADDI | (crd << OP_SH_RD) | (imm6 << OP_SH_IMMEDIATE);
   if(IS_INSN(rvc_insn, C_MOVE))
-    return MATCH_ADDI | (crd << OP_SH_RD) | (crs1 << OP_SH_RS);
+    return MATCH_ADDI | (crd << OP_SH_RD) | (crs1 << OP_SH_RS1);
   if(IS_INSN(rvc_insn, C_SLLI))
-    return MATCH_SLLI | (cimm5 << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS);
+    return MATCH_SLLI | (cimm5 << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS1);
   if(IS_INSN(rvc_insn, C_SLLI32))
-    return MATCH_SLLI | ((cimm5+32) << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS);
+    return MATCH_SLLI | ((cimm5+32) << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS1);
   if(IS_INSN(rvc_insn, C_SRLI))
-    return MATCH_SRLI | (cimm5 << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS);
+    return MATCH_SRLI | (cimm5 << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS1);
   if(IS_INSN(rvc_insn, C_SRLI32))
-    return MATCH_SRLI | ((cimm5+32) << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS);
+    return MATCH_SRLI | ((cimm5+32) << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS1);
   if(IS_INSN(rvc_insn, C_SRAI))
-    return MATCH_SRAI | (cimm5 << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS);
+    return MATCH_SRAI | (cimm5 << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS1);
   if(IS_INSN(rvc_insn, C_SRAI32))
-    return MATCH_SRAI | ((cimm5+32) << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS);
+    return MATCH_SRAI | ((cimm5+32) << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS1);
   if(IS_INSN(rvc_insn, C_SLLIW))
-    return MATCH_SLLIW | (cimm5 << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS);
+    return MATCH_SLLIW | (cimm5 << OP_SH_SHAMT) | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rd_regmap[crds] << OP_SH_RS1);
   if(IS_INSN(rvc_insn, C_ADD))
-    return MATCH_ADD | (crd << OP_SH_RD) | (crs1 << OP_SH_RS) | (crd << OP_SH_RT);
+    return MATCH_ADD | (crd << OP_SH_RD) | (crs1 << OP_SH_RS1) | (crd << OP_SH_RS2);
   if(IS_INSN(rvc_insn, C_SUB))
-    return MATCH_SUB | (crd << OP_SH_RD) | (crs1 << OP_SH_RS) | (crd << OP_SH_RT);
+    return MATCH_SUB | (crd << OP_SH_RD) | (crs1 << OP_SH_RS1) | (crd << OP_SH_RS2);
   if(IS_INSN(rvc_insn, C_ADD3))
-    return MATCH_ADD | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2b_regmap[crs2bs] << OP_SH_RT);
+    return MATCH_ADD | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2b_regmap[crs2bs] << OP_SH_RS2);
   if(IS_INSN(rvc_insn, C_SUB3))
-    return MATCH_SUB | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2b_regmap[crs2bs] << OP_SH_RT);
+    return MATCH_SUB | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2b_regmap[crs2bs] << OP_SH_RS2);
   if(IS_INSN(rvc_insn, C_AND3))
-    return MATCH_AND | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2b_regmap[crs2bs] << OP_SH_RT);
+    return MATCH_AND | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2b_regmap[crs2bs] << OP_SH_RS2);
   if(IS_INSN(rvc_insn, C_OR3))
-    return MATCH_OR | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2b_regmap[crs2bs] << OP_SH_RT);
+    return MATCH_OR | (rvc_rd_regmap[crds] << OP_SH_RD) | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2b_regmap[crs2bs] << OP_SH_RS2);
   if(IS_INSN(rvc_insn, C_J))
     return MATCH_JAL | (jt10 << OP_SH_TARGET);
   if(IS_INSN(rvc_insn, C_BEQ))
-    return MATCH_BEQ | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2_regmap[crs2s] << OP_SH_RT) | (imm5lo << OP_SH_IMMLO) | (imm5hi << OP_SH_IMMHI);
+    return MATCH_BEQ | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2_regmap[crs2s] << OP_SH_RS2) | (imm5lo << OP_SH_IMMLO) | (imm5hi << OP_SH_IMMHI);
   if(IS_INSN(rvc_insn, C_BNE))
-    return MATCH_BNE | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2_regmap[crs2s] << OP_SH_RT) | (imm5lo << OP_SH_IMMLO) | (imm5hi << OP_SH_IMMHI);
+    return MATCH_BNE | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2_regmap[crs2s] << OP_SH_RS2) | (imm5lo << OP_SH_IMMLO) | (imm5hi << OP_SH_IMMHI);
   if(IS_INSN(rvc_insn, C_LDSP))
-    return MATCH_LD | (30 << OP_SH_RS) | (crd << OP_SH_RD) | (imm6x8 << OP_SH_IMMEDIATE);
+    return MATCH_LD | (30 << OP_SH_RS1) | (crd << OP_SH_RD) | (imm6x8 << OP_SH_IMMEDIATE);
   if(IS_INSN(rvc_insn, C_LWSP))
-    return MATCH_LW | (30 << OP_SH_RS) | (crd << OP_SH_RD) | (imm6x4 << OP_SH_IMMEDIATE);
+    return MATCH_LW | (30 << OP_SH_RS1) | (crd << OP_SH_RD) | (imm6x4 << OP_SH_IMMEDIATE);
   if(IS_INSN(rvc_insn, C_SDSP))
-    return MATCH_SD | (30 << OP_SH_RS) | (crs2 << OP_SH_RT) | (imm6x8lo << OP_SH_IMMLO) | (imm6x8hi << OP_SH_IMMHI);
+    return MATCH_SD | (30 << OP_SH_RS1) | (crs2 << OP_SH_RS2) | (imm6x8lo << OP_SH_IMMLO) | (imm6x8hi << OP_SH_IMMHI);
   if(IS_INSN(rvc_insn, C_SWSP))
-    return MATCH_SW | (30 << OP_SH_RS) | (crs2 << OP_SH_RT) | (imm6x4lo << OP_SH_IMMLO) | (imm6x4hi << OP_SH_IMMHI);
+    return MATCH_SW | (30 << OP_SH_RS1) | (crs2 << OP_SH_RS2) | (imm6x4lo << OP_SH_IMMLO) | (imm6x4hi << OP_SH_IMMHI);
   if(IS_INSN(rvc_insn, C_LD))
-    return MATCH_LD | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rd_regmap[crds] << OP_SH_RD) | (imm5x8 << OP_SH_IMMEDIATE);
+    return MATCH_LD | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rd_regmap[crds] << OP_SH_RD) | (imm5x8 << OP_SH_IMMEDIATE);
   if(IS_INSN(rvc_insn, C_LW))
-    return MATCH_LW | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rd_regmap[crds] << OP_SH_RD) | (imm5x4 << OP_SH_IMMEDIATE);
+    return MATCH_LW | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rd_regmap[crds] << OP_SH_RD) | (imm5x4 << OP_SH_IMMEDIATE);
   if(IS_INSN(rvc_insn, C_SD))
-    return MATCH_SD | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2_regmap[crs2s] << OP_SH_RT) | (imm5x8lo << OP_SH_IMMLO) | (imm5x8hi << OP_SH_IMMHI);
+    return MATCH_SD | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2_regmap[crs2s] << OP_SH_RS2) | (imm5x8lo << OP_SH_IMMLO) | (imm5x8hi << OP_SH_IMMHI);
   if(IS_INSN(rvc_insn, C_SW))
-    return MATCH_SW | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2_regmap[crs2s] << OP_SH_RT) | (imm5x4lo << OP_SH_IMMLO) | (imm5x4hi << OP_SH_IMMHI);
+    return MATCH_SW | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2_regmap[crs2s] << OP_SH_RS2) | (imm5x4lo << OP_SH_IMMLO) | (imm5x4hi << OP_SH_IMMHI);
   if(IS_INSN(rvc_insn, C_LD0))
-    return MATCH_LD | (crs1 << OP_SH_RS) | (crd << OP_SH_RD);
+    return MATCH_LD | (crs1 << OP_SH_RS1) | (crd << OP_SH_RD);
   if(IS_INSN(rvc_insn, C_LW0))
-    return MATCH_LW | (crs1 << OP_SH_RS) | (crd << OP_SH_RD);
+    return MATCH_LW | (crs1 << OP_SH_RS1) | (crd << OP_SH_RD);
   if(IS_INSN(rvc_insn, C_FLD))
-    return MATCH_FLD | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rd_regmap[crds] << OP_SH_RD) | (imm5x8 << OP_SH_IMMEDIATE);
+    return MATCH_FLD | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rd_regmap[crds] << OP_SH_RD) | (imm5x8 << OP_SH_IMMEDIATE);
   if(IS_INSN(rvc_insn, C_FLW))
-    return MATCH_FLW | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rd_regmap[crds] << OP_SH_RD) | (imm5x4 << OP_SH_IMMEDIATE);
+    return MATCH_FLW | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rd_regmap[crds] << OP_SH_RD) | (imm5x4 << OP_SH_IMMEDIATE);
   if(IS_INSN(rvc_insn, C_FSD))
-    return MATCH_FSD | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2_regmap[crs2s] << OP_SH_RT) | (imm5x8lo << OP_SH_IMMLO) | (imm5x8hi << OP_SH_IMMHI);
+    return MATCH_FSD | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2_regmap[crs2s] << OP_SH_RS2) | (imm5x8lo << OP_SH_IMMLO) | (imm5x8hi << OP_SH_IMMHI);
   if(IS_INSN(rvc_insn, C_FSW))
-    return MATCH_FSW | (rvc_rs1_regmap[crs1s] << OP_SH_RS) | (rvc_rs2_regmap[crs2s] << OP_SH_RT) | (imm5x4lo << OP_SH_IMMLO) | (imm5x4hi << OP_SH_IMMHI);
+    return MATCH_FSW | (rvc_rs1_regmap[crs1s] << OP_SH_RS1) | (rvc_rs2_regmap[crs2s] << OP_SH_RS2) | (imm5x4lo << OP_SH_IMMLO) | (imm5x4hi << OP_SH_IMMHI);
 
   return rvc_insn;
 }

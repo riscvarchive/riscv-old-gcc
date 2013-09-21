@@ -528,8 +528,8 @@ static int
 riscv_rvc_compress(struct mips_cl_insn* insn)
 {
   int rd = EXTRACT_OPERAND(RD, *insn);
-  int rs1 = EXTRACT_OPERAND(RS, *insn);
-  int rs2 ATTRIBUTE_UNUSED = EXTRACT_OPERAND(RT, *insn);
+  int rs1 = EXTRACT_OPERAND(RS1, *insn);
+  int rs2 ATTRIBUTE_UNUSED = EXTRACT_OPERAND(RS2, *insn);
   int32_t imm = EXTRACT_OPERAND(IMMEDIATE, *insn);
   imm = imm << (32-RISCV_IMM_BITS) >> (32-RISCV_IMM_BITS);
   int32_t shamt = imm & 0x3f;
@@ -1526,12 +1526,12 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  continue;
 
 	case 't':
-	  INSERT_OPERAND (RT, insn, va_arg (args, int));
+	  INSERT_OPERAND (RS2, insn, va_arg (args, int));
 	  continue;
 
 	case 'T':
 	case 'W':
-	  INSERT_OPERAND (FT, insn, va_arg (args, int));
+	  INSERT_OPERAND (RS2, insn, va_arg (args, int));
 	  continue;
 
 	case 'd':
@@ -1539,7 +1539,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  continue;
 
 	case 'S':
-	  INSERT_OPERAND (FS, insn, va_arg (args, int));
+	  INSERT_OPERAND (RS1, insn, va_arg (args, int));
 	  continue;
 
 	case 'z':
@@ -1554,13 +1554,13 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  continue;
 
 	case 'D':
-	  INSERT_OPERAND (FD, insn, va_arg (args, int));
+	  INSERT_OPERAND (RD, insn, va_arg (args, int));
 	  continue;
 
 	case 'b':
 	case 's':
 	case 'E':
-	  INSERT_OPERAND (RS, insn, va_arg (args, int));
+	  INSERT_OPERAND (RS1, insn, va_arg (args, int));
 	  continue;
 
 	case 'm':
@@ -1669,13 +1669,12 @@ load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
   macro_build (ep, lo_insn, "d,s,j", destreg, tempreg, lo_reloc);
 }
 
-/* Load an entry from the GOT. */
+/* PC-relative function call using AUIPC/JALR, relaxed to JAL. */
 static void
-riscv_pcrel (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
-	    bfd_reloc_code_real_type reloc)
+riscv_call (int destreg, int tempreg, expressionS *ep)
 {
-  macro_build_lui ("auipc", ep, tempreg, reloc);
-  macro_build (NULL, lo_insn, "d,s", destreg, tempreg);
+  macro_build_lui ("auipc", ep, tempreg, BFD_RELOC_RISCV_CALL);
+  macro_build (NULL, "jalr", "d,s", destreg, tempreg);
 }
 
 /* Warn if an expression is not a constant.  */
@@ -1757,7 +1756,7 @@ macro (struct mips_cl_insn *ip)
   const char* name;
 
   rd = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
-  rs1 = (ip->insn_opcode >> OP_SH_RS) & OP_MASK_RS;
+  rs1 = (ip->insn_opcode >> OP_SH_RS1) & OP_MASK_RS1;
   mask = ip->insn_mo->mask;
 
   switch (mask)
@@ -1782,7 +1781,8 @@ macro (struct mips_cl_insn *ip)
 	load_got_addr (rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
 	               BFD_RELOC_MIPS_GOT_HI16, BFD_RELOC_MIPS_GOT_LO16);
       else /* PIC local symbol */
-	riscv_pcrel (rd, rd, &offset_expr, "addi", BFD_RELOC_RISCV_LOAD);
+	load_got_addr (rd, rd, &offset_expr, "addi",
+	               BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_LO12_I);
 
       if (rs1 != ZERO)
         macro_build (NULL, "add", "d,s,t", rd, rd, rs1);
@@ -1800,25 +1800,10 @@ macro (struct mips_cl_insn *ip)
 
     case M_JAL_RA:
       rd = LINK_REG;
-    case M_JAL:
-      riscv_pcrel (rd, rs1, &offset_expr, "jalr", BFD_RELOC_RISCV_CALL);
-      break;
-
     case M_J:
-      riscv_pcrel (ZERO, rs1, &offset_expr, "jalr", BFD_RELOC_RISCV_CALL);
-      break;
-
-    case M_LB:  name = "lb";  rs1 = rd; goto load_macro;
-    case M_LBU: name = "lbu"; rs1 = rd; goto load_macro;
-    case M_LH:  name = "lh";  rs1 = rd; goto load_macro;
-    case M_LHU: name = "lhu"; rs1 = rd; goto load_macro;
-    case M_LW:  name = "lw";  rs1 = rd; goto load_macro;
-    case M_LWU: name = "lwu"; rs1 = rd; goto load_macro;
-    case M_LD:  name = "ld";  rs1 = rd; goto load_macro;
-    case M_FLW: name = "flw"; goto load_macro;
-    case M_FLD: name = "fld"; goto load_macro;
-load_macro:
-      riscv_pcrel (rd, rs1, &offset_expr, name, BFD_RELOC_RISCV_LOAD);
+      /* rd == 0 */
+    case M_JAL:
+      riscv_call (rd, rs1, &offset_expr);
       break;
 
     case M_FMV_S:  name = "fsgnj.s";  goto fmv_macro;
@@ -1862,8 +1847,8 @@ validate_mips_insn (const struct riscv_opcode *opc)
       switch (c = *p++)
         {
         case 'd': USE_BITS (OP_MASK_RD, OP_SH_RD); break;
-        case 's': USE_BITS (OP_MASK_RS, OP_SH_RS); break;
-        case 't': USE_BITS (OP_MASK_RT, OP_SH_RT); break;
+        case 's': USE_BITS (OP_MASK_RS1, OP_SH_RS1); break;
+        case 't': USE_BITS (OP_MASK_RS2, OP_SH_RS2); break;
         case 'j': USE_BITS (OP_MASK_CUSTOM_IMM, OP_SH_CUSTOM_IMM); break;
         }
       break;
@@ -1896,17 +1881,17 @@ validate_mips_insn (const struct riscv_opcode *opc)
       case '<': USE_BITS (OP_MASK_SHAMTW,	OP_SH_SHAMTW);	break;
       case '>':	USE_BITS (OP_MASK_SHAMT,	OP_SH_SHAMT);	break;
       case 'A': break;
-      case 'D':	USE_BITS (OP_MASK_FD,		OP_SH_FD);	break;
-      case 'E':	USE_BITS (OP_MASK_RS,		OP_SH_RS);	break;
+      case 'D':	USE_BITS (OP_MASK_RD,		OP_SH_RD);	break;
+      case 'E':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
       case 'I': break;
-      case 'R':	USE_BITS (OP_MASK_FR,		OP_SH_FR);	break;
-      case 'S':	USE_BITS (OP_MASK_FS,		OP_SH_FS);	break;
-      case 'T':	USE_BITS (OP_MASK_FT,		OP_SH_FT);	break;
-      case 'b':	USE_BITS (OP_MASK_RS,		OP_SH_RS);	break;
+      case 'R':	USE_BITS (OP_MASK_RS3,		OP_SH_RS3);	break;
+      case 'S':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
+      case 'T':	USE_BITS (OP_MASK_RS2,		OP_SH_RS2);	break;
+      case 'b':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
       case 'd':	USE_BITS (OP_MASK_RD,		OP_SH_RD);	break;
       case 'm':	USE_BITS (OP_MASK_RM,		OP_SH_RM);	break;
-      case 's':	USE_BITS (OP_MASK_RS,		OP_SH_RS);	break;
-      case 't':	USE_BITS (OP_MASK_RT,		OP_SH_RT);	break;
+      case 's':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
+      case 't':	USE_BITS (OP_MASK_RS2,		OP_SH_RS2);	break;
       case 'P':	USE_BITS (OP_MASK_PRED,		OP_SH_PRED); break;
       case 'Q':	USE_BITS (OP_MASK_SUCC,		OP_SH_SUCC); break;
       case 'o':
@@ -1939,10 +1924,11 @@ struct percent_op_match
   bfd_reloc_code_real_type reloc;
 };
 
-static const struct percent_op_match percent_op_ltype[] =
+static const struct percent_op_match percent_op_utype[] =
 {
   {"%tprel_hi", BFD_RELOC_RISCV_TPREL_HI20},
   {"%hi", BFD_RELOC_RISCV_HI20},
+  {"%pcrel_hi", BFD_RELOC_RISCV_PCREL_HI20},
   {0, 0}
 };
 
@@ -2155,10 +2141,10 @@ mips_ip (char *str, struct mips_cl_insn *ip)
                   INSERT_OPERAND (RD, *ip, imm_expr.X_add_number);
                   break;
                 case 's':
-                  INSERT_OPERAND (RS, *ip, imm_expr.X_add_number);
+                  INSERT_OPERAND (RS1, *ip, imm_expr.X_add_number);
                   break;
                 case 't':
-                  INSERT_OPERAND (RT, *ip, imm_expr.X_add_number);
+                  INSERT_OPERAND (RS2, *ip, imm_expr.X_add_number);
                   break;
                 }
               imm_expr.X_op = O_absent;
@@ -2326,7 +2312,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 
 	    case 'E':		/* Control register.  */
 	      ok = reg_lookup (&s, RTYPE_NUM | RTYPE_CP0, &regno);
-	      INSERT_OPERAND (RS, *ip, regno);
+	      INSERT_OPERAND (RS1, *ip, regno);
 	      if (ok) 
 		continue;
 	      else
@@ -2375,16 +2361,16 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		    case 's':
 		    case 'b':
 		    case 'E':
-		      INSERT_OPERAND (RS, *ip, regno);
+		      INSERT_OPERAND (RS1, *ip, regno);
 		      break;
 		    case 'd':
 		      INSERT_OPERAND (RD, *ip, regno);
 		      break;
 		    case 'g':
-		      INSERT_OPERAND (FS, *ip, regno);
+		      INSERT_OPERAND (RS1, *ip, regno);
 		      break;
 		    case 't':
-		      INSERT_OPERAND (RT, *ip, regno);
+		      INSERT_OPERAND (RS2, *ip, regno);
 		      break;
 		    case 'x':
 		      /* This case exists because on the r3000 trunc
@@ -2424,16 +2410,16 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		  switch (c)
 		    {
 		    case 'D':
-		      INSERT_OPERAND (FD, *ip, regno);
+		      INSERT_OPERAND (RD, *ip, regno);
 		      break;
 		    case 'S':
-		      INSERT_OPERAND (FS, *ip, regno);
+		      INSERT_OPERAND (RS1, *ip, regno);
 		      break;
 		    case 'T':
-		      INSERT_OPERAND (FT, *ip, regno);
+		      INSERT_OPERAND (RS2, *ip, regno);
 		      break;
 		    case 'R':
-		      INSERT_OPERAND (FR, *ip, regno);
+		      INSERT_OPERAND (RS3, *ip, regno);
 		      break;
 		    }
 		  continue;
@@ -2539,7 +2525,7 @@ load_store:
 	      continue;
 
 	    case 'u':		/* upper 20 bits */
-	      p = percent_op_ltype;
+	      p = percent_op_utype;
 	      if (!my_getSmallExpression (&imm_expr, &imm_reloc, s, p)
 		  && imm_expr.X_op == O_constant)
 		{
@@ -2731,6 +2717,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       /* fall through */
 
     case BFD_RELOC_RISCV_HI20:
+    case BFD_RELOC_RISCV_PCREL_HI20:
     case BFD_RELOC_RISCV_GPREL12_I:
     case BFD_RELOC_RISCV_GPREL12_S:
     case BFD_RELOC_MIPS_GOT_HI16:
@@ -2775,7 +2762,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       break;
 
     case BFD_RELOC_RISCV_CALL:
-    case BFD_RELOC_RISCV_LOAD:
     case BFD_RELOC_RISCV_LO12_I:
     case BFD_RELOC_RISCV_LO12_S:
     case BFD_RELOC_MIPS_JMP:
@@ -3280,9 +3266,9 @@ md_convert_frag_branch (bfd *abfd ATTRIBUTE_UNUSED, segT asec ATTRIBUTE_UNUSED,
         reloc_type = BFD_RELOC_MIPS_JMP;
       }
       else if((insn & MASK_C_BEQ) == MATCH_C_BEQ)
-        insn = MATCH_BEQ | (rs1 << OP_SH_RS) | (rs2 << OP_SH_RT);
+        insn = MATCH_BEQ | (rs1 << OP_SH_RS1) | (rs2 << OP_SH_RS2);
       else if((insn & MASK_C_BNE) == MATCH_C_BNE)
-        insn = MATCH_BNE | (rs1 << OP_SH_RS) | (rs2 << OP_SH_RT);
+        insn = MATCH_BNE | (rs1 << OP_SH_RS1) | (rs2 << OP_SH_RS2);
       else
         gas_assert(0);
 
