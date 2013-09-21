@@ -1375,7 +1375,7 @@
         (truncate:SI (match_operand:DI 1 "register_operand" "d,d")))]
   "TARGET_64BIT"
   "@
-    addiw\t%0,%1,0
+    sext.w\t%0,%1
     sw\t%1,%0"
   [(set_attr "move_type" "arith,store")
    (set_attr "mode" "SI")])

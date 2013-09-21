@@ -163,6 +163,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"lwu",       "64I", "d,o(b)",  MATCH_LWU, MASK_LWU,   WR_xd|RD_xs1 },
 {"ld",        "64I", "d,o(b)", MATCH_LD, MASK_LD,  WR_xd|RD_xs1 },
 {"sd",        "64I", "t,q(b)",  MATCH_SD, MASK_SD,   RD_xs1|RD_xs2 },
+{"sext.w",    "64I", "d,s",  MATCH_ADDIW, MASK_ADDIW | MASK_IMM,   WR_xd|RD_xs1 },
 {"addw",      "64I", "d,s,t",  MATCH_ADDW, MASK_ADDW,   WR_xd|RD_xs1|RD_xs2 },
 {"addw",      "64I", "d,s,j",  MATCH_ADDIW, MASK_ADDIW,   WR_xd|RD_xs1 },
 {"addiw",     "64I", "d,s,j",  MATCH_ADDIW, MASK_ADDIW,   WR_xd|RD_xs1 },
