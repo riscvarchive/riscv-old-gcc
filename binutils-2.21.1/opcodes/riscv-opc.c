@@ -150,7 +150,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"sh",        "I",   "t,q(b)",  MATCH_SH, MASK_SH,   RD_xs1|RD_xs2 },
 {"sw",        "I",   "t,q(b)",  MATCH_SW, MASK_SW,   RD_xs1|RD_xs2 },
 {"fence",     "I",   "",  MATCH_FENCE | MASK_PRED | MASK_SUCC, MASK_FENCE | MASK_RD | MASK_RS1 | MASK_IMM,   0 },
-{"fence",     "I",   "P,Q",  MATCH_FENCE, MASK_FENCE | MASK_RD | MASK_RS1 | MASK_IMM,   0 },
+{"fence",     "I",   "P,Q",  MATCH_FENCE, MASK_FENCE | MASK_RD | MASK_RS1 | (MASK_IMM & ~MASK_PRED & ~MASK_SUCC),   0 },
 {"fence.i",   "I",   "",  MATCH_FENCE_I, MASK_FENCE | MASK_RD | MASK_RS1 | MASK_IMM,   0 },
 {"rdcycle",   "I",   "d",  MATCH_RDCYCLE, MASK_RDCYCLE,  WR_xd },
 {"rdinstret", "I",   "d",  MATCH_RDINSTRET, MASK_RDINSTRET,  WR_xd },
