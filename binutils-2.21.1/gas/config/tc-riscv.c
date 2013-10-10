@@ -1111,12 +1111,12 @@ struct regname {
     {"va5",	RTYPE_VGR_REG | 23}, \
     {"va6",	RTYPE_VGR_REG | 24}, \
     {"va7",	RTYPE_VGR_REG | 25}, \
-    {"va8",	RTYPE_VGR_REG | 26}, \
-    {"va9",	RTYPE_VGR_REG | 27}, \
-    {"va10",	RTYPE_VGR_REG | 28}, \
-    {"va11",	RTYPE_VGR_REG | 29}, \
-    {"va12",	RTYPE_VGR_REG | 30}, \
-    {"va13",	RTYPE_VGR_REG | 31}
+    {"vt0",	RTYPE_VGR_REG | 26}, \
+    {"vt1",	RTYPE_VGR_REG | 27}, \
+    {"vt2",	RTYPE_VGR_REG | 28}, \
+    {"vt3",	RTYPE_VGR_REG | 29}, \
+    {"vt4",	RTYPE_VGR_REG | 30}, \
+    {"vgp",	RTYPE_VGR_REG | 31}
 
 #define RISCV_VEC_FP_REGISTER_NAMES \
     {"vf0",	RTYPE_VFP_REG | 0}, \
@@ -1488,9 +1488,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
             case 'n':
               INSERT_OPERAND( IMMSEGNELM, insn, va_arg( args, int ) - 1 );
               continue;
-            case 'm':
-              INSERT_OPERAND( IMMSEGSTNELM, insn, va_arg( args, int ) - 1 );
-              continue;
             case 'd':
               INSERT_OPERAND( VRD, insn, va_arg( args, int ) );
               continue;
@@ -1854,27 +1851,26 @@ validate_mips_insn (const struct riscv_opcode *opc)
       break;
       /* Xhwacha */
       case '#':
-    	switch (c = *p++)
-	  {
-	  case 'g': USE_BITS (OP_MASK_IMMNGPR, OP_SH_IMMNGPR); break;
-	  case 'f': USE_BITS (OP_MASK_IMMNFPR, OP_SH_IMMNFPR); break;
-	  case 'n': USE_BITS (OP_MASK_IMMSEGNELM, OP_SH_IMMSEGNELM); break;
-	  case 'm': USE_BITS (OP_MASK_IMMSEGSTNELM, OP_SH_IMMSEGSTNELM); break;
-	  case 'd': USE_BITS (OP_MASK_VRD, OP_SH_VRD); break;
-	  case 's': USE_BITS (OP_MASK_VRS, OP_SH_VRS); break;
-	  case 't': USE_BITS (OP_MASK_VRT, OP_SH_VRT); break;
-	  case 'r': USE_BITS (OP_MASK_VRR, OP_SH_VRR); break;
-	  case 'D': USE_BITS (OP_MASK_VFD, OP_SH_VFD); break;
-	  case 'S': USE_BITS (OP_MASK_VFS, OP_SH_VFS); break;
-	  case 'T': USE_BITS (OP_MASK_VFT, OP_SH_VFT); break;
-	  case 'R': USE_BITS (OP_MASK_VFR, OP_SH_VFR); break;
+      switch (c = *p++)
+        {
+        case 'g': USE_BITS (OP_MASK_IMMNGPR, OP_SH_IMMNGPR); break;
+        case 'f': USE_BITS (OP_MASK_IMMNFPR, OP_SH_IMMNFPR); break;
+        case 'n': USE_BITS (OP_MASK_IMMSEGNELM, OP_SH_IMMSEGNELM); break;
+        case 'd': USE_BITS (OP_MASK_VRD, OP_SH_VRD); break;
+        case 's': USE_BITS (OP_MASK_VRS, OP_SH_VRS); break;
+        case 't': USE_BITS (OP_MASK_VRT, OP_SH_VRT); break;
+        case 'r': USE_BITS (OP_MASK_VRR, OP_SH_VRR); break;
+        case 'D': USE_BITS (OP_MASK_VFD, OP_SH_VFD); break;
+        case 'S': USE_BITS (OP_MASK_VFS, OP_SH_VFS); break;
+        case 'T': USE_BITS (OP_MASK_VFT, OP_SH_VFT); break;
+        case 'R': USE_BITS (OP_MASK_VFR, OP_SH_VFR); break;
 
-	  default:
-	    as_bad (_("internal: bad mips opcode (unknown extension operand type `#%c'): %s %s"),
-		    c, opc->name, opc->args);
-	    return 0;
-	  }
-	break;
+        default:
+          as_bad (_("internal: bad mips opcode (unknown extension operand type `#%c'): %s %s"),
+                  c, opc->name, opc->args);
+          return 0;
+        }
+      break;
       case ',': break;
       case '(': break;
       case ')': break;
@@ -2167,7 +2163,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
                 {
                 case 'g':
                   my_getExpression( &imm_expr, s );
-                  check_absolute_expr( ip, &imm_expr );
+                  /* check_absolute_expr( ip, &imm_expr ); */
                   if ((unsigned long) imm_expr.X_add_number > 32 )
                     as_warn( _( "Improper ngpr amount (%lu)" ),
                              (unsigned long) imm_expr.X_add_number );
@@ -2177,7 +2173,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
                   continue;
                 case 'f':
                   my_getExpression( &imm_expr, s );
-                  check_absolute_expr( ip, &imm_expr );
+                  /* check_absolute_expr( ip, &imm_expr ); */
                   if ((unsigned long) imm_expr.X_add_number > 32 )
                     as_warn( _( "Improper nfpr amount (%lu)" ),
                              (unsigned long) imm_expr.X_add_number );
@@ -2187,21 +2183,11 @@ mips_ip (char *str, struct mips_cl_insn *ip)
                   continue;
                 case 'n':
                   my_getExpression( &imm_expr, s );
-                  check_absolute_expr( ip, &imm_expr );
-                  if ((unsigned long) imm_expr.X_add_number > 32 )
+                  /* check_absolute_expr( ip, &imm_expr ); */
+                  if ((unsigned long) imm_expr.X_add_number > 8 )
                     as_warn( _( "Improper nelm amount (%lu)" ),
                              (unsigned long) imm_expr.X_add_number );
                   INSERT_OPERAND( IMMSEGNELM, *ip, imm_expr.X_add_number - 1 );
-                  imm_expr.X_op = O_absent;
-                  s = expr_end;
-                  continue;
-                case 'm':
-                  my_getExpression( &imm_expr, s );
-                  check_absolute_expr( ip, &imm_expr );
-                  if ((unsigned long) imm_expr.X_add_number > 32 )
-                    as_warn( _( "Improper nelm amount (%lu)" ),
-                             (unsigned long) imm_expr.X_add_number );
-                  INSERT_OPERAND( IMMSEGSTNELM, *ip, imm_expr.X_add_number - 1 );
                   imm_expr.X_op = O_absent;
                   s = expr_end;
                   continue;
@@ -3394,4 +3380,24 @@ tc_mips_regname_to_dw2regnum (char *regname)
     regnum = reg;
 
   return regnum;
+}
+
+void
+riscv_elf_final_processing (void)
+{
+  struct riscv_subset* s;
+
+  unsigned int Xlen = 0;
+  for (s = riscv_subsets; s != NULL; s = s->next)
+    if (s->name[0] == 'X')
+      Xlen += strlen(s->name);
+
+  char extension[Xlen]; 
+  extension[0] = 0;
+  for (s = riscv_subsets; s != NULL; s = s->next)
+    if (s->name[0] == 'X')
+      strcat(extension, s->name);
+
+  EF_SET_RISCV_EXT(elf_elfheader (stdoutput)->e_flags,
+    riscv_elf_name_to_flag (extension));
 }

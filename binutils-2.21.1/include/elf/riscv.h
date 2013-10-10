@@ -82,32 +82,62 @@ END_RELOC_NUMBERS (R_RISCV_maxext)
 
 /* Processor specific flags for the ELF header e_flags field.  */
 
-/* File contains position independent code.  */
-#define EF_RISCV_PIC		0x00000002
+/* Custom flag definitions. */
 
-/* Process the .RISCV.options section first by ld */
-#define EF_RISCV_OPTIONS_FIRST	0x00000080
+#define EF_RISCV_EXT_MASK 0xffff
+#define EF_RISCV_EXT_SH 16
+#define E_RISCV_EXT_Xcustom 0x0000
+#define E_RISCV_EXT_Xhwacha 0x0001
+#define E_RISCV_EXT_RESERVED 0xffff
 
-/* Architectural Extensions used by this file */
-#define EF_RISCV_ARCH_ASE	0x0f000000
+#define EF_GET_RISCV_EXT(x) \
+  ((x >> EF_RISCV_EXT_SH) & EF_RISCV_EXT_MASK)
 
-/* Four bit RISCV architecture field.  */
-#define EF_RISCV_ARCH		0xf0000000
+#define EF_SET_RISCV_EXT(x, ext) \
+  do { x |= ((ext & EF_RISCV_EXT_MASK) << EF_RISCV_EXT_SH); } while (0)
 
-/* RV32 code.  */
-#define E_RISCV_ARCH_RV32 0x10000000
+#define EF_IS_RISCV_EXT_Xcustom(x) \
+  (EF_GET_RISCV_EXT(x) == E_RISCV_EXT_Xcustom)
 
-/* RV64 code.  */
-#define E_RISCV_ARCH_RV64 0x20000000
+/* A mapping from extension names to elf flags  */
 
-/* The ABI of the file.  Also see EF_RISCV_ABI2 above. */
-#define EF_RISCV_ABI		0x0000f000
+struct riscv_extension_entry
+{
+  const char* name;
+  unsigned int flag;
+};
 
-/* The 32-bit abi. */
-#define E_RISCV_ABI_32          0x00001000
+static const struct riscv_extension_entry riscv_extension_map[] =
+{
+  {"Xcustom", E_RISCV_EXT_Xcustom},
+  {"Xhwacha", E_RISCV_EXT_Xhwacha},
+};
 
-/* The 64-bit abi. */
-#define E_RISCV_ABI_64          0x00002000
+/* Given an extension name, return an elf flag. */
+
+static inline const char* riscv_elf_flag_to_name(unsigned int flag)
+{
+  unsigned int i;
+
+  for (i=0; i<sizeof(riscv_extension_map)/sizeof(riscv_extension_map[0]); i++)
+    if (riscv_extension_map[i].flag == flag)
+      return riscv_extension_map[i].name;
+
+  return NULL;
+}
+
+/* Given an elf flag, return an extension name. */
+
+static inline unsigned int riscv_elf_name_to_flag(const char* name)
+{
+  unsigned int i;
+
+  for (i=0; i<sizeof(riscv_extension_map)/sizeof(riscv_extension_map[0]); i++)
+    if (strcmp(riscv_extension_map[i].name, name) == 0)
+      return riscv_extension_map[i].flag;
+
+  return E_RISCV_EXT_Xcustom;
+}
 
 /* Processor specific section indices.  These sections do not actually
    exist.  Symbols with a st_shndx field corresponding to one of these

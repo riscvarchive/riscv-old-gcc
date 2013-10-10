@@ -123,4 +123,7 @@ extern int tc_mips_regname_to_dw2regnum (char *regname);
 #define DWARF2_DEFAULT_RETURN_COLUMN LINK_REG
 #define DWARF2_CIE_DATA_ALIGNMENT (-4)
 
+#define elf_tc_final_processing riscv_elf_final_processing
+extern void riscv_elf_final_processing (void);
+
 #endif /* TC_RISCV */

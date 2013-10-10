@@ -67,10 +67,10 @@ static const char* mips_fpr_names_abi[32] = {
 
 static const char * const mips_vgr_reg_names_riscv[32] =
 {
-  "vzero","vra",  "vs0",  "vs1",  "vs2",  "vs3",  "vs4",  "vs5",
-  "vs6",  "vs7",  "vs8",  "vs9",  "vs10", "vs11", "vsp",  "vtp",
-  "vv0",  "vv1",  "va0",  "va1",  "va2",  "va3",  "va4",  "va5",
-  "va6",  "va7",  "vt0",  "vt1",  "vt2",  "vt3",  "vt4",  "vt5"
+  "vx0",  "vx1",  "vx2",  "vx3",  "vx4",  "vx5",  "vx6",  "vx7",
+  "vx8",  "vx9",  "vx10", "vx11", "vx12", "vx13", "vx14", "vx15",
+  "vx16", "vx17", "vx18", "vx19", "vx20", "vx21", "vx22", "vx23",
+  "vx24", "vx25", "vx26", "vx27", "vx28", "vx29", "vx30", "vx31"
 };
 
 static const char * const mips_vfp_reg_names_riscv[32] =
@@ -283,11 +283,6 @@ print_insn_args (const char *d,
               (*info->fprintf_func)
                 ( info->stream, "%d",
                   (((l >> OP_SH_IMMSEGNELM) & OP_MASK_IMMSEGNELM) + 1));
-              break;
-            case 'm':
-              (*info->fprintf_func)
-                ( info->stream, "%d",
-                  (((l >> OP_SH_IMMSEGSTNELM) & OP_MASK_IMMSEGSTNELM) + 1));
               break;
             case 'd':
               (*info->fprintf_func)
@@ -594,21 +589,26 @@ print_insn_mips (bfd_vma memaddr,
   if (! init)
     {
       unsigned int i;
+      unsigned int e_flags = elf_elfheader (info->section->owner)->e_flags;
+      unsigned int riscv_extension = EF_GET_RISCV_EXT(e_flags);
+      const char * name = riscv_elf_flag_to_name(riscv_extension);
 
       for (i = 0; i <= OP_MASK_OP; i++)
-	{
-	  for (op = riscv_opcodes; op < &riscv_opcodes[NUMOPCODES]; op++)
-	    {
-	      if (op->pinfo == INSN_MACRO
-		  || (no_aliases && (op->pinfo & INSN_ALIAS)))
-		continue;
-	      if (i == ((op->match >> OP_SH_OP) & OP_MASK_OP))
-		{
-		  mips_hash[i] = op;
-		  break;
-		}
-	    }
-	}
+        {
+          for (op = riscv_opcodes; op < &riscv_opcodes[NUMOPCODES]; op++)
+            {
+              if (op->pinfo == INSN_MACRO
+                  || (no_aliases && (op->pinfo & INSN_ALIAS)))
+                continue;
+              if (op->subset[0] == 'X' && strcmp(op->subset, name))
+                continue;
+              if (i == ((op->match >> OP_SH_OP) & OP_MASK_OP))
+                {
+                  mips_hash[i] = op;
+                  break;
+                }
+            }
+        }
 
       init = 1;
     }

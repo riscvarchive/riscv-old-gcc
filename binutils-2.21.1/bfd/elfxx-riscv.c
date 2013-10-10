@@ -375,6 +375,7 @@ typedef struct runtime_pdr {
 } RPDR, *pRPDR;
 #define cbRPDR sizeof (RPDR)
 #define rpdNil ((pRPDR) 0)
+
 
 static struct mips_got_entry *mips_elf_create_local_got_entry
   (bfd *, struct bfd_link_info *, bfd *, bfd_vma, unsigned long,
@@ -5618,11 +5619,16 @@ _bfd_riscv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
   /* Warn about any other mismatches */
   if (new_flags != old_flags)
     {
-      (*_bfd_error_handler)
-	(_("%B: uses different e_flags (0x%lx) fields than previous modules (0x%lx)"),
-	 ibfd, (unsigned long) new_flags,
-	 (unsigned long) old_flags);
-      ok = FALSE;
+      if (!EF_IS_RISCV_EXT_Xcustom(new_flags) &&
+          !EF_IS_RISCV_EXT_Xcustom(old_flags)) {
+        (*_bfd_error_handler)
+          (_("%B: uses different e_flags (0x%lx) fields than previous modules (0x%lx)"),
+           ibfd, (unsigned long) new_flags,
+           (unsigned long) old_flags);
+        ok = FALSE;
+      } else if (EF_IS_RISCV_EXT_Xcustom(new_flags)) {
+        EF_SET_RISCV_EXT(elf_elfheader (obfd)->e_flags, EF_GET_RISCV_EXT(old_flags));
+      }
     }
 
   if (! ok)

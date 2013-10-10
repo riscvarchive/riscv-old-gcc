@@ -2411,25 +2411,11 @@ get_machine_flags (unsigned e_flags, unsigned e_machine)
 	  break;
 
 	case EM_RISCV:
-	  if (e_flags & EF_RISCV_PIC)
-	    strcat (buf, ", pic");
-
-	  if (e_flags & EF_MIPS_OPTIONS_FIRST)
-	    strcat (buf, ", odk first");
-
-	  switch ((e_flags & EF_RISCV_ABI))
-	    {
-	    case E_RISCV_ABI_32: strcat (buf, ", abi32"); break;
-	    case E_RISCV_ABI_64: strcat (buf, ", abi64"); break;
-	    default: strcat (buf, _(", unknown ABI")); break;
-	    }
-
-	  switch ((e_flags & EF_RISCV_ARCH))
-	    {
-	    case E_RISCV_ARCH_RV32: strcat (buf, ", rv32"); break;
-	    case E_RISCV_ARCH_RV64: strcat (buf, ", rv64"); break;
-	    default: strcat (buf, _(", unknown ISA")); break;
-	    }
+          {
+            unsigned int riscv_extension = EF_GET_RISCV_EXT(e_flags);
+            strcat (buf, ", ");
+            strcat (buf, riscv_elf_flag_to_name (riscv_extension));
+          }
 	  break;
 
 	case EM_SH:
