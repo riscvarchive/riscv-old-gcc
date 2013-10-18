@@ -88,6 +88,7 @@ END_RELOC_NUMBERS (R_RISCV_maxext)
 #define EF_RISCV_EXT_SH 16
 #define E_RISCV_EXT_Xcustom 0x0000
 #define E_RISCV_EXT_Xhwacha 0x0001
+#define E_RISCV_EXT_Xhalf   0x0002
 #define E_RISCV_EXT_RESERVED 0xffff
 
 #define EF_GET_RISCV_EXT(x) \
@@ -111,6 +112,7 @@ static const struct riscv_extension_entry riscv_extension_map[] =
 {
   {"Xcustom", E_RISCV_EXT_Xcustom},
   {"Xhwacha", E_RISCV_EXT_Xhwacha},
+  {"Xhalf"  , E_RISCV_EXT_Xhalf},
 };
 
 /* Given an extension name, return an elf flag. */
