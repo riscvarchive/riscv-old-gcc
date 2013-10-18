@@ -537,6 +537,9 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"vmsv",      "Xhwacha", "#d,s", MATCH_VMSV, MASK_VMSV, 0},
 {"vf",        "Xhwacha", "q(b)", MATCH_VF, MASK_VF, 0},
 
+{"vxcptcause",   "Xhwacha", "d", MATCH_VXCPTCAUSE, MASK_VXCPTCAUSE, 0},
+{"vxcptaux",     "Xhwacha", "d", MATCH_VXCPTAUX, MASK_VXCPTAUX, 0},
+
 {"vxcptsave",    "Xhwacha", "s", MATCH_VXCPTSAVE, MASK_VXCPTSAVE, 0},
 {"vxcptrestore", "Xhwacha", "s", MATCH_VXCPTRESTORE, MASK_VXCPTRESTORE, 0},
 {"vxcptkill",    "Xhwacha", "", MATCH_VXCPTKILL, MASK_VXCPTKILL, 0},
