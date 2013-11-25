@@ -44,7 +44,7 @@
   __##syscall_name##_nocancel:						      \
     SAVESTK;								      \
     li v0, SYS_ify(syscall_name);					      \
-    syscall;								      \
+    scall;								      \
     bnez a3, SYSCALL_ERROR_LABEL;			       		      \
     RESTORESTK;								      \
     ret;								      \
@@ -54,7 +54,7 @@
     SINGLE_THREAD_P(v1);						      \
     bnez v1, L(pseudo_cancel);  					      \
     li v0, SYS_ify(syscall_name);					      \
-    syscall;								      \
+    scall;								      \
     bnez a3, SYSCALL_ERROR_LABEL;			       		      \
     RESTORESTK;								      \
     ret;								      \
@@ -67,7 +67,7 @@
       REG_S v0, STKOFF_SVMSK(sp);		/* save mask */			      \
       POPARGS_##args;			/* restore syscall args */	      \
       li v0, SYS_ify (syscall_name);				      	      \
-      syscall;								      \
+      scall;								      \
       REG_S v0, STKOFF_SC_V0(sp);		/* save syscall result */             \
       REG_S a3, STKOFF_SC_ERR(sp);	/* save syscall error flag */	      \
       REG_L a0, STKOFF_SVMSK(sp);		/* pass mask as arg1 */		      \

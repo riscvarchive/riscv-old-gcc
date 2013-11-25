@@ -39,7 +39,7 @@
   .align 2;						\
   ENTRY(name)						\
   li v0, SYS_ify(syscall_name);				\
-  syscall
+  scall
 
 #undef PSEUDO_END_NOERRNO
 #define PSEUDO_END_NOERRNO(sym) .size sym,.-sym
@@ -65,7 +65,7 @@
   99: j __syscall_error;					\
   ENTRY(name)							\
   li v0, SYS_ify(syscall_name);					\
-  syscall;							\
+  scall;							\
   bne a3, zero, 99b;						\
 L(syse1):
 

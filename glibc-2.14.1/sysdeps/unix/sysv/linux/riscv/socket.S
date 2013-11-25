@@ -73,7 +73,7 @@ LEAF (__socket)
 	li    a0, P(SOCKOP_,socket)   /* arg 1: socket subfunction */
 	move  a1, sp			/* arg 2: parameter block */
 	li    v0, SYS_ify (rt_sigprocmask)
-	syscall
+	scall
 
 	addi  sp, sp, SZREG*NARGS
 	bnez	a3, 99f

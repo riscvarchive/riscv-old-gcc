@@ -848,16 +848,14 @@ struct regname {
   unsigned int num;
 };
 
-#define RTYPE_MASK	0x1ff00
-#define RTYPE_NUM	0x00100
-#define RTYPE_FPU	0x00200
-#define RTYPE_VEC	0x00800
-#define RTYPE_GP	0x01000
-#define RTYPE_CP0	0x02000
-#define RTYPE_VGR_REG	0x20000
-#define RTYPE_VFP_REG	0x40000
-#define RNUM_MASK	0x000ff
-#define RWARN		0x80000
+#define RNUM_MASK	    0x000fff
+#define RTYPE_NUM	    0x001000
+#define RTYPE_FPU	    0x002000
+#define RTYPE_VEC	    0x004000
+#define RTYPE_GP	    0x008000
+#define RTYPE_CP0	    0x010000
+#define RTYPE_VGR_REG	0x020000
+#define RTYPE_VFP_REG	0x040000
 
 #define X_REGISTER_NUMBERS \
     {"x0",	RTYPE_NUM | 0},  \
@@ -926,60 +924,6 @@ struct regname {
     {"f29",	RTYPE_FPU | 29}, \
     {"f30",	RTYPE_FPU | 30}, \
     {"f31",	RTYPE_FPU | 31}
-
-#define PCR_REGISTER_NUMBERS \
-    {"cr0",	RTYPE_CP0 | 0},  \
-    {"cr1",	RTYPE_CP0 | 1},  \
-    {"cr2",	RTYPE_CP0 | 2},  \
-    {"cr3",	RTYPE_CP0 | 3},  \
-    {"cr4",	RTYPE_CP0 | 4},  \
-    {"cr5",	RTYPE_CP0 | 5},  \
-    {"cr6",	RTYPE_CP0 | 6},  \
-    {"cr7",	RTYPE_CP0 | 7},  \
-    {"cr8",	RTYPE_CP0 | 8},  \
-    {"cr9",	RTYPE_CP0 | 9},  \
-    {"cr10",	RTYPE_CP0 | 10}, \
-    {"cr11",	RTYPE_CP0 | 11}, \
-    {"cr12",	RTYPE_CP0 | 12}, \
-    {"cr13",	RTYPE_CP0 | 13}, \
-    {"cr14",	RTYPE_CP0 | 14}, \
-    {"cr15",	RTYPE_CP0 | 15}, \
-    {"cr16",	RTYPE_CP0 | 16}, \
-    {"cr17",	RTYPE_CP0 | 17}, \
-    {"cr18",	RTYPE_CP0 | 18}, \
-    {"cr19",	RTYPE_CP0 | 19}, \
-    {"cr20",	RTYPE_CP0 | 20}, \
-    {"cr21",	RTYPE_CP0 | 21}, \
-    {"cr22",	RTYPE_CP0 | 22}, \
-    {"cr23",	RTYPE_CP0 | 23}, \
-    {"cr24",	RTYPE_CP0 | 24}, \
-    {"cr25",	RTYPE_CP0 | 25}, \
-    {"cr26",	RTYPE_CP0 | 26}, \
-    {"cr27",	RTYPE_CP0 | 27}, \
-    {"cr28",	RTYPE_CP0 | 28}, \
-    {"cr29",	RTYPE_CP0 | 29}, \
-    {"cr30",	RTYPE_CP0 | 30}, \
-    {"cr31",	RTYPE_CP0 | 31} 
-
-#define PCR_REGISTER_NAMES \
-    {"sup0",		RTYPE_CP0 | 0},  \
-    {"sup1",		RTYPE_CP0 | 1},  \
-    {"epc",		RTYPE_CP0 | 2},  \
-    {"badvaddr",	RTYPE_CP0 | 3},  \
-    {"ptbr",		RTYPE_CP0 | 4},  \
-    {"asid",		RTYPE_CP0 | 5},  \
-    {"count",		RTYPE_CP0 | 6},  \
-    {"compare",		RTYPE_CP0 | 7},  \
-    {"evec",		RTYPE_CP0 | 8},  \
-    {"cause",		RTYPE_CP0 | 9},  \
-    {"status",		RTYPE_CP0 | 10}, \
-    {"hartid",		RTYPE_CP0 | 11}, \
-    {"impl",		RTYPE_CP0 | 12}, \
-    {"fatc",		RTYPE_CP0 | 13}, \
-    {"send_ipi",	RTYPE_CP0 | 14}, \
-    {"clear_ipi",	RTYPE_CP0 | 15}, \
-    {"tohost",		RTYPE_CP0 | 30}, \
-    {"fromhost",	RTYPE_CP0 | 31} 
 
 /* Remaining symbolic register names */
 #define X_REGISTER_NAMES \
@@ -1159,8 +1103,9 @@ static const struct regname reg_names[] = {
   F_REGISTER_NUMBERS,
   F_REGISTER_NAMES,
 
-  PCR_REGISTER_NUMBERS,
-  PCR_REGISTER_NAMES,
+#define DECLARE_CSR(name, num) {#name, RTYPE_CP0 | num},
+#include "opcode/riscv-opc.h"
+#undef DECLARE_CSR
 
   RISCV_VEC_GR_REGISTER_NAMES,
   RISCV_VEC_FP_REGISTER_NAMES,
@@ -1198,8 +1143,6 @@ reg_lookup (char **s, unsigned int types, unsigned int *regnop)
   /* Advance to next token if a register was recognised.  */
   if (reg >= 0)
     *s = e;
-  else if (types & RWARN)
-    as_warn ("Unrecognized register name `%s'", *s);
 
   *e = save_c;
   if (regnop)
@@ -1539,9 +1482,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  INSERT_OPERAND (RS1, insn, va_arg (args, int));
 	  continue;
 
-	case 'z':
-	  continue;
-
 	case '<':
 	  INSERT_OPERAND (SHAMTW, insn, va_arg (args, int));
 	  continue;
@@ -1556,7 +1496,6 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 
 	case 'b':
 	case 's':
-	case 'E':
 	  INSERT_OPERAND (RS1, insn, va_arg (args, int));
 	  continue;
 
@@ -1878,7 +1817,8 @@ validate_mips_insn (const struct riscv_opcode *opc)
       case '>':	USE_BITS (OP_MASK_SHAMT,	OP_SH_SHAMT);	break;
       case 'A': break;
       case 'D':	USE_BITS (OP_MASK_RD,		OP_SH_RD);	break;
-      case 'E':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
+      case 'Z':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
+      case 'E':	USE_BITS (OP_MASK_CSR,		OP_SH_CSR);	break;
       case 'I': break;
       case 'R':	USE_BITS (OP_MASK_RS3,		OP_SH_RS3);	break;
       case 'S':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
@@ -2297,14 +2237,28 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	    case '>':		/* shift amount, 0-63 */
 	      my_getExpression (&imm_expr, s);
 	      check_absolute_expr (ip, &imm_expr);
+	      if ((unsigned long) imm_expr.X_add_number > (rv64 ? 63 : 31))
+		as_warn (_("Improper shift amount (%lu)"),
+			 (unsigned long) imm_expr.X_add_number);
 	      INSERT_OPERAND (SHAMT, *ip, imm_expr.X_add_number);
+	      imm_expr.X_op = O_absent;
+	      s = expr_end;
+	      continue;
+
+	    case 'Z':		/* CSRRxI immediate */
+	      my_getExpression (&imm_expr, s);
+	      check_absolute_expr (ip, &imm_expr);
+	      if ((unsigned long) imm_expr.X_add_number > 31)
+		as_warn (_("Improper CSRxI immediate (%lu)"),
+			 (unsigned long) imm_expr.X_add_number);
+	      INSERT_OPERAND (RS1, *ip, imm_expr.X_add_number);
 	      imm_expr.X_op = O_absent;
 	      s = expr_end;
 	      continue;
 
 	    case 'E':		/* Control register.  */
 	      ok = reg_lookup (&s, RTYPE_NUM | RTYPE_CP0, &regno);
-	      INSERT_OPERAND (RS1, *ip, regno);
+	      INSERT_OPERAND (CSR, *ip, regno);
 	      if (ok) 
 		continue;
 	      else
@@ -2334,17 +2288,12 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	    case 'd':		/* destination register */
 	    case 's':		/* source register */
 	    case 't':		/* target register */
-	    case 'z':		/* must be zero register */
-	    case 'g':		/* coprocessor destination register */
 	      ok = reg_lookup (&s, RTYPE_NUM | RTYPE_GP, &regno);
 	      if (ok)
 		{
 		  c = *args;
 		  if (*s == ' ')
 		    ++s;
-		  /* 'z' only matches $0.  */
-		  if (c == 'z' && regno != 0)
-		    break;
 
 	/* Now that we have assembled one operand, we use the args string
 	 * to figure out where it goes in the instruction.  */
@@ -2352,38 +2301,14 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		    {
 		    case 's':
 		    case 'b':
-		    case 'E':
 		      INSERT_OPERAND (RS1, *ip, regno);
 		      break;
 		    case 'd':
 		      INSERT_OPERAND (RD, *ip, regno);
 		      break;
-		    case 'g':
-		      INSERT_OPERAND (RS1, *ip, regno);
-		      break;
 		    case 't':
 		      INSERT_OPERAND (RS2, *ip, regno);
 		      break;
-		    case 'x':
-		      /* This case exists because on the r3000 trunc
-			 expands into a macro which requires a gp
-			 register.  On the r6000 or r4000 it is
-			 assembled into a single instruction which
-			 ignores the register.  Thus the insn version
-			 is MIPS_ISA2 and uses 'x', and the macro
-			 version is MIPS_ISA1 and uses 't'.  */
-		      break;
-		    case 'z':
-		      /* This case is for the div instruction, which
-			 acts differently if the destination argument
-			 is $0.  This only matches $0, and is checked
-			 outside the switch.  */
-		      break;
-		    case 'D':
-		      /* Itbl operand; not yet implemented. FIXME ?? */
-		      break;
-		      /* What about all other operands like 'i', which
-			 can be specified in the opcode table? */
 		    }
 		  continue;
 		}
@@ -2435,51 +2360,10 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      s = expr_end;
 	      continue;
 
-	    case 'j':		/* sign-extended RISCV_IMM_BITS immediate */
+	    case 'j': /* sign-extended immediate */
 	      imm_reloc = BFD_RELOC_RISCV_LO12_I;
 	      p = percent_op_itype;
-	      if (!my_getSmallExpression (&imm_expr, &imm_reloc, s, p))
-		{
-		  int more;
-		  offsetT minval, maxval;
-
-		  more = (insn + 1 < &riscv_opcodes[NUMOPCODES]
-			  && strcmp (insn->name, insn[1].name) == 0);
-
-		  /* If the expression was written as an unsigned number,
-		     only treat it as signed if there are no more
-		     alternatives.  */
-		  if (more
-		      && *args == 'j'
-		      && sizeof (imm_expr.X_add_number) <= 4
-		      && imm_expr.X_op == O_constant
-		      && imm_expr.X_add_number < 0
-		      && imm_expr.X_unsigned
-		      && rv64)
-		    break;
-
-		  /* For compatibility with older assemblers, we accept
-		     0x8000-0xffff as signed 16-bit numbers when only
-		     signed numbers are allowed.  */
-		  if (more)
-		    minval = -(signed)RISCV_IMM_REACH/2, maxval = RISCV_IMM_REACH/2-1;
-		  else
-		    minval = -(signed)RISCV_IMM_REACH/2, maxval = RISCV_IMM_REACH-1;
-
-		  if (imm_expr.X_op != O_constant
-		      || imm_expr.X_add_number < minval
-		      || imm_expr.X_add_number > maxval)
-		    {
-		      if (more)
-			break;
-		      if (imm_expr.X_op == O_constant
-			  || imm_expr.X_op == O_big)
-			as_bad (_("expression out of range"));
-		    }
-		}
-	      s = expr_end;
-	      continue;
-
+	      goto alu_op;
 	    case 'q': /* store displacement */
 	      p = percent_op_stype;
 	      offset_reloc = BFD_RELOC_RISCV_LO12_S;
@@ -2497,15 +2381,18 @@ load_store:
 	          offset_expr.X_add_number = 0;
 	          continue;
 	        }
-
+alu_op:
 	      /* If this value won't fit into a 16 bit offset, then go
 	         find a macro that will generate the 32 bit offset
 	         code pattern.  */
-	      if (!my_getSmallExpression (&offset_expr, &offset_reloc, s, p)
-	          && (offset_expr.X_op != O_constant
+	      if (!my_getSmallExpression (&offset_expr, &offset_reloc, s, p))
+		{
+		  normalize_constant_expr (&offset_expr);
+		  if (offset_expr.X_op != O_constant
 	              || offset_expr.X_add_number >= (signed)RISCV_IMM_REACH/2
-	              || offset_expr.X_add_number < -(signed)RISCV_IMM_REACH/2))
-	        break;
+	              || offset_expr.X_add_number < -(signed)RISCV_IMM_REACH/2)
+		    break;
+		}
 
 	      s = expr_end;
 	      continue;

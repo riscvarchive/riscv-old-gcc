@@ -80,7 +80,7 @@ LEAF (__swapcontext)
 	li	a0, SIG_SETMASK
 
 	li	v0, SYS_ify (rt_sigprocmask)
-	syscall
+	scall
 
 	REG_L   v0, 0(sp)
 	addi    sp, sp, SZREG

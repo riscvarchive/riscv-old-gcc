@@ -43,7 +43,7 @@ LEAF (__setcontext)
 	li	a0, SIG_SETMASK
 
 	li	v0, SYS_ify (rt_sigprocmask)
-	syscall
+	scall
 
 	REG_L   v0, 0(sp)
 	addi    sp, sp, SZREG
@@ -125,7 +125,7 @@ LEAF (__setcontext)
 
 /* rt_sigreturn () -- no arguments, sp points to struct rt_sigframe.  */
 	li	v0, SYS_ify (rt_sigreturn)
-	syscall
+	scall
 
 	/* Restore the stack and fall through to the error
 	   path.  Successful rt_sigreturn never returns to

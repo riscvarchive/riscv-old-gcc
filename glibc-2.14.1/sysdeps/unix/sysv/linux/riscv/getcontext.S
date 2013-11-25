@@ -78,7 +78,7 @@ LEAF (__getcontext)
 	li	a0, SIG_BLOCK
 
 	li	v0, SYS_ify (rt_sigprocmask)
-	syscall
+	scall
 	bnez	a3, 99f
 
 	move	v0, zero

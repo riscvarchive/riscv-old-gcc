@@ -47,7 +47,7 @@ LEAF(__vfork)
 
 	/* Do the system call */
 	li		v0,__NR_clone
-	syscall
+	scall
 
 	RESTORE_PID
 

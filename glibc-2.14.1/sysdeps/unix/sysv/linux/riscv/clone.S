@@ -60,7 +60,7 @@ LEAF(__clone)
 
 	/* Do the system call */
 	li		v0,__NR_clone
-	syscall
+	scall
 
 	bnez		a3,L(error)
 	beqz		v0,L(thread_start)
@@ -107,7 +107,7 @@ L(restore_pid):
 	li		v0,-1
 	bnez		a1,L(gotpid)
 	li		v0,__NR_getpid
-	syscall
+	scall
 L(gotpid):
 	lui		a0,%hi(PID_OFFSET)
 	add		a0,a0,tp

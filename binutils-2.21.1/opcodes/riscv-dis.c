@@ -428,16 +428,21 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'E':
-	  /* Coprocessor register for lwcN instructions, et al.
+    {
+      const char* csr_name = "unknown";
+      switch ((l >> OP_SH_CSR) & OP_MASK_CSR)
+        {
+          #define DECLARE_CSR(name, num) case num: csr_name = #name; break;
+          #include "opcode/riscv-opc.h"
+          #undef DECLARE_CSR
+        }
+	    (*info->fprintf_func) (info->stream, "%s", csr_name);
+	    break;
+    }
 
-	     Note that there is no load/store cp0 instructions, and
-	     that FPU (cp1) instructions disassemble this field using
-	     'T' format.  Therefore, until we gain understanding of
-	     cp2 register names, we can simply print the register
-	     numbers.  */
-	  (*info->fprintf_func) (info->stream, "cr%ld",
-				 (l >> OP_SH_RS1) & OP_MASK_RS1);
-	  break;
+  case 'Z':
+	  (*info->fprintf_func) (info->stream, "%d", (l >> OP_SH_RS1) & OP_MASK_RS1);
+    break;
 
 	default:
 	  /* xgettext:c-format */

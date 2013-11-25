@@ -40,7 +40,7 @@ __brk (void *addr)
     res = SYS_ify (brk);
     arg = addr;
 
-    asm ("syscall"		/* Perform the system call.  */
+    asm ("scall"		/* Perform the system call.  */
 	 : "+r" (res)
 	 : "r" (arg)
 	 : "a3", __SYSCALL_CLOBBERS);

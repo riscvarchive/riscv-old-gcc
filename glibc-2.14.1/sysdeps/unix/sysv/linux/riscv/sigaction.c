@@ -178,7 +178,7 @@ asm						\
    ".align 4\n"					\
    "__" #name ":\n"				\
    "	li v0, " #syscall "\n"			\
-   "	syscall\n"				\
+   "	scall\n"				\
    );
 
 /* The return code for realtime-signals.  */
