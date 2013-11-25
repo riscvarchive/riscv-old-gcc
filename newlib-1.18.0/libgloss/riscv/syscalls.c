@@ -308,8 +308,7 @@ clock_t times(struct tms* buf)
 
 int gettimeofday(struct timeval* tp, void* tzp)
 {
-  tp->tv_sec = tp->tv_usec = 0;
-  return 0;
+  return syscall_errno(SYS_gettimeofday, tp, 0, 0, 0);
 }
 
 //----------------------------------------------------------------------
