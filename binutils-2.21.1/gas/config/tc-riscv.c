@@ -1487,6 +1487,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
               continue;
             case 'p':
               INSERT_OPERAND( CUSTOM_IMM, insn, va_arg (args, int) );
+              continue;
             case 'n':
               INSERT_OPERAND( IMMSEGNELM, insn, va_arg( args, int ) - 1 );
               continue;
