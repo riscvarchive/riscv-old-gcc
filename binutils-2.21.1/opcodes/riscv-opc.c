@@ -581,6 +581,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"vsetcfg",   "Xhwacha", "s", MATCH_VSETCFG, MASK_VSETCFG | MASK_IMM, 0},
 {"vsetcfg",   "Xhwacha", "#g,#f", MATCH_VSETCFG, MASK_VSETCFG | MASK_RS1, 0},
 {"vsetcfg",   "Xhwacha", "s,#g,#f", MATCH_VSETCFG, MASK_VSETCFG, 0},
+{"vsetprec",  "Xhwacha", "#p", MATCH_VSETPREC, MASK_VSETPREC, 0},
 {"vsetvl",    "Xhwacha", "d,s", MATCH_VSETVL, MASK_VSETVL, 0},
 {"vgetcfg",   "Xhwacha", "d", MATCH_VGETCFG, MASK_VGETCFG, 0},
 {"vgetvl",    "Xhwacha", "d", MATCH_VGETVL, MASK_VGETVL, 0},

@@ -279,6 +279,10 @@ print_insn_args (const char *d,
                 ( info->stream, "%d",
                   ((l >> OP_SH_IMMNFPR) & OP_MASK_IMMNFPR));
               break;
+            case 'p':
+              (*info->fprintf_func)
+                ( info->stream, "%d",
+                 ((l >> OP_SH_CUSTOM_IMM) & OP_MASK_CUSTOM_IMM));
             case 'n':
               (*info->fprintf_func)
                 ( info->stream, "%d",
