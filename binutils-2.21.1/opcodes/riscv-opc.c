@@ -285,9 +285,12 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"remuw",     "64M", "d,s,t",  MATCH_REMUW, MASK_REMUW,  WR_xd|RD_xs1|RD_xs2 },
 
 /* Single-precision floating-point instruction subset */
-{"frsr",      "F",   "d",  MATCH_FRSR, MASK_FRSR,  WR_xd },
-{"fssr",      "F",   "s",  MATCH_FSSR, MASK_FSSR | MASK_RD,  RD_xs1 },
-{"fssr",      "F",   "d,s",  MATCH_FSSR, MASK_FSSR,  WR_xd|RD_xs1 },
+{"frsr",      "F",   "d",  MATCH_FRCSR, MASK_FRCSR,  WR_xd },
+{"fssr",      "F",   "s",  MATCH_FSCSR, MASK_FSCSR | MASK_RD,  RD_xs1 },
+{"fssr",      "F",   "d,s",  MATCH_FSCSR, MASK_FSCSR,  WR_xd|RD_xs1 },
+{"frcsr",     "F",   "d",  MATCH_FRCSR, MASK_FRCSR,  WR_xd },
+{"fscsr",     "F",   "s",  MATCH_FSCSR, MASK_FSCSR | MASK_RD,  RD_xs1 },
+{"fscsr",     "F",   "d,s",  MATCH_FSCSR, MASK_FSCSR,  WR_xd|RD_xs1 },
 {"frrm",      "F",   "d",  MATCH_FRRM, MASK_FRRM,  WR_xd },
 {"fsrm",      "F",   "s",  MATCH_FSRM, MASK_FSRM | MASK_RD,  RD_xs1 },
 {"fsrm",      "F",   "d,s",  MATCH_FSRM, MASK_FSRM,  WR_xd|RD_xs1 },
