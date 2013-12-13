@@ -222,6 +222,9 @@ struct riscv_opcode
      then we have found the correct instruction.  If pinfo is
      INSN_MACRO, then this field is the macro identifier.  */
   unsigned long mask;
+  /* A function to determine if a word corresponds to this instruction.
+     Usually, this computes ((word & mask) == match). */
+  int (*match_func)(const struct riscv_opcode *op, unsigned long word);
   /* For a macro, this is INSN_MACRO.  Otherwise, it is a collection
      of bits describing the instruction, notably any relevant hazard
      information.  */
@@ -278,12 +281,6 @@ enum
   M_JAL,
   M_J,
   M_LI,
-  M_FMV_S,
-  M_FABS_S,
-  M_FNEG_S,
-  M_FMV_D,
-  M_FABS_D,
-  M_FNEG_D,
   M_NUM_MACROS
 };
 

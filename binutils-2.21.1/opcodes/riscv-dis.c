@@ -239,6 +239,9 @@ print_insn_args (const char *d,
 		 bfd_vma pc,
 		 struct disassemble_info *info)
 {
+  if (*d != '\0')
+    (*info->fprintf_func) (info->stream, "\t");
+
   for (; *d != '\0'; d++)
     {
       switch (*d)
@@ -408,6 +411,7 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'S':
+	case 'U':
 	  (*info->fprintf_func) (info->stream, "%s",
 				 mips_fpr_names[(l >> OP_SH_RS1) & OP_MASK_RS1]);
 	  break;
@@ -587,6 +591,7 @@ print_insn_mips (bfd_vma memaddr,
 {
   const struct riscv_opcode *op;
   static bfd_boolean init = 0;
+  static const char *extension = NULL;
   static const struct riscv_opcode *mips_hash[OP_MASK_OP + 1];
   int insnlen;
 
@@ -595,25 +600,15 @@ print_insn_mips (bfd_vma memaddr,
     {
       unsigned int i;
       unsigned int e_flags = elf_elfheader (info->section->owner)->e_flags;
-      unsigned int riscv_extension = EF_GET_RISCV_EXT(e_flags);
-      const char * name = riscv_elf_flag_to_name(riscv_extension);
+      extension = riscv_elf_flag_to_name(EF_GET_RISCV_EXT(e_flags));
 
       for (i = 0; i <= OP_MASK_OP; i++)
-        {
-          for (op = riscv_opcodes; op < &riscv_opcodes[NUMOPCODES]; op++)
+        for (op = riscv_opcodes; op < &riscv_opcodes[NUMOPCODES]; op++)
+          if (i == ((op->match >> OP_SH_OP) & OP_MASK_OP))
             {
-              if (op->pinfo == INSN_MACRO
-                  || (no_aliases && (op->pinfo & INSN_ALIAS)))
-                continue;
-              if (op->subset[0] == 'X' && strcmp(op->subset, name))
-                continue;
-              if (i == ((op->match >> OP_SH_OP) & OP_MASK_OP))
-                {
-                  mips_hash[i] = op;
-                  break;
-                }
+              mips_hash[i] = op;
+              break;
             }
-        }
 
       init = 1;
     }
@@ -639,21 +634,12 @@ print_insn_mips (bfd_vma memaddr,
     {
       for (; op < &riscv_opcodes[NUMOPCODES]; op++)
 	{
-	  if (op->pinfo != INSN_MACRO 
+	  if ((op->match_func) (op, word)
 	      && !(no_aliases && (op->pinfo & INSN_ALIAS))
-	      && (word & op->mask) == op->match)
+	      && !(op->subset[0] == 'X' && strcmp(op->subset, extension)))
 	    {
-	      const char *d;
-
 	      (*info->fprintf_func) (info->stream, "%s", op->name);
-
-	      d = op->args;
-	      if (d != NULL && *d != '\0')
-		{
-		  (*info->fprintf_func) (info->stream, "\t");
-		  print_insn_args (d, word, memaddr, info);
-		}
-
+	      print_insn_args (op->args, word, memaddr, info);
 	      return insnlen;
 	    }
 	}

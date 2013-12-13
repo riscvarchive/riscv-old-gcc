@@ -1418,97 +1418,20 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
     {
       switch (*fmt++)
 	{
-	case '\0':
-	  break;
-        case '#':
-          switch ( *fmt++ ) {
-            case 'g':
-              INSERT_OPERAND( IMMNGPR, insn, va_arg( args, int ) );
-              continue;
-            case 'f':
-              INSERT_OPERAND( IMMNFPR, insn, va_arg( args, int ) );
-              continue;
-            case 'n':
-              INSERT_OPERAND( IMMSEGNELM, insn, va_arg( args, int ) - 1 );
-              continue;
-            case 'd':
-              INSERT_OPERAND( VRD, insn, va_arg( args, int ) );
-              continue;
-            case 's':
-              INSERT_OPERAND( VRS, insn, va_arg( args, int ) );
-              continue;
-            case 't':
-              INSERT_OPERAND( VRT, insn, va_arg( args, int ) );
-              continue;
-            case 'r':
-              INSERT_OPERAND( VRR, insn, va_arg( args, int ) );
-              continue;
-            case 'D':
-              INSERT_OPERAND( VFD, insn, va_arg( args, int ) );
-              continue;
-            case 'S':
-              INSERT_OPERAND( VFS, insn, va_arg( args, int ) );
-              continue;
-            case 'T':
-              INSERT_OPERAND( VFT, insn, va_arg( args, int ) );
-              continue;
-            case 'R':
-              INSERT_OPERAND( VFR, insn, va_arg( args, int ) );
-              continue;
-            default:
-              internalError();
-          }
-          continue;
+	case 'd':
+	  INSERT_OPERAND (RD, insn, va_arg (args, int));
+	  continue;
 
-	case ',':
-	case '(':
-	case ')':
+	case 's':
+	  INSERT_OPERAND (RS1, insn, va_arg (args, int));
 	  continue;
 
 	case 't':
 	  INSERT_OPERAND (RS2, insn, va_arg (args, int));
 	  continue;
 
-	case 'T':
-	case 'W':
-	  INSERT_OPERAND (RS2, insn, va_arg (args, int));
-	  continue;
-
-	case 'd':
-	  INSERT_OPERAND (RD, insn, va_arg (args, int));
-	  continue;
-
-	case 'S':
-	  INSERT_OPERAND (RS1, insn, va_arg (args, int));
-	  continue;
-
-	case '<':
-	  INSERT_OPERAND (SHAMTW, insn, va_arg (args, int));
-	  continue;
-
 	case '>':
 	  INSERT_OPERAND (SHAMT, insn, va_arg (args, int));
-	  continue;
-
-	case 'D':
-	  INSERT_OPERAND (RD, insn, va_arg (args, int));
-	  continue;
-
-	case 'b':
-	case 's':
-	  INSERT_OPERAND (RS1, insn, va_arg (args, int));
-	  continue;
-
-	case 'm':
-	  INSERT_OPERAND (RM, insn, va_arg (args, int));
-	  continue;
-
-	case 'P':
-	  INSERT_OPERAND (PRED, insn, va_arg (args, int));
-	  continue;
-
-	case 'Q':
-	  INSERT_OPERAND (SUCC, insn, va_arg (args, int));
 	  continue;
 
 	case 'j':
@@ -1517,16 +1440,10 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 	  r = va_arg (args, int);
 	  continue;
 
-	case 'p':
-	  gas_assert (ep != NULL);
-	  r = BFD_RELOC_12_PCREL;
+	case '\0':
+	  break;
+	case ',':
 	  continue;
-
-	case 'a':
-	  gas_assert (ep != NULL);
-	  r = BFD_RELOC_MIPS_JMP;
-	  continue;
-
 	default:
 	  internalError ();
 	}
@@ -1567,31 +1484,11 @@ normalize_address_expr (expressionS *ex)
 			- 0x80000000);
 }
 
-/*
- * Generate a "lui" instruction.
- */
-static void
-macro_build_lui (const char* name, expressionS *ep, int regnum, bfd_reloc_code_real_type reloc)
-{
-  const struct riscv_opcode *mo;
-  struct mips_cl_insn insn;
-
-  gas_assert (ep->X_op == O_symbol);
-
-  mo = hash_find (op_hash, name);
-  gas_assert (mo);
-  create_insn (&insn, mo);
-
-  insn.insn_opcode = insn.insn_mo->match;
-  INSERT_OPERAND (RD, insn, regnum);
-  append_insn (&insn, ep, reloc);
-}
-
 /* Load a static address. */
 static void
 load_static_addr (int destreg, expressionS *ep)
 {
-  macro_build_lui ("lui", ep, destreg, BFD_RELOC_RISCV_HI20);
+  macro_build (ep, "lui", "d,u", destreg, BFD_RELOC_RISCV_HI20);
   macro_build (ep, "addi", "d,s,j", destreg, destreg, BFD_RELOC_RISCV_LO12_I);
 }
 
@@ -1601,7 +1498,7 @@ load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
                bfd_reloc_code_real_type hi_reloc,
 	       bfd_reloc_code_real_type lo_reloc)
 {
-  macro_build_lui ("auipc", ep, tempreg, hi_reloc);
+  macro_build (ep, "auipc", "d,u", tempreg, hi_reloc);
   macro_build (ep, lo_insn, "d,s,j", destreg, tempreg, lo_reloc);
 }
 
@@ -1609,7 +1506,7 @@ load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
 static void
 riscv_call (int destreg, int tempreg, expressionS *ep)
 {
-  macro_build_lui ("auipc", ep, tempreg, BFD_RELOC_RISCV_CALL);
+  macro_build (ep, "auipc", "d,u", tempreg, BFD_RELOC_RISCV_CALL);
   macro_build (NULL, "jalr", "d,s", destreg, tempreg);
 }
 
@@ -1689,7 +1586,6 @@ macro (struct mips_cl_insn *ip)
 {
   unsigned int rd, rs1;
   int mask;
-  const char* name;
 
   rd = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
   rs1 = (ip->insn_opcode >> OP_SH_RS1) & OP_MASK_RS1;
@@ -1740,16 +1636,6 @@ macro (struct mips_cl_insn *ip)
       /* rd == 0 */
     case M_JAL:
       riscv_call (rd, rs1, &offset_expr);
-      break;
-
-    case M_FMV_S:  name = "fsgnj.s";  goto fmv_macro;
-    case M_FMV_D:  name = "fsgnj.d";  goto fmv_macro;
-    case M_FNEG_S: name = "fsgnjn.s"; goto fmv_macro;
-    case M_FNEG_D: name = "fsgnjn.d"; goto fmv_macro;
-    case M_FABS_S: name = "fsgnjx.s"; goto fmv_macro;
-    case M_FABS_D: name = "fsgnjx.d"; goto fmv_macro;
-fmv_macro:
-      macro_build (NULL, name, "D,S,T", rd, rs1, rs1);
       break;
 
     default:
@@ -1822,6 +1708,7 @@ validate_mips_insn (const struct riscv_opcode *opc)
       case 'I': break;
       case 'R':	USE_BITS (OP_MASK_RS3,		OP_SH_RS3);	break;
       case 'S':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
+      case 'U':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	/* fallthru */
       case 'T':	USE_BITS (OP_MASK_RS2,		OP_SH_RS2);	break;
       case 'b':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
       case 'd':	USE_BITS (OP_MASK_RD,		OP_SH_RD);	break;
@@ -2314,10 +2201,11 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		}
 	      break;
 
-	    case 'D':		/* floating point destination register */
-	    case 'S':		/* floating point source register */
-	    case 'T':		/* floating point target register */
-	    case 'R':		/* floating point source register */
+	    case 'D':		/* floating point rd */
+	    case 'S':		/* floating point rs1 */
+	    case 'T':		/* floating point rs2 */
+	    case 'U':		/* floating point rs1 and rs2 */
+	    case 'R':		/* floating point rs3 */
 	      rtype = RTYPE_FPU;
 	      if (reg_lookup (&s, rtype, &regno))
 		{
@@ -2332,6 +2220,9 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		    case 'S':
 		      INSERT_OPERAND (RS1, *ip, regno);
 		      break;
+		    case 'U':
+		      INSERT_OPERAND (RS1, *ip, regno);
+		      /* fallthru */
 		    case 'T':
 		      INSERT_OPERAND (RS2, *ip, regno);
 		      break;
