@@ -277,8 +277,8 @@ enum
   M_LD,
   M_FLW,
   M_FLD,
-  M_JAL_RA,
-  M_JAL,
+  M_CALL,
+  M_JUMP,
   M_J,
   M_LI,
   M_NUM_MACROS

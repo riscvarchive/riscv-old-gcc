@@ -88,7 +88,6 @@
 
 (define_constants
   [(RETURN_ADDR_REGNUM		1)
-   (V1_REGNUM			17)
    (GOT_VERSION_REGNUM		130)
 
    (UNSPEC_RISCV_VLOAD          700)
@@ -2650,10 +2649,9 @@
 
 (define_insn "sibcall_internal"
   [(call (mem:SI (match_operand 0 "call_insn_operand" "j,S"))
-	 (match_operand 1 "" ""))
-   (clobber (reg:SI V1_REGNUM))]
+	 (match_operand 1 "" ""))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[0]) ? "jr\t%0" : "j\t%0, v1"; }
+  { return REG_P (operands[0]) ? "jr\t%0" : "jump\t%0"; }
   [(set_attr "type" "call")])
 
 (define_expand "sibcall_value"
@@ -2670,10 +2668,9 @@
 (define_insn "sibcall_value_internal"
   [(set (match_operand 0 "register_operand" "")
         (call (mem:SI (match_operand 1 "call_insn_operand" "j,S"))
-              (match_operand 2 "" "")))
-   (clobber (reg:SI V1_REGNUM))]
+              (match_operand 2 "" "")))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1, v1"; }
+  { return REG_P (operands[1]) ? "jr\t%1" : "jump\t%1"; }
   [(set_attr "type" "call")])
 
 (define_insn "sibcall_value_multiple_internal"
@@ -2685,7 +2682,7 @@
 	      (match_dup 2)))
    (clobber (match_scratch:SI 4 "=j,j"))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" : "j\t%1, v1"; }
+  { return REG_P (operands[1]) ? "jr\t%1" : "jump\t%1"; }
   [(set_attr "type" "call")])
 
 (define_expand "call"
@@ -2702,10 +2699,9 @@
 (define_insn "call_internal"
   [(call (mem:SI (match_operand 0 "call_insn_operand" "r,S"))
 	 (match_operand 1 "" ""))
-   (clobber (reg:SI V1_REGNUM))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[0]) ? "jalr\t%0" : "jal\t%0, v1"; }
+  { return REG_P (operands[0]) ? "jalr\t%0" : "call\t%0"; }
   [(set_attr "jal" "indirect,direct")])
 
 (define_expand "call_value"
@@ -2724,10 +2720,9 @@
   [(set (match_operand 0 "register_operand" "")
         (call (mem:SI (match_operand 1 "call_insn_operand" "r,S"))
               (match_operand 2 "" "")))
-   (clobber (reg:SI V1_REGNUM))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" : "jal\t%1, v1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1" : "call\t%1"; }
   [(set_attr "jal" "indirect,direct")])
 
 ;; See comment for call_internal.
@@ -2738,10 +2733,9 @@
    (set (match_operand 3 "register_operand" "")
 	(call (mem:SI (match_dup 1))
 	      (match_dup 2)))
-   (clobber (reg:SI V1_REGNUM))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" : "jal\t%1, v1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1" : "call\t%1"; }
   [(set_attr "jal" "indirect,direct")])
 
 ;; Call subroutine returning any type.

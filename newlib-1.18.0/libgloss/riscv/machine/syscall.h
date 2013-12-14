@@ -32,6 +32,7 @@
 #define SYS_rt_sigaction 134
 #define SYS_writev 66
 #define SYS_gettimeofday 169
+#define SYS_times 153
 
 typedef struct
 {

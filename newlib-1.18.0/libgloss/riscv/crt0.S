@@ -98,14 +98,14 @@
 _start:
         la      gp, _gp                 # Initialize global pointer
 
-        jal     _init                   # Run global initialization functions
+        call    _init                   # Run global initialization functions
 
         la      a0, _fini               # Register global termination functions
-        jal     atexit                  #  to be called upon exit
+        call    atexit                  #  to be called upon exit
 
         lw      a0, 0(sp)               # a0 = argc
         addi    a1, sp, _RISCV_SZPTR/8  # a1 = argv
-        jal     main
+        call    main
         
         move    a0, v0                  # Call exit function with return value
-        jal     exit                    #  from main as exit code
+        jump    exit                    #  from main as exit code

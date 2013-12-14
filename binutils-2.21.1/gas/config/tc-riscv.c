@@ -1150,6 +1150,14 @@ reg_lookup (char **s, unsigned int types, unsigned int *regnop)
   return reg >= 0;
 }
 
+static unsigned int
+reg_lookup_assert (const char *s, unsigned int types)
+{
+  struct regname *r = (struct regname *) hash_find (reg_names_hash, s);
+  gas_assert (r != NULL && (r->num & types));
+  return r->num & RNUM_MASK;
+}
+
 static int
 arg_lookup(char **s, const char* const* array, size_t size, unsigned *regnop)
 {
@@ -1630,11 +1638,13 @@ macro (struct mips_cl_insn *ip)
                     BFD_RELOC_RISCV_TLS_GOT_HI20, BFD_RELOC_RISCV_TLS_GOT_LO12);
       break;
 
-    case M_JAL_RA:
+    case M_JUMP:
+      rd = 0;
+      goto do_call;
+    case M_CALL:
       rd = LINK_REG;
-    case M_J:
-      /* rd == 0 */
-    case M_JAL:
+do_call:
+      rs1 = reg_lookup_assert ("t0", RTYPE_GP);
       riscv_call (rd, rs1, &offset_expr);
       break;
 
