@@ -1610,8 +1610,6 @@ macro (struct mips_cl_insn *ip)
       /* Load the address of a symbol into a register. */
       if (!IS_SEXT_32BIT_NUM (offset_expr.X_add_number))
         as_bad(_("offset too large"));
-      if (rs1 == rd && rs1 != ZERO)
-        as_bad(_("expression too complex: dest and base regs must differ"));
 
       if (offset_expr.X_op == O_constant)
         load_const (rd, &offset_expr);
@@ -1623,9 +1621,6 @@ macro (struct mips_cl_insn *ip)
       else /* PIC local symbol */
 	load_got_addr (rd, rd, &offset_expr, "addi",
 	               BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_LO12_I);
-
-      if (rs1 != ZERO)
-        macro_build (NULL, "add", "d,s,t", rd, rd, rs1);
       break;
 
     case M_LA_TLS_GD: 
@@ -1720,7 +1715,6 @@ validate_mips_insn (const struct riscv_opcode *opc)
       case 'S':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
       case 'U':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	/* fallthru */
       case 'T':	USE_BITS (OP_MASK_RS2,		OP_SH_RS2);	break;
-      case 'b':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
       case 'd':	USE_BITS (OP_MASK_RD,		OP_SH_RD);	break;
       case 'm':	USE_BITS (OP_MASK_RM,		OP_SH_RM);	break;
       case 's':	USE_BITS (OP_MASK_RS1,		OP_SH_RS1);	break;
@@ -2079,16 +2073,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
                 }
               break;
 
-	    case '0': /* memory instruction with 0-offset (namely, AMOs) */
-	      p = percent_op_rtype;
-	      if (!my_getSmallExpression (&offset_expr, &offset_reloc, s, p)
-		  && (offset_expr.X_op != O_constant
-		      || offset_expr.X_add_number != 0))
-		break;
-
-	      s = expr_end;
-	      continue;
-
 	    case ',':
 	      ++argnum;
 	      if (*s++ == *args)
@@ -2097,17 +2081,7 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	      break;
 
 	    case '(':
-	      /* Handle optional base register.
-		 Either the base register is omitted or
-		 we must have a left paren.  */
-	      /* This is dependent on the next operand specifier
-		 is a base register specification.  */
-	      gas_assert (args[1] == 'b' || args[1] == '5'
-		      || args[1] == '-' || args[1] == '4');
-	      if (*s == '\0')
-		return;
-
-	    case ')':		/* these must match exactly */
+	    case ')':
 	    case '[':
 	    case ']':
 	      if (*s++ == *args)
@@ -2181,7 +2155,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
                 }
               break;
 
-	    case 'b':		/* base register */
 	    case 'd':		/* destination register */
 	    case 's':		/* source register */
 	    case 't':		/* target register */
@@ -2197,7 +2170,6 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 		  switch (c)
 		    {
 		    case 's':
-		    case 'b':
 		      INSERT_OPERAND (RS1, *ip, regno);
 		      break;
 		    case 'd':
@@ -2272,6 +2244,10 @@ mips_ip (char *str, struct mips_cl_insn *ip)
 	    case 'o': /* load displacement */
 	      p = percent_op_itype;
 	      offset_reloc = BFD_RELOC_RISCV_LO12_I;
+	      goto load_store;
+	    case '0': /* AMO "displacement," which must be zero */
+	      p = percent_op_rtype;
+	      offset_reloc = BFD_RELOC_UNUSED;
 load_store:
 	      /* Check whether there is only a single bracketed expression
 	         left.  If so, it must be the base register and the
@@ -2290,6 +2266,7 @@ alu_op:
 		{
 		  normalize_constant_expr (&offset_expr);
 		  if (offset_expr.X_op != O_constant
+		      || (*args == '0' && offset_expr.X_add_number != 0)
 	              || offset_expr.X_add_number >= (signed)RISCV_IMM_REACH/2
 	              || offset_expr.X_add_number < -(signed)RISCV_IMM_REACH/2)
 		    break;

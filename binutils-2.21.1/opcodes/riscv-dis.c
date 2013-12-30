@@ -339,7 +339,6 @@ print_insn_args (const char *d,
 	  break;
 
 	case '0':
-	  (*info->fprintf_func) (info->stream, "0");
 	  break;
 
 	case 'b':

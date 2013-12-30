@@ -15,7 +15,7 @@ strcmp:
   li    v0, 0
   bnez  v1, .Lmisaligned
 
-  la    t3, 0x7f7f7f7f
+  li    t3, 0x7f7f7f7f
 #if SZREG == 8
   sll   t0, t3, 32
   add   t3, t3, t0
