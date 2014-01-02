@@ -1379,16 +1379,6 @@
   [(set_attr "move_type" "arith,store")
    (set_attr "mode" "SI")])
 
-(define_insn "truncdi<mode>2"
-  [(set (match_operand:SHORT 0 "nonimmediate_operand" "=d,m")
-        (truncate:SHORT (match_operand:DI 1 "register_operand" "d,d")))]
-  "TARGET_64BIT"
-  "@
-    #nop
-    <store>\t%1,%0"
-  [(set_attr "move_type" "arith,store")
-   (set_attr "mode" "SI")])
-
 ;; Combiner patterns to optimize shift/truncate combinations.
 
 (define_insn "*ashr_trunc<mode>"
