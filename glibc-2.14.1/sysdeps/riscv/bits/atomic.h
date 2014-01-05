@@ -38,92 +38,110 @@ typedef uintptr_t uatomicptr_t;
 typedef intmax_t atomic_max_t;
 typedef uintmax_t uatomic_max_t;
 
-#define asm_amo(which, res, mem, value) \
-  asm volatile (which "\t%0, %1, 0(%2)" : "=r"(res) : "r"(value), "r"(mem))
+#define asm_amo(which, ordering, mem, value) ({ 		\
+  typeof(*mem) __tmp; 						\
+  if (sizeof(__tmp) == 4)					\
+    asm volatile (which ".w" ordering "\t%0, %z1, (%2)" : "=r"(__tmp) : "dJ"(value), "r"(mem)); \
+  else if (sizeof(__tmp) == 8)					\
+    asm volatile (which ".d" ordering "\t%0, %z1, (%2)" : "=r"(__tmp) : "dJ"(value), "r"(mem)); \
+  else								\
+    abort();							\
+  __tmp; })
+
+#define asm_load_reserved(ordering, mem) ({ 			\
+  typeof(*mem) __tmp; 						\
+  if (sizeof(__tmp) == 4)					\
+    asm volatile ("lr.w" ordering "\t%0, (%1)" : "=r"(__tmp) : "r"(mem)); \
+  else if (sizeof(__tmp) == 8)					\
+    asm volatile ("lr.d" ordering "\t%0, (%1)" : "=r"(__tmp) : "r"(mem)); \
+  else								\
+    abort();							\
+  __tmp; })
+
+#define asm_store_conditional(ordering, mem, value) \
+  asm_amo("sc", ordering, mem, value)
 
 /* Atomic compare and exchange. */
 
-#define atomic_compare_and_exchange_val_acq(mem, newval, oldval)         \
-  ({ __sync_synchronize();                      \
-     __sync_val_compare_and_swap(mem, oldval, newval); })
+#define atomic_cas(ordering, mem, newval, oldval) ({ 	\
+  typeof(*mem) __tmp; 						\
+  int __tmp2; 							\
+  if (sizeof(__tmp) == 4)					\
+    asm volatile ("1: lr.w" ordering "\t%0, (%2)\n"		\
+                  "bne\t%0, %z4, 1f\n"				\
+		  "sc.w" ordering "\t%1, %z3, (%2)\n"		\
+		  "bnez\t%1, 1b\n"				\
+		  "1:"						\
+		  : "=&r"(__tmp), "=&r"(__tmp2) : "r"(mem), "dJ"(newval), "dJ"(oldval)); \
+  else if (sizeof(__tmp) == 8)					\
+    asm volatile ("1: lr.d" ordering "\t%0, (%2)\n"		\
+                  "bne\t%0, %z4, 1f\n"				\
+		  "sc.d" ordering "\t%1, %z3, (%2)\n"		\
+		  "bnez\t%1, 1b\n"				\
+		  "1:"						\
+		  : "=&r"(__tmp), "=&r"(__tmp2) : "r"(mem), "dJ"(newval), "dJ"(oldval)); \
+  else								\
+    abort();							\
+  __tmp; })
 
-#define atomic_compare_and_exchange_val_rel(mem, newval, oldval)         \
-  ({ typeof(*mem) __prev;                       \
-     __prev = __sync_val_compare_and_swap(mem, value);  \
-     __sync_synchronize();                      \
-     __prev; })
+#define atomic_cas_bool(ordering, mem, newval, oldval) ({ 	\
+  __label__ failure, success;					\
+  typeof(*mem) __tmp; 						\
+  int __res;							\
+  if (sizeof(__tmp) == 4)					\
+    asm goto ("1: lr.w" ordering "\tt3, (%0)\n"			\
+                  "bne\tt3, %z2, %l[failure]\n"			\
+		  "sc.w" ordering "\tt3, %z1, (%0)\n"		\
+		  "bnez\tt3, 1b"				\
+		  : : "r"(mem), "dJ"(newval), "dJ"(oldval) : "t3" : failure); \
+  else if (sizeof(__tmp) == 8)					\
+    asm goto ("1: lr.d" ordering "\tt3, (%0)\n"			\
+                  "bne\tt3, %z2, %l[failure]\n"			\
+		  "sc.d" ordering "\tt3, %z1, (%0)\n"		\
+		  "bnez\tt3, 1b"				\
+		  : : "r"(mem), "dJ"(newval), "dJ"(oldval) : "t3" : failure); \
+  else								\
+    abort();							\
+  __res = 0;							\
+  goto success;							\
+failure:							\
+  __res = 1;							\
+success:							\
+  __res; })
+
+#define atomic_compare_and_exchange_val_acq(mem, newval, oldval) \
+  atomic_cas(".aq", mem, newval, oldval)
+
+#define atomic_compare_and_exchange_val_rel(mem, newval, oldval) \
+  atomic_cas(".rl", mem, newval, oldval)
+
+#define atomic_compare_and_exchange_bool_acq(mem, newval, oldval) \
+  atomic_cas_bool(".aq", mem, newval, oldval)
+
+#define atomic_compare_and_exchange_bool_rel(mem, newval, oldval) \
+  atomic_cas_bool(".rl", mem, newval, oldval)
 
 /* Atomic exchange (without compare).  */
 
-#define atomic_exchange_acq(mem, value)         \
-  ({ typeof(*mem) __prev;                       \
-      if (sizeof(*mem) == 4)				\
-	asm_amo("amoswap.w.aq", __prev, mem, value);	\
-      else if(sizeof(*mem) == 8)			\
-	asm_amo("amoswap.d.aq", __prev, mem, value);	\
-      else						\
-	abort();					\
-     __prev; })
-
-#define atomic_exchange_rel(mem, value)         \
-  ({ typeof(*mem) __prev;                       \
-      if (sizeof(*mem) == 4)				\
-	asm_amo("amoswap.w.rl", __prev, mem, value);	\
-      else if(sizeof(*mem) == 8)			\
-	asm_amo("amoswap.d.rl", __prev, mem, value);	\
-      else						\
-	abort();					\
-     __prev; })
+#define atomic_exchange_acq(mem, value) asm_amo("amoswap", ".aq", mem, value)
+#define atomic_exchange_rel(mem, value) asm_amo("amoswap", ".rl", mem, value)
 
 
 /* Atomically add value and return the previous (unincremented) value.  */
 
-#define atomic_exchange_and_add(mem, value)             \
-  ({ typeof(*mem) __prev;                               \
-      if (sizeof(*mem) == 4)				\
-	asm_amo("amoadd.w", __prev, mem, value);	\
-      else if(sizeof(*mem) == 8)			\
-	asm_amo("amoadd.d", __prev, mem, value);	\
-      else						\
-	abort();					\
-     __prev; })
+#define atomic_exchange_and_add(mem, value) asm_amo("amoadd", "", mem, value)
+
+#define atomic_max(mem, value) asm_amo("amomaxu", "", mem, value)
+#define atomic_min(mem, value) asm_amo("amominu", "", mem, value)
+
+#define atomic_bit_test_set(mem, bit)                   \
+  ({ typeof(*mem) __mask = (typeof(*mem))1 << (bit);    \
+     asm_amo("amoor", "", mem, __mask) & __mask; })
+
+#define atomic_full_barrier() __sync_synchronize()
 
 #define catomic_exchange_and_add(mem, value)		\
   atomic_exchange_and_add(mem, value)
-
-#define atomic_bit_test_set(mem, bit)                   \
-  ({ typeof(*mem) __prev;                               \
-     typeof(*mem) __mask = (typeof(*mem))1 << (bit);    \
-      if (sizeof(*mem) == 4)				\
-	asm_amo("amoor.w", __prev, mem, __mask);	\
-      else if(sizeof(*mem) == 8)			\
-	asm_amo("amoor.d", __prev, mem, __mask);	\
-      else						\
-	abort();					\
-     __prev & __mask; })
-
-#define atomic_max(mem, value)		        	\
-  ({  typeof(*mem) __prev;                    		\
-      if (sizeof(*mem) == 4)				\
-	asm_amo("amomaxu.w", __prev, mem, value);	\
-      else if(sizeof(*mem) == 8)			\
-	asm_amo("amomaxu.d", __prev, mem, value);	\
-      else						\
-	abort();					\
-     __prev; })
-
 #define catomic_max(mem, value) atomic_max(mem, value)
-
-#define atomic_min(mem, value)		        	\
-  ({  typeof(*mem) __prev;                    		\
-      if (sizeof(*mem) == 4)				\
-	asm_amo("amominu.w", __prev, mem, value);	\
-      else if(sizeof(*mem) == 8)			\
-	asm_amo("amominu.d", __prev, mem, value);	\
-      else						\
-	abort();					\
-     __prev; })
-
-#define atomic_full_barrier() __sync_synchronize()
 
 #endif /* bits/atomic.h */
