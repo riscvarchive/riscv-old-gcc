@@ -109,6 +109,13 @@ const struct mips_arch_choice mips_arch_choices[] =
   { "rv64",	1, bfd_mach_riscv64 },
 };
 
+struct riscv_private_data
+{
+  unsigned auipc_reg;
+  bfd_boolean auipc_used;
+  bfd_vma auipc_addr;
+};
+
 /* ISA and processor type to disassemble for, and register names to use.
    set_default_mips_dis_options and parse_mips_dis_options fill in these
    values.  */
@@ -239,6 +246,8 @@ print_insn_args (const char *d,
 		 bfd_vma pc,
 		 struct disassemble_info *info)
 {
+  struct riscv_private_data *pd = info->private_data;
+
   if (*d != '\0')
     (*info->fprintf_func) (info->stream, "\t");
 
@@ -373,10 +382,20 @@ print_insn_args (const char *d,
 
 	case 'j':
 	case 'o':
+	  if (pd->auipc_reg && pd->auipc_reg == ((l >> OP_SH_RS1) & OP_MASK_RS1))
+	    {
+	      pd->auipc_addr += EXTRACT_ITYPE_IMM (l);
+	      pd->auipc_used = 1;
+	    }
 	  (*info->fprintf_func) (info->stream, "%d", EXTRACT_ITYPE_IMM (l));
 	  break;
 
 	case 'q':
+	  if (pd->auipc_reg && pd->auipc_reg == ((l >> OP_SH_RS1) & OP_MASK_RS1))
+	    {
+	      pd->auipc_addr += EXTRACT_STYPE_IMM (l);
+	      pd->auipc_used = 1;
+	    }
 	  (*info->fprintf_func) (info->stream, "%d", EXTRACT_STYPE_IMM (l));
 	  break;
 
@@ -592,6 +611,7 @@ print_insn_mips (bfd_vma memaddr,
   static bfd_boolean init = 0;
   static const char *extension = NULL;
   static const struct riscv_opcode *mips_hash[OP_MASK_OP + 1];
+  struct riscv_private_data *pd;
   int insnlen;
 
   /* Build a hash table to shorten the search time.  */
@@ -610,6 +630,16 @@ print_insn_mips (bfd_vma memaddr,
             }
 
       init = 1;
+    }
+
+  if (info->private_data == NULL)
+    info->private_data = calloc(1, sizeof (struct riscv_private_data));
+  pd = info->private_data;
+
+  if ((word & MASK_AUIPC) == MATCH_AUIPC)
+    {
+      pd->auipc_reg = (word >> OP_SH_RD) & OP_MASK_RD;
+      pd->auipc_addr = (memaddr & -RISCV_IMM_REACH) + (EXTRACT_UTYPE_IMM (word) << RISCV_IMM_BITS);
     }
 
   insnlen = riscv_insn_length (word);
@@ -639,6 +669,13 @@ print_insn_mips (bfd_vma memaddr,
 	    {
 	      (*info->fprintf_func) (info->stream, "%s", op->name);
 	      print_insn_args (op->args, word, memaddr, info);
+	      if (pd->auipc_used)
+		{
+		  (*info->fprintf_func) (info->stream, " # ", word);
+		  info->target = pd->auipc_addr;
+		  (*info->print_address_func) (info->target, info);
+		  pd->auipc_reg = pd->auipc_used = 0;
+		}
 	      return insnlen;
 	    }
 	}
