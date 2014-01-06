@@ -3282,7 +3282,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       bfd_vma auipc = bfd_get (32, input_bfd, contents + relocation->r_offset);
       bfd_vma jalr = bfd_get (32, input_bfd, contents + relocation->r_offset + 4);
       bfd_vma got;
-      value = addend + symbol;
+      value = addend + (symbol ? symbol : p);
 
       if (eh != NULL && eh->plt.offset != MINUS_ONE
 	  && (got = riscv_elf_got_plt_val_from_offset (eh->plt.offset, info),
@@ -5933,15 +5933,17 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 	  if (h->root.type != bfd_link_hash_defined
 	      && h->root.type != bfd_link_hash_defweak)
 	    {
-	      /* This appears to be a reference to an undefined
-		 symbol.  Just ignore it--it will be caught by the
-		 regular reloc processing.  */
-	      continue;
+	      /* This appears to be a reference to an undefined symbol.
+		 It will be caught by the regular reloc processing
+		 if malignant, but if it's benign, we can relax it. */
+	      symval = 0;
 	    }
-
-	  symval = (h->root.u.def.value
-		    + h->root.u.def.section->output_section->vma
-		    + h->root.u.def.section->output_offset);
+	  else
+	    {
+	      symval = (h->root.u.def.value
+			+ h->root.u.def.section->output_section->vma
+			+ h->root.u.def.section->output_offset);
+	    }
 	}
 
       symval += irel->r_addend;
