@@ -1492,14 +1492,6 @@ normalize_address_expr (expressionS *ex)
 			- 0x80000000);
 }
 
-/* Load a static address. */
-static void
-load_static_addr (int destreg, expressionS *ep)
-{
-  macro_build (ep, "lui", "d,u", destreg, BFD_RELOC_RISCV_HI20);
-  macro_build (ep, "addi", "d,s,j", destreg, destreg, BFD_RELOC_RISCV_LO12_I);
-}
-
 /* Load an entry from the GOT. */
 static void
 load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
@@ -1613,12 +1605,10 @@ macro (struct mips_cl_insn *ip)
 
       if (offset_expr.X_op == O_constant)
         load_const (rd, &offset_expr);
-      else if (!is_pic) /* non-PIC local or global symbol */
-	load_static_addr (rd, &offset_expr);
-      else if (mask == M_LA) /* PIC global symbol */
+      else if (is_pic && mask == M_LA) /* Global PIC symbol */
 	load_got_addr (rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
 	               BFD_RELOC_MIPS_GOT_HI16, BFD_RELOC_MIPS_GOT_LO16);
-      else /* PIC local symbol */
+      else /* Local PIC symbol, or any non-PIC symbol */
 	load_got_addr (rd, rd, &offset_expr, "addi",
 	               BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_LO12_I);
       break;

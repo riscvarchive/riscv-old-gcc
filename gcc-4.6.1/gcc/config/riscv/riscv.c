@@ -675,11 +675,6 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
   if (offset == const0_rtx)
     return true;
 
-  if (flag_pic)
-  /* Load the base address from the GOT, then add the offset. The offset
-     calculation can usually be folded into the load or store instruction. */
-    return false;
-
   /* Check whether a nonzero offset is valid for the underlying
      relocations.  */
   switch (*symbol_type)
@@ -2163,7 +2158,7 @@ mips_output_move (rtx dest, rtx src)
 	return "li\t%0,%1";
 
       if (src_code == HIGH)
-	return flag_pic ? "auipc\t%0,%h1" : "lui\t%0,%h1";
+	return "auipc\t%0,%h1";
 
       if (mips_symbolic_constant_p (src, &symbol_type)
 	  && mips_lo_relocs[symbol_type] != 0)
@@ -3127,23 +3122,17 @@ mips_init_relocs (void)
   memset (mips_hi_relocs, '\0', sizeof (mips_hi_relocs));
   memset (mips_lo_relocs, '\0', sizeof (mips_lo_relocs));
 
-  if (!flag_pic)
-    {
-      mips_split_p[SYMBOL_ABSOLUTE] = true;
-      mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
-      mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
-    }
-  else
+  mips_split_p[SYMBOL_ABSOLUTE] = true;
+  mips_hi_relocs[SYMBOL_ABSOLUTE] = "%pcrel_hi(";
+  mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
+
+  if (flag_pic)
     {
       mips_split_p[SYMBOL_GOT_DISP] = true;
 
       mips_split_p[SYMBOL_GOTOFF_DISP] = true;
       mips_hi_relocs[SYMBOL_GOTOFF_DISP] = "%got_hi(";
       mips_lo_relocs[SYMBOL_GOTOFF_DISP] = "%got_lo(";
-
-      mips_split_p[SYMBOL_ABSOLUTE] = true;
-      mips_hi_relocs[SYMBOL_ABSOLUTE] = "%pcrel_hi(";
-      mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
     }
   
   if (g_switch_value)
