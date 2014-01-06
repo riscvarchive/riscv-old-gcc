@@ -566,6 +566,39 @@ riscv_build_integer (struct mips_integer_op *codes, HOST_WIDE_INT value)
   return cost;
 }
 
+static int
+riscv_integer_cost (HOST_WIDE_INT val)
+{
+  int cost;
+  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
+  int32_t loval = val, hival = (val - (int32_t)val) >> 32;
+
+  cost = riscv_build_integer(codes, loval);
+  if (hival == 0)
+    return cost;
+
+  if (loval != hival)
+    cost += riscv_build_integer(codes, hival);
+  return cost + 2;
+}
+
+/* Try to split a 64b integer into 32b parts, then reassemble. */
+
+static rtx
+riscv_split_integer (HOST_WIDE_INT val, enum machine_mode mode)
+{
+  int32_t loval = val, hival = (val - (int32_t)val) >> 32;
+  rtx hi = gen_reg_rtx (mode), lo = gen_reg_rtx (mode);
+
+  mips_move_integer (hi, hi, hival);
+  mips_move_integer (lo, lo, loval);
+
+  hi = gen_rtx_fmt_ee (ASHIFT, mode, hi, GEN_INT (32));
+  hi = force_reg (mode, hi);
+
+  return gen_rtx_fmt_ee (PLUS, mode, hi, lo);
+}
+
 /* Return true if X is a thread-local symbol.  */
 
 static bool
@@ -971,7 +1004,11 @@ mips_const_insns (rtx x)
       return 1;
 
     case CONST_INT:
-      return riscv_build_integer (codes, INTVAL (x));
+      {
+	int cost = riscv_integer_cost (INTVAL (x));
+	/* Force complicated constants to memory. */
+	return cost <= 4 ? cost : 0;
+      }
 
     case CONST_DOUBLE:
     case CONST_VECTOR:
@@ -1000,7 +1037,7 @@ mips_const_insns (rtx x)
 	      if (SMALL_INT (offset))
 		return n + 1;
 	      else if (!targetm.cannot_force_const_mem (x))
-		return n + 1 + riscv_build_integer (codes, INTVAL (offset));
+		return n + 1 + riscv_integer_cost (INTVAL (offset));
 	    }
 	}
       return 0;
@@ -1376,36 +1413,6 @@ mips_legitimize_address (rtx x, rtx oldx ATTRIBUTE_UNUSED,
   return x;
 }
 
-static int
-riscv_split_integer_cost (HOST_WIDE_INT val)
-{
-  int cost = 0;
-  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
-  int32_t loval = val, hival = (val - (int32_t)val) >> 32;
-
-  cost += riscv_build_integer(codes, loval);
-  if (loval != hival)
-    cost += riscv_build_integer(codes, hival);
-  return cost + 2;
-}
-
-/* Try to split a 64b integer into 32b parts, then reassemble. */
-
-static rtx
-riscv_split_integer (HOST_WIDE_INT val, enum machine_mode mode)
-{
-  int32_t loval = val, hival = (val - (int32_t)val) >> 32;
-  rtx hi = gen_reg_rtx (mode), lo = gen_reg_rtx (mode);
-
-  mips_move_integer (hi, hi, hival);
-  mips_move_integer (lo, lo, loval);
-
-  hi = gen_rtx_fmt_ee (ASHIFT, mode, hi, GEN_INT (32));
-  hi = force_reg (mode, hi);
-
-  return gen_rtx_fmt_ee (PLUS, mode, hi, lo);
-}
-
 /* Load VALUE into DEST.  TEMP is as for mips_force_temporary.  */
 
 void
@@ -1419,7 +1426,8 @@ mips_move_integer (rtx temp, rtx dest, HOST_WIDE_INT value)
   mode = GET_MODE (dest);
   num_ops = riscv_build_integer (codes, value);
 
-  if (can_create_pseudo_p () && num_ops >= riscv_split_integer_cost (value))
+  if (can_create_pseudo_p () && num_ops > 2 /* not a simple constant */
+      && num_ops >= riscv_integer_cost (value))
     x = riscv_split_integer (value, mode);
   else
     {
