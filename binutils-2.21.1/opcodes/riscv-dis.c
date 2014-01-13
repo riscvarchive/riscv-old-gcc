@@ -111,9 +111,9 @@ const struct mips_arch_choice mips_arch_choices[] =
 
 struct riscv_private_data
 {
-  unsigned auipc_reg;
-  bfd_boolean auipc_used;
-  bfd_vma auipc_addr;
+  bfd_vma gp;
+  bfd_vma print_addr;
+  bfd_vma auipc[OP_MASK_RD + 1];
 };
 
 /* ISA and processor type to disassemble for, and register names to use.
@@ -238,6 +238,18 @@ arg_print (struct disassemble_info *info, unsigned long val,
   (*info->fprintf_func) (info->stream, "%s", s);
 }
 
+static void
+maybe_print_address (struct riscv_private_data *pd, int base_reg, int offset)
+{
+  if (pd->auipc[base_reg] != (bfd_vma)-1)
+    {
+      pd->print_addr = pd->auipc[base_reg] + offset;
+      pd->auipc[base_reg] = -1;
+    }
+  else if (base_reg == GP_REG && pd->gp)
+    pd->print_addr = pd->gp + offset;
+}
+
 /* Print insn arguments for 32/64-bit code.  */
 
 static void
@@ -247,6 +259,8 @@ print_insn_args (const char *d,
 		 struct disassemble_info *info)
 {
   struct riscv_private_data *pd = info->private_data;
+  int rs1 = (l >> OP_SH_RS1) & OP_MASK_RS1;
+  int rd = (l >> OP_SH_RD) & OP_MASK_RD;
 
   if (*d != '\0')
     (*info->fprintf_func) (info->stream, "\t");
@@ -260,12 +274,10 @@ print_insn_args (const char *d,
           switch (*++d)
             {
             case 'd':
-              (*info->fprintf_func)
-                ( info->stream, "%d", ((l >> OP_SH_RD) & OP_MASK_RD));
+              (*info->fprintf_func) (info->stream, "%d", rd);
               break;
             case 's':
-              (*info->fprintf_func)
-                ( info->stream, "%d", ((l >> OP_SH_RS1) & OP_MASK_RS1));
+              (*info->fprintf_func) (info->stream, "%d", rs1);
               break;
             case 't':
               (*info->fprintf_func)
@@ -352,8 +364,7 @@ print_insn_args (const char *d,
 
 	case 'b':
 	case 's':
-	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_gpr_names[(l >> OP_SH_RS1) & OP_MASK_RS1]);
+	  (*info->fprintf_func) (info->stream, "%s", mips_gpr_names[rs1]);
 	  break;
 
 	case 't':
@@ -382,20 +393,12 @@ print_insn_args (const char *d,
 
 	case 'j':
 	case 'o':
-	  if (pd->auipc_reg && pd->auipc_reg == ((l >> OP_SH_RS1) & OP_MASK_RS1))
-	    {
-	      pd->auipc_addr += EXTRACT_ITYPE_IMM (l);
-	      pd->auipc_used = 1;
-	    }
+	  maybe_print_address (pd, rs1, EXTRACT_ITYPE_IMM (l));
 	  (*info->fprintf_func) (info->stream, "%d", EXTRACT_ITYPE_IMM (l));
 	  break;
 
 	case 'q':
-	  if (pd->auipc_reg && pd->auipc_reg == ((l >> OP_SH_RS1) & OP_MASK_RS1))
-	    {
-	      pd->auipc_addr += EXTRACT_STYPE_IMM (l);
-	      pd->auipc_used = 1;
-	    }
+	  maybe_print_address (pd, rs1, EXTRACT_STYPE_IMM (l));
 	  (*info->fprintf_func) (info->stream, "%d", EXTRACT_STYPE_IMM (l));
 	  break;
 
@@ -410,8 +413,9 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'd':
-	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_gpr_names[(l >> OP_SH_RD) & OP_MASK_RD]);
+	  if ((l & MASK_AUIPC) == MATCH_AUIPC)
+	    pd->auipc[rd] = (pc & -RISCV_IMM_REACH) + (EXTRACT_UTYPE_IMM (l) << RISCV_IMM_BITS);
+	  (*info->fprintf_func) (info->stream, "%s", mips_gpr_names[rd]);
 	  break;
 
 	case 'z':
@@ -430,8 +434,7 @@ print_insn_args (const char *d,
 
 	case 'S':
 	case 'U':
-	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_fpr_names[(l >> OP_SH_RS1) & OP_MASK_RS1]);
+	  (*info->fprintf_func) (info->stream, "%s", mips_fpr_names[rs1]);
 	  break;
 
 	case 'T':
@@ -440,8 +443,7 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'D':
-	  (*info->fprintf_func) (info->stream, "%s",
-				 mips_fpr_names[(l >> OP_SH_RD) & OP_MASK_RD]);
+	  (*info->fprintf_func) (info->stream, "%s", mips_fpr_names[rd]);
 	  break;
 
 	case 'R':
@@ -450,21 +452,21 @@ print_insn_args (const char *d,
 	  break;
 
 	case 'E':
-    {
-      const char* csr_name = "unknown";
-      switch ((l >> OP_SH_CSR) & OP_MASK_CSR)
-        {
-          #define DECLARE_CSR(name, num) case num: csr_name = #name; break;
-          #include "opcode/riscv-opc.h"
-          #undef DECLARE_CSR
-        }
+	  {
+	    const char* csr_name = "unknown";
+	    switch ((l >> OP_SH_CSR) & OP_MASK_CSR)
+	      {
+		#define DECLARE_CSR(name, num) case num: csr_name = #name; break;
+		#include "opcode/riscv-opc.h"
+		#undef DECLARE_CSR
+	      }
 	    (*info->fprintf_func) (info->stream, "%s", csr_name);
 	    break;
-    }
+	  }
 
-  case 'Z':
-	  (*info->fprintf_func) (info->stream, "%d", (l >> OP_SH_RS1) & OP_MASK_RS1);
-    break;
+	case 'Z':
+	  (*info->fprintf_func) (info->stream, "%d", rs1);
+	  break;
 
 	default:
 	  /* xgettext:c-format */
@@ -633,14 +635,21 @@ print_insn_mips (bfd_vma memaddr,
     }
 
   if (info->private_data == NULL)
-    info->private_data = calloc(1, sizeof (struct riscv_private_data));
-  pd = info->private_data;
-
-  if ((word & MASK_AUIPC) == MATCH_AUIPC)
     {
-      pd->auipc_reg = (word >> OP_SH_RD) & OP_MASK_RD;
-      pd->auipc_addr = (memaddr & -RISCV_IMM_REACH) + (EXTRACT_UTYPE_IMM (word) << RISCV_IMM_BITS);
+      int i;
+
+      pd = info->private_data = calloc(1, sizeof (struct riscv_private_data));
+      pd->gp = -1;
+      pd->print_addr = -1;
+      for (i = 0; i < (int) ARRAY_SIZE(pd->auipc); i++)
+	pd->auipc[i] = -1;
+
+      for (i = 0; i < info->symtab_size; i++)
+	if (strcmp (bfd_asymbol_name (info->symtab[i]), "_gp") == 0)
+	  pd->gp = bfd_asymbol_value (info->symtab[i]);
     }
+  else
+    pd = info->private_data;
 
   insnlen = riscv_insn_length (word);
 
@@ -669,12 +678,12 @@ print_insn_mips (bfd_vma memaddr,
 	    {
 	      (*info->fprintf_func) (info->stream, "%s", op->name);
 	      print_insn_args (op->args, word, memaddr, info);
-	      if (pd->auipc_used)
+	      if (pd->print_addr != (bfd_vma)-1)
 		{
+		  info->target = pd->print_addr;
 		  (*info->fprintf_func) (info->stream, " # ", word);
-		  info->target = pd->auipc_addr;
 		  (*info->print_address_func) (info->target, info);
-		  pd->auipc_reg = pd->auipc_used = 0;
+		  pd->print_addr = -1;
 		}
 	      return insnlen;
 	    }
