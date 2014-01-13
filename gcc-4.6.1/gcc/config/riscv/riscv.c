@@ -423,8 +423,8 @@ static const struct mips_rtx_cost_data mips_rtx_cost_optimize_size = {
   COSTS_N_INSNS (1),            /* int_mult_di */
   COSTS_N_INSNS (1),            /* int_div_si */
   COSTS_N_INSNS (1),            /* int_div_di */
-		   2,           /* branch_cost */
-		   4            /* memory_latency */
+		   1,           /* branch_cost */
+		   1            /* memory_latency */
 };
 
 /* Costs to use when optimizing for speed, indexed by processor.  */
@@ -1784,7 +1784,7 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
       cost = riscv_address_insns (addr, mode, true);
       if (cost > 0)
 	{
-	  *total = COSTS_N_INSNS (cost + (speed ? mips_cost->memory_latency : 1));
+	  *total = COSTS_N_INSNS (cost + riscv_memory_latency);
 	  return true;
 	}
       /* Otherwise use the default handling.  */
@@ -4077,7 +4077,7 @@ mips_register_move_cost (enum machine_mode mode,
 static int
 mips_memory_move_cost (enum machine_mode mode, reg_class_t rclass, bool in)
 {
-  return (mips_cost->memory_latency
+  return (riscv_memory_latency
 	  + memory_move_secondary_cost (mode, rclass, in));
 } 
 
@@ -4935,6 +4935,9 @@ mips_option_override (void)
      default.  */
   if (mips_branch_cost == 0)
     mips_branch_cost = mips_cost->branch_cost;
+
+  if (riscv_memory_latency == 0)
+    riscv_memory_latency = mips_cost->memory_latency;
 
   if (!TARGET_USE_GP)
     g_switch_value = 0;
