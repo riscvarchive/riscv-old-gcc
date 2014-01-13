@@ -201,6 +201,7 @@ SECTIONS
   {
     *(.sdata)
     *(.sdata.*)
+    *(.srodata.*)
     *(.gnu.linkonce.s.*)
   }
 

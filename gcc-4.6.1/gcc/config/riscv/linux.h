@@ -27,9 +27,6 @@ along with GCC; see the file COPYING3.  If not see
 #undef TARGET_VERSION
 #define TARGET_VERSION fprintf (stderr, " (RISC-V Linux/ELF)");
 
-#undef TARGET_USE_GOT
-#define TARGET_USE_GOT 1
-
 #define TARGET_OS_CPP_BUILTINS()				\
   do {								\
     LINUX_TARGET_OS_CPP_BUILTINS();				\

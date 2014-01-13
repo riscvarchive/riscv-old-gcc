@@ -6,7 +6,6 @@ OUTPUT_FORMAT="elf32-littleriscv"
 COMMONPAGESIZE="CONSTANT (COMMONPAGESIZE)"
 
 # Magic sections.
-OTHER_TEXT_SECTIONS='*(.mips16.fn.*) *(.mips16.call.*)'
 OTHER_SECTIONS='
   .gptab.sdata : { *(.gptab.data) *(.gptab.sdata) }
   .gptab.sbss : { *(.gptab.bss) *(.gptab.sbss) }

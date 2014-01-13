@@ -1755,7 +1755,6 @@ static const struct percent_op_match percent_op_utype[] =
 static const struct percent_op_match percent_op_itype[] =
 {
   {"%lo", BFD_RELOC_RISCV_LO12_I},
-  {"%gp_rel", BFD_RELOC_RISCV_GPREL12_I},
   {"%tprel_lo", BFD_RELOC_RISCV_TPREL_LO12_I},
   {"%got_lo", BFD_RELOC_MIPS_GOT_LO16},
   {"%tlsgd_lo", BFD_RELOC_RISCV_TLS_GD_LO12},
@@ -1766,7 +1765,6 @@ static const struct percent_op_match percent_op_itype[] =
 static const struct percent_op_match percent_op_stype[] =
 {
   {"%lo", BFD_RELOC_RISCV_LO12_S},
-  {"%gp_rel", BFD_RELOC_RISCV_GPREL12_S},
   {"%tprel_lo", BFD_RELOC_RISCV_TPREL_LO12_S},
   {0, 0}
 };
@@ -2465,8 +2463,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_RISCV_HI20:
     case BFD_RELOC_RISCV_PCREL_HI20:
-    case BFD_RELOC_RISCV_GPREL12_I:
-    case BFD_RELOC_RISCV_GPREL12_S:
     case BFD_RELOC_MIPS_GOT_HI16:
     case BFD_RELOC_MIPS_GOT_LO16:
     case BFD_RELOC_RISCV_ADD32:

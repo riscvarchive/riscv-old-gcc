@@ -98,9 +98,10 @@ elf_machine_dynamic (void)
 static inline ElfW(Addr)
 elf_machine_load_address (void)
 {
-  ElfW(Addr) addr;
-  asm ("lla %0, _begin" : "=r"(addr));
-  return addr;
+  ElfW(Addr) link, load;
+  asm ("lui %0, %%hi(_begin); auipc %1, %%pcrel_hi(_begin)"
+       : "=r"(link), "=r"(load));
+  return load - link;
 }
 
 /* We can't rely on elf_machine_got_rel because _dl_object_relocation_scope

@@ -87,8 +87,7 @@ ENTRY_POINT:
 	move  a5, v0  /* rtld_fini */
 	move  a6, sp  /* stack_end */
 	
-	la    v0, __libc_start_main
-	jr    v0
+	jump  __libc_start_main
 
 /* Define a symbol for the first piece of initialized data.  */
 	.data

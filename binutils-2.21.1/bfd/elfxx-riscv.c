@@ -575,7 +575,7 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_LO12_I",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_ITYPE_IMM(-1U),		/* dst_mask */
+	 ENCODE_ITYPE_IMM(-1U) | (OP_MASK_RS1 << OP_SH_RS1),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
   /* Low 16 bits of symbol value.  */
@@ -590,38 +590,11 @@ static reloc_howto_type howto_table[] =
 	 "R_RISCV_LO12_S",	/* name */
 	 FALSE,			/* partial_inplace */
 	 0,			/* src_mask */
-	 ENCODE_STYPE_IMM(-1U),		/* dst_mask */
+	 ENCODE_STYPE_IMM(-1U) | (OP_MASK_RS1 << OP_SH_RS1),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* GP-relative reference. */
-  HOWTO (R_RISCV_GPREL12_I,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,	/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_gprel_reloc,	/* special_function */
-	 "R_RISCV_GPREL12_I",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 ENCODE_ITYPE_IMM(-1U),		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* GP-relative reference. */
-  HOWTO (R_RISCV_GPREL12_S,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,	/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_gprel_reloc,	/* special_function */
-	 "R_RISCV_GPREL12_S",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 ENCODE_STYPE_IMM(-1U),		/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (8),
+  EMPTY_HOWTO (9),
 
   HOWTO (R_RISCV_BRANCH,	/* type */
 	 0,			/* rightshift */
@@ -1153,8 +1126,6 @@ static const struct elf_reloc_map riscv_reloc_map[] =
   { BFD_RELOC_RISCV_HI20, R_RISCV_HI20 },
   { BFD_RELOC_RISCV_LO12_I, R_RISCV_LO12_I },
   { BFD_RELOC_RISCV_LO12_S, R_RISCV_LO12_S },
-  { BFD_RELOC_RISCV_GPREL12_I, R_RISCV_GPREL12_I },
-  { BFD_RELOC_RISCV_GPREL12_S, R_RISCV_GPREL12_S },
   { BFD_RELOC_RISCV_CALL, R_RISCV_CALL },
   { BFD_RELOC_RISCV_PCREL_HI20, R_RISCV_PCREL_HI20 },
   { BFD_RELOC_MIPS_JMP, R_RISCV_JAL },
@@ -1239,7 +1210,6 @@ riscv_elf_info_to_howto_rela (bfd *abfd, arelent *cache_ptr,
 #define X_A0 18
 #define X_A1 19
 #define X_NA 8
-#define X_GP 31
 
 /* The format of the first PLT entry.  */
 
@@ -1402,85 +1372,6 @@ _bfd_riscv_elf_new_section_hook (bfd *abfd, asection *sec)
     }
 
   return _bfd_elf_new_section_hook (abfd, sec);
-}
-
-static bfd_reloc_status_type
-riscv_elf_gprel_with_gp (bfd *abfd, asymbol *symbol,
-			        arelent *reloc_entry, asection *input_section,
-			        bfd_boolean relocatable, void *data, bfd_vma gp)
-{
-  bfd_vma relocation;
-  bfd_signed_vma val;
-  bfd_reloc_status_type status;
-
-  if (bfd_is_com_section (symbol->section))
-    relocation = 0;
-  else
-    relocation = symbol->value;
-
-  relocation += symbol->section->output_section->vma;
-  relocation += symbol->section->output_offset;
-
-  if (reloc_entry->address > bfd_get_section_limit (abfd, input_section))
-    return bfd_reloc_outofrange;
-
-  /* Set val to the offset into the section or symbol.  */
-  val = reloc_entry->addend;
-
-  /* Adjust val for the final section location and GP value. */
-  if (!relocatable)
-    val += relocation - gp;
-
-  if (reloc_entry->howto->partial_inplace)
-    {
-      status = _bfd_relocate_contents (reloc_entry->howto, abfd, val,
-				       (bfd_byte *) data
-				       + reloc_entry->address);
-      if (status != bfd_reloc_ok)
-	return status;
-    }
-  else
-    reloc_entry->addend = val;
-
-  return bfd_reloc_ok;
-}
-
-bfd_reloc_status_type
-_bfd_riscv_elf_gprel_reloc (bfd *abfd, arelent *reloc_entry, asymbol *symbol,
-			    void *data, asection *input_section, bfd *output_bfd,
-			    char **error_message)
-{
-  bfd_boolean relocatable;
-  bfd_vma gp;
-
-  /* If we're relocating, and this is an external symbol, we don't want
-     to change anything.  */
-  if (output_bfd != NULL
-      && (symbol->flags & BSF_SECTION_SYM) == 0
-      && (symbol->flags & BSF_LOCAL) != 0)
-    {
-      reloc_entry->address += input_section->output_offset;
-      return bfd_reloc_ok;
-    }
-
-  if (output_bfd != NULL)
-    relocatable = TRUE;
-  else
-    {
-      relocatable = FALSE;
-      output_bfd = symbol->section->output_section->owner;
-    }
-
-  gp = _bfd_get_gp_value (output_bfd);
-  if (gp == 0 && !relocatable)
-    {
-      *error_message = (char*) _("GP relative relocation when _gp not defined");
-      return bfd_reloc_dangerous;
-    }
-
-  return riscv_elf_gprel_with_gp (abfd, symbol, reloc_entry,
-				  input_section, relocatable,
-				  data, gp);
 }
 
 /* Used to store a REL high-part relocation such as R_RISCV_HI20.
@@ -3052,6 +2943,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
   /* TRUE if this relocation refers to a MIPS16 function.  */
   struct mips_elf_link_hash_table *htab;
   bfd *dynobj;
+  bfd_vma gp = _bfd_get_gp_value (abfd);
 
   dynobj = elf_hash_table (info)->dynobj;
   htab = mips_elf_hash_table (info);
@@ -3286,12 +3178,12 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 
       if (eh != NULL && eh->plt.offset != MINUS_ONE
 	  && (got = riscv_elf_got_plt_val_from_offset (eh->plt.offset, info),
-	      got -= _bfd_get_gp_value (abfd),
+	      got -= gp,
 	      VALID_ITYPE_IMM (got))
 	  && VALID_ITYPE_IMM (addend))
 	{
 	  auipc &= OP_MASK_RD << OP_SH_RD;
-	  auipc |= MATCH_LREG (abfd) | (X_GP << OP_SH_RS1);
+	  auipc |= MATCH_LREG (abfd) | (GP_REG << OP_SH_RS1);
 	  auipc |= ENCODE_ITYPE_IMM (got);
 	}
       else
@@ -3343,19 +3235,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = ENCODE_STYPE_IMM (addend + symbol - tprel_base (info));
       break;
 
-    case R_RISCV_GPREL12_I:
-      value = symbol + addend - _bfd_get_gp_value (abfd);
-      value += _bfd_get_gp_value (input_bfd);
-      overflowed_p = !VALID_ITYPE_IMM (value);
-      value = ENCODE_ITYPE_IMM (value);
-      break;
-    case R_RISCV_GPREL12_S:
-      value = symbol + addend - _bfd_get_gp_value (abfd);
-      value += _bfd_get_gp_value (input_bfd);
-      overflowed_p = !VALID_STYPE_IMM (value);
-      value = ENCODE_STYPE_IMM (value);
-      break;
-
     case R_RISCV_PCREL_HI20:
       value = ENCODE_UTYPE_IMM (RISCV_AUIPC_HIGH_PART (addend + symbol, p));
       break;
@@ -3363,13 +3242,31 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_HI20:
       value = ENCODE_UTYPE_IMM (RISCV_LUI_HIGH_PART (addend + symbol));
       break;
-    case R_RISCV_LO12_I:
-      value = ENCODE_ITYPE_IMM (symbol + addend);
-      break;
-    case R_RISCV_LO12_S:
-      value = ENCODE_STYPE_IMM (symbol + addend);
-      break;
 
+    case R_RISCV_LO12_I:
+    case R_RISCV_LO12_S:
+    {
+      bfd_vma insn = bfd_get (32, input_bfd, contents + relocation->r_offset);
+      bfd_vma rs1 = (insn >> OP_SH_RS1) & OP_MASK_RS1;
+
+      value = symbol + addend;
+      if (gp != 0 && value != gp
+	  && value - gp + (bfd_vma)RISCV_IMM_REACH/2 < (bfd_vma)RISCV_IMM_REACH)
+	{
+	  /* Convert to GP-relative reference. */
+	  value -= gp;
+	  rs1 = GP_REG;
+	}
+      else if (!info->shared && value == 0)
+	rs1 = 0; /* Absolute 0 isn't PC-relative, so use x0 as base. */
+
+      if (r_type == R_RISCV_LO12_I)
+	value = ENCODE_ITYPE_IMM (value);
+      else
+	value = ENCODE_STYPE_IMM (value);
+      value |= rs1 << OP_SH_RS1;
+      break;
+    }
     case R_RISCV_TLS_GD:
     case R_RISCV_TLS_GOTTPREL:
     case R_RISCV_TLS_LDM:
@@ -3833,7 +3730,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
   asection *sreloc;
   const struct elf_backend_data *bed;
   struct mips_elf_link_hash_table *htab;
-  reloc_howto_type *howto;
 
   if (info->relocatable)
     return TRUE;
@@ -4083,22 +3979,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 
 	default:
 	  break;
-	}
-
-      /* Refuse position-dependent relocations when creating a
-	 shared library. */
-      if (info->shared && r_symndx != STN_UNDEF && r_type == R_RISCV_HI20)
-	{
-	  if (r_symndx == STN_UNDEF)
-	    break;
-
-	  howto = riscv_elf_rtype_to_howto (r_type);
-	  (*_bfd_error_handler)
-	    (_("%B: relocation %s against `%s' can not be used when making a shared object; recompile with -fPIC"),
-	     abfd, howto->name,
-	     (h) ? h->root.root.string : "a local symbol");
-	  bfd_set_error (bfd_error_bad_value);
-	  return FALSE;
 	}
     }
 
@@ -4707,6 +4587,7 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	 for the next.  */
       if (rel + 1 < relend
 	  && rel->r_offset == rel[1].r_offset
+	  && ELF_R_TYPE (input_bfd, rel->r_info) != R_RISCV_NONE
 	  && ELF_R_TYPE (input_bfd, rel[1].r_info) != R_RISCV_NONE)
 	use_saved_addend_p = TRUE;
       else
@@ -5457,6 +5338,23 @@ _bfd_riscv_elf_link_hash_table_create (bfd *abfd)
   return &ret->root.root;
 }
 
+static bfd_vma
+_bfd_riscv_init_gp_value (bfd *abfd, struct bfd_link_info *info)
+{
+  struct bfd_link_hash_entry *h;
+
+  if (info->shared)
+    return 0;
+
+  h = bfd_link_hash_lookup (info->hash, "_gp", FALSE, FALSE, TRUE);
+  if (h != NULL && h->type == bfd_link_hash_defined)
+    _bfd_set_gp_value (abfd, h->u.def.value
+			     + h->u.def.section->output_section->vma
+			     + h->u.def.section->output_offset);
+
+  return _bfd_get_gp_value (abfd);
+}
+
 /* We need to use a special link routine to handle the .reginfo and
    the .mdebug sections.  We need to merge all instances of these
    sections together, not write them all out sequentially.  */
@@ -5465,14 +5363,8 @@ bfd_boolean
 _bfd_riscv_elf_final_link (bfd *abfd, struct bfd_link_info *info)
 {
   struct mips_elf_link_hash_table *htab;
-  struct bfd_link_hash_entry *h;
 
-  h = bfd_link_hash_lookup (info->hash, "_gp", FALSE, FALSE, TRUE);
-  if (h != NULL && h->type == bfd_link_hash_defined)
-    _bfd_set_gp_value (abfd, h->u.def.value
-			     + h->u.def.section->output_section->vma
-			     + h->u.def.section->output_offset);
-
+  _bfd_riscv_init_gp_value (abfd, info);
   /* Sort the dynamic symbols so that those with GOT entries come after
      those without.  */
   htab = mips_elf_hash_table (info);
@@ -5775,7 +5667,7 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
           if (irel->r_offset > addr && irel->r_offset + irel->r_addend <= addr)
 	    irel->r_addend += count;
 	}
-	
+
       /* Get the new reloc address.  */
       if (irel->r_offset > addr && irel->r_offset < toaddr)
 	irel->r_offset -= count;
@@ -5838,6 +5730,93 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
   return TRUE;
 }
 
+static bfd_boolean
+_bfd_riscv_relax_call (bfd *abfd, asection *sec,
+		       struct bfd_link_info *link_info, bfd_byte *contents,
+		       Elf_Internal_Shdr *symtab_hdr,
+		       Elf_Internal_Sym *isymbuf,
+		       Elf_Internal_Rela *internal_relocs,
+		       Elf_Internal_Rela *irel, bfd_vma symval,
+		       bfd_boolean *again)
+{
+  /* See if this function call can be shortened.  */
+  bfd_signed_vma foff = (symval
+			 - (irel->r_offset
+			    + sec->output_section->vma
+			    + sec->output_offset));
+  bfd_boolean near_zero = !link_info->shared && VALID_ITYPE_IMM (symval);
+  bfd_boolean jal = VALID_UJTYPE_IMM (foff);
+  if (!near_zero && !jal)
+    return TRUE;
+
+  /* Shorten the function call.  */
+  elf_section_data (sec)->relocs = internal_relocs;
+  elf_section_data (sec)->this_hdr.contents = contents;
+  symtab_hdr->contents = (unsigned char *) isymbuf;
+
+  BFD_ASSERT (irel->r_offset + 8 <= sec->size);
+
+  bfd_vma auipc = bfd_get_32 (abfd, contents + irel->r_offset);
+  BFD_ASSERT ((auipc & MASK_AUIPC) == MATCH_AUIPC);
+
+  bfd_vma jalr = bfd_get_32 (abfd, contents + irel->r_offset + 4);
+  BFD_ASSERT ((jalr & MASK_JALR) == MATCH_JALR);
+  if (near_zero)
+    {
+      /* Replace the R_RISCV_CALL reloc with R_RISCV_LO12_I. */
+      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_LO12_I);
+      /* Overwrite AUIPC with JALR rd, x0, addr. */
+      auipc = jalr & ~(OP_MASK_RS1 << OP_SH_RS1);
+    }
+  else
+    {
+      /* Replace the R_RISCV_CALL reloc with R_RISCV_JAL. */
+      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_JAL);
+      /* Overwrite AUIPC with JAL rd, addr. */
+      auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) | MATCH_JAL;
+    }
+  bfd_put_32 (abfd, auipc, contents + irel->r_offset);
+
+  /* Delete unnecessary JALR. */
+  if (! riscv_relax_delete_bytes (abfd, sec, irel->r_offset + 4, 4))
+    return FALSE;
+
+  *again = TRUE;
+  return TRUE;
+}
+
+static bfd_boolean
+_bfd_riscv_relax_auipc (bfd *abfd, asection *sec,
+			struct bfd_link_info *link_info, bfd_byte *contents,
+			Elf_Internal_Shdr *symtab_hdr,
+			Elf_Internal_Sym *isymbuf,
+			Elf_Internal_Rela *internal_relocs,
+			Elf_Internal_Rela *irel, bfd_vma symval,
+			bfd_boolean *again)
+{
+  bfd_vma gp = _bfd_riscv_init_gp_value (abfd, link_info);
+  if (!gp || symval == gp)
+    return TRUE;
+
+  /* See if this symbol is in range of gp. */
+  if (symval - gp + (bfd_vma)RISCV_IMM_REACH/2 >= (bfd_vma)RISCV_IMM_REACH)
+    return TRUE;
+
+  /* We can delete the unnecessary AUIPC. The corresponding LO12 reloc
+     will be converted to GPREL during relocation. */
+  elf_section_data (sec)->relocs = internal_relocs;
+  elf_section_data (sec)->this_hdr.contents = contents;
+  symtab_hdr->contents = (unsigned char *) isymbuf;
+
+  BFD_ASSERT (irel->r_offset + 4 <= sec->size);
+  irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_NONE);
+  if (! riscv_relax_delete_bytes (abfd, sec, irel->r_offset, 4))
+    return FALSE;
+
+  *again = TRUE;
+  return TRUE;
+}
+
 /* Relax AUIPC/JALR into JAL. */
 
 bfd_boolean
@@ -5868,10 +5847,11 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
   irelend = internal_relocs + sec->reloc_count;
   for (irel = internal_relocs; irel < irelend; irel++)
     {
-      bfd_vma auipc, jalr, symval;
-      bfd_signed_vma foff;
+      bfd_vma symval;
+      bfd_boolean call = ELF_R_TYPE (abfd, irel->r_info) == (int) R_RISCV_CALL;
+      bfd_boolean auipc = ELF_R_TYPE (abfd, irel->r_info) == (int) R_RISCV_PCREL_HI20;
 
-      if (ELF_R_TYPE (abfd, irel->r_info) != (int) R_RISCV_CALL)
+      if (!call && !auipc)
 	continue;
 
       /* Get the section contents.  */
@@ -5885,13 +5865,6 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 		goto error_return;
 	    }
 	}
-      BFD_ASSERT (irel->r_offset + 8 <= sec->size);
-
-      auipc = bfd_get_32 (abfd, contents + irel->r_offset);
-      BFD_ASSERT ((auipc & MASK_AUIPC) == MATCH_AUIPC);
-
-      jalr = bfd_get_32 (abfd, contents + irel->r_offset + 4);
-      BFD_ASSERT ((jalr & MASK_JALR) == MATCH_JALR);
 
       /* Read this BFD's symbols if we haven't done so already.  */
       if (isymbuf == NULL && symtab_hdr->sh_info != 0)
@@ -5933,60 +5906,26 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 	  if (h->root.type != bfd_link_hash_defined
 	      && h->root.type != bfd_link_hash_defweak)
 	    {
-	      /* This appears to be a reference to an undefined symbol.
-		 It will be caught by the regular reloc processing
-		 if malignant, but if it's benign, we can relax it. */
-	      symval = 0;
+	      /* This appears to be a reference to an undefined symbol,
+		 perhaps a PLT entry. */
+	      continue;
 	    }
-	  else
-	    {
-	      symval = (h->root.u.def.value
-			+ h->root.u.def.section->output_section->vma
-			+ h->root.u.def.section->output_offset);
-	    }
+
+	    symval = (h->root.u.def.value
+		      + h->root.u.def.section->output_section->vma
+		      + h->root.u.def.section->output_offset);
 	}
 
       symval += irel->r_addend;
 
-      /* See if this function call can be shortened.  */
-      foff = (symval
-	      - (irel->r_offset
-		 + sec->output_section->vma
-		 + sec->output_offset));
-
-      /* See if we're in range for a relaxation. */
-      bfd_boolean near_zero = !link_info->shared && VALID_ITYPE_IMM (symval);
-      bfd_boolean jal = VALID_UJTYPE_IMM (foff);
-      if (!near_zero && !jal)
-	continue;
-
-      /* Shorten the function call.  */
-
-      elf_section_data (sec)->relocs = internal_relocs;
-      elf_section_data (sec)->this_hdr.contents = contents;
-      symtab_hdr->contents = (unsigned char *) isymbuf;
-
-      if (near_zero)
-	{
-	  /* Replace the R_RISCV_CALL reloc with R_RISCV_LO12_I. */
-      	  irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_LO12_I);
-	  /* Overwrite AUIPC with JALR rd, x0, addr. */
-	  auipc = jalr & ~(OP_MASK_RS1 << OP_SH_RS1);
-	}
-      else
-	{
-	  /* Replace the R_RISCV_CALL reloc with R_RISCV_JAL. */
-      	  irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_JAL);
-      	  /* Overwrite AUIPC with JAL rd, addr. */
-      	  auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) | MATCH_JAL;
-	}
-      bfd_put_32 (abfd, auipc, contents + irel->r_offset);
-
-      /* Delete unnecessary JALR. */
-      if (! riscv_relax_delete_bytes (abfd, sec, irel->r_offset + 4, 4))
+      if (call && !_bfd_riscv_relax_call (abfd, sec, link_info, contents,
+					  symtab_hdr, isymbuf, internal_relocs,
+					  irel, symval, again))
 	goto error_return;
-
-      *again = TRUE;
+      if (auipc && !_bfd_riscv_relax_auipc (abfd, sec, link_info, contents,
+					    symtab_hdr, isymbuf, internal_relocs,
+					    irel, symval, again))
+	goto error_return;
     }
 
   if (isymbuf != NULL

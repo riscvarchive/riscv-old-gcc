@@ -52,7 +52,7 @@ struct mips_cpu_info {
 };
 
 /* True if we need to use a global offset table to access some symbols.  */
-#define TARGET_USE_GOT 0
+#define TARGET_USE_GOT (flag_pic)
 
 /* True if a global pointer can be used to access small data. */
 #define TARGET_USE_GP (!flag_pic)
@@ -1318,9 +1318,9 @@ do {									\
 #define TEXT_SECTION_ASM_OP	"\t.text"	/* instructions */
 #define DATA_SECTION_ASM_OP	"\t.data"	/* large data */
 #define READONLY_DATA_SECTION_ASM_OP	"\t.section\t.rodata"
-#define BSS_SECTION_ASM_OP	"\t.section\t.bss"
-#define SBSS_SECTION_ASM_OP	"\t.section\t.sbss,\"aw\""
-#define SDATA_SECTION_ASM_OP	"\t.section\t.sdata,\"aw\""
+#define BSS_SECTION_ASM_OP	"\t.bss"
+#define SBSS_SECTION_ASM_OP	"\t.section\t.sbss,\"aw\",@nobits"
+#define SDATA_SECTION_ASM_OP	"\t.section\t.sdata,\"aw\",@progbits"
 
 #define ASM_OUTPUT_REG_PUSH(STREAM,REGNO)				\
 do									\

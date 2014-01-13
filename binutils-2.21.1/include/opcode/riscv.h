@@ -185,6 +185,7 @@ static const char* const riscv_pred_succ[16] = {
 #define OP_SH_CSR               20
 
 #define LINK_REG 1
+#define GP_REG 31
 
 #define RISCV_JUMP_BITS RISCV_BIGIMM_BITS
 #define RISCV_JUMP_ALIGN_BITS 1

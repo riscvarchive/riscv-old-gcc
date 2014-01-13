@@ -46,10 +46,9 @@ enum mips_symbol_type {
   SYMBOL_GOT_DISP,
   SYMBOL_GOTOFF_DISP,
   SYMBOL_TLS,
-  SYMBOL_TPREL,
-  SYMBOL_GPREL
+  SYMBOL_TPREL
 };
-#define NUM_SYMBOL_TYPES (SYMBOL_GPREL + 1)
+#define NUM_SYMBOL_TYPES (SYMBOL_TPREL + 1)
 
 extern bool mips_symbolic_constant_p (rtx, enum mips_symbol_type *);
 extern int mips_regno_mode_ok_for_base_p (int, enum machine_mode, bool);

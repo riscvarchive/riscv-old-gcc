@@ -607,23 +607,6 @@ mips_tls_symbol_p (const_rtx x)
   return GET_CODE (x) == SYMBOL_REF && SYMBOL_REF_TLS_MODEL (x) != 0;
 }
 
-/* Return true if SYMBOL_REF X is associated with a global symbol
-   (in the STB_GLOBAL sense).  */
-
-static bool
-mips_global_symbol_p (const_rtx x)
-{
-  const_tree decl = SYMBOL_REF_DECL (x);
-
-  if (!decl)
-    return !SYMBOL_REF_LOCAL_P (x) || SYMBOL_REF_EXTERNAL_P (x);
-
-  /* Weakref symbols are not TREE_PUBLIC, but their targets are global
-     or weak symbols.  Relocations in the object file will be against
-     the target symbol, so it's that symbol's binding that matters here.  */
-  return DECL_P (decl) && (TREE_PUBLIC (decl) || DECL_WEAK (decl));
-}
-
 static bool
 riscv_symbol_binds_local_p (const_rtx x)
 {
@@ -649,9 +632,6 @@ mips_classify_symbol (const_rtx x)
     }
 
   gcc_assert (GET_CODE (x) == SYMBOL_REF);
-
-  if (SYMBOL_REF_SMALL_P (x) && !SYMBOL_REF_WEAK (x))
-    return SYMBOL_GPREL;
 
   if (flag_pic && !riscv_symbol_binds_local_p (x))
     return SYMBOL_GOT_DISP;
@@ -718,12 +698,6 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
 	 sign-extended.  In this case we can't allow an arbitrary offset
 	 in case the 32-bit value X + OFFSET has a different sign from X.  */
       return Pmode == SImode || offset_within_block_p (x, INTVAL (offset));
-
-    case SYMBOL_GPREL:
-      /* Make sure that the offset refers to something within the
-	 same object block.  This should guarantee that the final
-	 GP-relative offset will not overflow the immediate. */
-      return offset_within_block_p (x, INTVAL (offset));
 
     case SYMBOL_TPREL:
       /* There is no carry between the HI and LO REL relocations, so the
@@ -989,7 +963,6 @@ riscv_address_insns (rtx x, enum machine_mode mode, bool might_split_p)
 int
 mips_const_insns (rtx x)
 {
-  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
   enum mips_symbol_type symbol_type;
   rtx offset;
 
@@ -1007,12 +980,12 @@ mips_const_insns (rtx x)
       {
 	int cost = riscv_integer_cost (INTVAL (x));
 	/* Force complicated constants to memory. */
-	return cost <= 4 ? cost : 0;
+	return cost < 4 ? cost : 0;
       }
 
     case CONST_DOUBLE:
     case CONST_VECTOR:
-      /* Allow zeros for normal mode, where we can use $0.  */
+      /* Allow zeros for normal mode, where we can use x0.  */
       return x == CONST0_RTX (GET_MODE (x)) ? 1 : 0;
 
     case CONST:
@@ -2106,7 +2079,6 @@ mips_output_move (rtx dest, rtx src)
 {
   enum rtx_code dest_code, src_code;
   enum machine_mode mode;
-  enum mips_symbol_type symbol_type;
   bool dbl_p;
 
   dest_code = GET_CODE (dest);
@@ -2166,23 +2138,16 @@ mips_output_move (rtx dest, rtx src)
 	return "li\t%0,%1";
 
       if (src_code == HIGH)
-	return "auipc\t%0,%h1";
-
-      if (mips_symbolic_constant_p (src, &symbol_type)
-	  && mips_lo_relocs[symbol_type] != 0)
 	{
-	  /* A signed 16-bit constant formed by applying a relocation
-	     operator to a symbolic address.  */
-	  gcc_assert (!mips_split_p[symbol_type]);
-	  gcc_assert (symbol_type == SYMBOL_GPREL);
-	  return "addi\t%0,x" XSTRING(GP_REGNUM) ",%R1";
+	  enum mips_symbol_type symbol_type;
+	  gcc_assert (mips_symbolic_constant_p (XEXP (src, 0), &symbol_type));
+	  if (!TARGET_USE_GOT && symbol_type == SYMBOL_TPREL)
+	    return "lui\t%0,%h1";
+	  return "auipc\t%0,%h1";
 	}
 
       if (symbolic_operand (src, VOIDmode))
-	{
-	  gcc_assert (flag_pic);
-	  return SYMBOL_REF_LOCAL_P (src) ? "lla\t%0,%1" : "la\t%0,%1";
-	}
+	return SYMBOL_REF_LOCAL_P (src) ? "lla\t%0,%1" : "la\t%0,%1";
     }
   if (src_code == REG && FP_REG_P (REGNO (src)))
     {
@@ -3143,9 +3108,6 @@ mips_init_relocs (void)
       mips_lo_relocs[SYMBOL_GOTOFF_DISP] = "%got_lo(";
     }
   
-  if (g_switch_value)
-    mips_lo_relocs[SYMBOL_GPREL] = "%gp_rel(";
-
   mips_split_p[SYMBOL_TPREL] = true;
   mips_hi_relocs[SYMBOL_TPREL] = "%tprel_hi(";
   mips_lo_relocs[SYMBOL_TPREL] = "%tprel_lo(";
@@ -3304,10 +3266,23 @@ static section *
 riscv_elf_select_rtx_section (enum machine_mode mode, rtx x,
 			      unsigned HOST_WIDE_INT align)
 {
+  section *s = default_elf_select_rtx_section (mode, x, align);
+
   if (riscv_size_ok_for_small_data_p (GET_MODE_SIZE (mode)))
-    return sdata_section;
-  else
-    return default_elf_select_rtx_section (mode, x, align);
+    {
+      if (strncmp (s->named.name, ".rodata.cst", strlen (".rodata.cst")) == 0)
+	{
+	  /* Rename .rodata.cst* to .srodata.cst*. */
+	  char name[32];
+	  sprintf (name, ".s%s", s->named.name + 1);
+	  return get_section (name, s->named.common.flags, NULL);
+	}
+
+      if (s == data_section)
+	return sdata_section;
+    }
+
+  return s;
 }
 
 /* The MIPS debug format wants all automatic variables and arguments

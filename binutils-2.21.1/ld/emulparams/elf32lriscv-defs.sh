@@ -26,6 +26,7 @@ GENERATE_SHLIB_SCRIPT=yes
 GENERATE_PIE_SCRIPT=yes
 
 TEXT_START_ADDR=0x10000000
+SHLIB_TEXT_START_ADDR=0x1000000
 MAXPAGESIZE="CONSTANT (MAXPAGESIZE)"
 ENTRY=_start
 
@@ -39,7 +40,10 @@ OTHER_GOT_RELOC_SECTIONS="
 GOT=".got          ${RELOCATING-0} : { *(.got) }"
 unset OTHER_READWRITE_SECTIONS
 unset OTHER_RELRO_SECTIONS
-OTHER_SDATA_SECTIONS=".got.plt      ${RELOCATING-0} : { *(.got.plt) }"
+OTHER_SDATA_SECTIONS="
+  .got.plt      ${RELOCATING-0} : { *(.got.plt) }
+  .srodata      ${RELOCATING-0} : { *(.srodata.cst*) }
+"
 
 # Magic symbols.
 SDATA_START_SYMBOLS="_gp = . + 0x800; ${_GOTPLT}"
