@@ -1591,9 +1591,9 @@
 
 (define_insn "floatsidf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
-	(float:DF (match_operand:SI 1 "register_operand" "d")))]
+	(float:DF (match_operand:SI 1 "reg_or_0_operand" "dJ")))]
   "TARGET_HARD_FLOAT"
-  "fcvt.d.w\t%0,%1"
+  "fcvt.d.w\t%0,%z1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
    (set_attr "cnv_mode"	"I2D")])
@@ -1601,9 +1601,9 @@
 
 (define_insn "floatdidf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
-	(float:DF (match_operand:DI 1 "register_operand" "d")))]
+	(float:DF (match_operand:DI 1 "reg_or_0_operand" "dJ")))]
   "TARGET_HARD_FLOAT && TARGET_64BIT"
-  "fcvt.d.l\t%0,%1"
+  "fcvt.d.l\t%0,%z1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
    (set_attr "cnv_mode"	"I2D")])
@@ -1611,9 +1611,9 @@
 
 (define_insn "floatsisf2"
   [(set (match_operand:SF 0 "register_operand" "=f")
-	(float:SF (match_operand:SI 1 "register_operand" "d")))]
+	(float:SF (match_operand:SI 1 "reg_or_0_operand" "dJ")))]
   "TARGET_HARD_FLOAT"
-  "fcvt.s.w\t%0,%1"
+  "fcvt.s.w\t%0,%z1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
    (set_attr "cnv_mode"	"I2S")])
@@ -1621,9 +1621,9 @@
 
 (define_insn "floatdisf2"
   [(set (match_operand:SF 0 "register_operand" "=f")
-	(float:SF (match_operand:DI 1 "register_operand" "d")))]
+	(float:SF (match_operand:DI 1 "reg_or_0_operand" "dJ")))]
   "TARGET_HARD_FLOAT && TARGET_64BIT"
-  "fcvt.s.l\t%0,%1"
+  "fcvt.s.l\t%0,%z1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
    (set_attr "cnv_mode"	"I2S")])
@@ -1631,9 +1631,9 @@
 
 (define_insn "floatunssidf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
-	(unsigned_float:DF (match_operand:SI 1 "register_operand" "d")))]
+	(unsigned_float:DF (match_operand:SI 1 "reg_or_0_operand" "dJ")))]
   "TARGET_HARD_FLOAT"
-  "fcvt.d.wu\t%0,%1"
+  "fcvt.d.wu\t%0,%z1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
    (set_attr "cnv_mode"	"I2D")])
@@ -1641,9 +1641,9 @@
 
 (define_insn "floatunsdidf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
-	(unsigned_float:DF (match_operand:DI 1 "register_operand" "d")))]
+	(unsigned_float:DF (match_operand:DI 1 "reg_or_0_operand" "dJ")))]
   "TARGET_HARD_FLOAT && TARGET_64BIT"
-  "fcvt.d.lu\t%0,%1"
+  "fcvt.d.lu\t%0,%z1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"DF")
    (set_attr "cnv_mode"	"I2D")])
@@ -1651,9 +1651,9 @@
 
 (define_insn "floatunssisf2"
   [(set (match_operand:SF 0 "register_operand" "=f")
-	(unsigned_float:SF (match_operand:SI 1 "register_operand" "d")))]
+	(unsigned_float:SF (match_operand:SI 1 "reg_or_0_operand" "dJ")))]
   "TARGET_HARD_FLOAT"
-  "fcvt.s.wu\t%0,%1"
+  "fcvt.s.wu\t%0,%z1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
    (set_attr "cnv_mode"	"I2S")])
@@ -1661,9 +1661,9 @@
 
 (define_insn "floatunsdisf2"
   [(set (match_operand:SF 0 "register_operand" "=f")
-	(unsigned_float:SF (match_operand:DI 1 "register_operand" "d")))]
+	(unsigned_float:SF (match_operand:DI 1 "reg_or_0_operand" "dJ")))]
   "TARGET_HARD_FLOAT && TARGET_64BIT"
-  "fcvt.s.lu\t%0,%1"
+  "fcvt.s.lu\t%0,%z1"
   [(set_attr "type"	"fcvt")
    (set_attr "mode"	"SF")
    (set_attr "cnv_mode"	"I2S")])
