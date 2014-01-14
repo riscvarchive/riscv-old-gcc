@@ -14,10 +14,11 @@ ENTRY(strcmp)
   li    v0, 0
   bnez  v1, .Lmisaligned
 
-  la    t3, 0x7f7f7f7f
-#if SZREG == 8
-  sll   t0, t3, 32
-  add   t3, t3, t0
+#if SZREG == 4
+  li t3, 0x7f7f7f7f
+#else
+  auipc t3, %pcrel_hi(mask)
+  REG_L	t3, %lo(mask)(t3)
 #endif
 
   .macro check_one_word i n
@@ -117,3 +118,10 @@ ENTRY(strcmp)
 END(strcmp)
 
 weak_alias(strcmp, __GI_strcmp)
+
+#if SZREG == 8
+.section .srodata.cst8,"aM",@progbits,8
+.align 3
+mask:
+.dword 0x7f7f7f7f7f7f7f7f
+#endif
