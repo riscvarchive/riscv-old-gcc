@@ -3069,7 +3069,9 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 
     case R_RISCV_SUB32:
     case R_RISCV_SUB64:
-      value = addend - symbol;
+      value = bfd_get (howto->bitsize, input_bfd,
+		       contents + relocation->r_offset);
+      value -= addend + symbol;
       break;
 
     case R_RISCV_CALL:
@@ -4426,7 +4428,6 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
   Elf_Internal_Rela *rel;
   const Elf_Internal_Rela *relend;
   bfd_vma addend = 0;
-  bfd_boolean use_saved_addend_p = FALSE;
   const struct elf_backend_data *bed;
 
   bed = get_elf_backend_data (output_bfd);
@@ -4474,28 +4475,13 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	RELOC_AGAINST_DISCARDED_SECTION (info, input_bfd, input_section,
 					 rel, relend, howto, contents);
 
-      if (!use_saved_addend_p)
-	{
-	  addend = rel->r_addend;
-	  mips_elf_adjust_addend (output_bfd, info, input_bfd,
-				  local_syms, local_sections, rel);
-	}
+      addend = rel->r_addend;
+      mips_elf_adjust_addend (output_bfd, info, input_bfd,
+			      local_syms, local_sections, rel);
 
       if (info->relocatable)
 	/* Go on to the next relocation.  */
 	continue;
-
-      /* In the N32 and 64-bit ABIs there may be multiple consecutive
-	 relocations for the same offset.  In that case we are
-	 supposed to treat the output of each relocation as the addend
-	 for the next.  */
-      if (rel + 1 < relend
-	  && rel->r_offset == rel[1].r_offset
-	  && ELF_R_TYPE (input_bfd, rel->r_info) != R_RISCV_NONE
-	  && ELF_R_TYPE (input_bfd, rel[1].r_info) != R_RISCV_NONE)
-	use_saved_addend_p = TRUE;
-      else
-	use_saved_addend_p = FALSE;
 
       /* Figure out what value we are supposed to relocate.  */
       switch (mips_elf_calculate_relocation (output_bfd, input_bfd,
@@ -4522,22 +4508,11 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	  return FALSE;
 
 	case bfd_reloc_overflow:
-	  if (use_saved_addend_p)
-	    /* Ignore overflow until we reach the last relocation for
-	       a given location.  */
-	    ;
-	  else
-	    {
-	      struct mips_elf_link_hash_table *htab;
-
-	      htab = mips_elf_hash_table (info);
-	      BFD_ASSERT (htab != NULL);
-	      BFD_ASSERT (name != NULL);
-	      if (! ((*info->callbacks->reloc_overflow)
-		     (info, NULL, name, howto->name, (bfd_vma) 0,
-		      input_bfd, input_section, rel->r_offset)))
-		return FALSE;
-	    }
+	  BFD_ASSERT (name != NULL);
+	  if (! ((*info->callbacks->reloc_overflow)
+		  (info, NULL, name, howto->name, (bfd_vma) 0,
+		  input_bfd, input_section, rel->r_offset)))
+	    return FALSE;
 	  break;
 
 	case bfd_reloc_ok:
@@ -4546,14 +4521,6 @@ _bfd_riscv_elf_relocate_section (bfd *output_bfd, struct bfd_link_info *info,
 	default:
 	  abort ();
 	  break;
-	}
-
-      /* If we've got another relocation for the address, keep going
-	 until we reach the last one.  */
-      if (use_saved_addend_p)
-	{
-	  addend = value;
-	  continue;
 	}
 
       /* Actually perform the relocation.  */
@@ -5586,7 +5553,7 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
 	 have to adjust its value.  */
       if (isym->st_shndx == sec_shndx
 	  && isym->st_value > addr
-	  && isym->st_value < toaddr)
+	  && isym->st_value <= toaddr)
 	isym->st_value -= count;
 
       /* If the symbol *spans* the bytes we just deleted (i.e. it's
@@ -5595,7 +5562,7 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
       if (isym->st_shndx == sec_shndx
 	  && isym->st_value < addr
 	  && isym->st_value + isym->st_size > addr
-	  && isym->st_value + isym->st_size < toaddr)
+	  && isym->st_value + isym->st_size <= toaddr)
 	isym->st_size -= count;
     }
 
