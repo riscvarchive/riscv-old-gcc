@@ -81,14 +81,6 @@ extern bfd_boolean _bfd_riscv_elf_discard_info
 extern bfd_boolean _bfd_riscv_elf_write_section
   (bfd *, struct bfd_link_info *, asection *, bfd_byte *);
 
-extern bfd_reloc_status_type _bfd_riscv_elf_hi16_reloc
-  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
-extern bfd_reloc_status_type _bfd_riscv_elf_got16_reloc
-  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
-extern bfd_reloc_status_type _bfd_riscv_elf_lo16_reloc
-  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
-extern bfd_reloc_status_type _bfd_riscv_elf_gprel_reloc
-  (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 extern bfd_reloc_status_type _bfd_riscv_elf_generic_reloc
   (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 extern bfd_boolean _bfd_riscv_relax_section
