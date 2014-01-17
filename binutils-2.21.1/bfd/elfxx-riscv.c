@@ -5806,18 +5806,34 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 
 	  indx = ELF_R_SYM (abfd, irel->r_info) - symtab_hdr->sh_info;
 	  h = elf_sym_hashes (abfd)[indx];
-	  BFD_ASSERT (h != NULL);
+	  /* The following #if 0 prevents relaxing auipc/jalr calls to
+	     PLT stubs into jal calls to PLT stubs.  Instead, we relax
+	     them into ld(gp)/jalr, bypassing the PLT (except for the
+	     first invocation).  We might revisit this decision. */
+#if 0
+	  while (h->root.type == bfd_link_hash_indirect)
+	    h =  (struct elf_link_hash_entry *) h->root.u.i.link;
+
+	  if (h->plt.offset != MINUS_ONE)
+	    {
+	      struct mips_elf_link_hash_table *htab;
+
+	      htab = mips_elf_hash_table (link_info);
+	      symval = (htab->splt->output_section->vma
+			+ htab->splt->output_offset
+			+ h->plt.offset);
+	    }
+	  else
+#endif
 	  if (h->root.type != bfd_link_hash_defined
 	      && h->root.type != bfd_link_hash_defweak)
+	    continue;
+	  else
 	    {
-	      /* This appears to be a reference to an undefined symbol,
-		 perhaps a PLT entry. */
-	      continue;
+	      symval = (h->root.u.def.value
+			+ h->root.u.def.section->output_section->vma
+			+ h->root.u.def.section->output_offset);
 	    }
-
-	    symval = (h->root.u.def.value
-		      + h->root.u.def.section->output_section->vma
-		      + h->root.u.def.section->output_offset);
 	}
 
       symval += irel->r_addend;
