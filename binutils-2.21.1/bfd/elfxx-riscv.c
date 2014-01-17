@@ -5560,15 +5560,13 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
   /* Adjust all the relocs.  */
   for (irel = elf_section_data (sec)->relocs; irel < irelend; irel++)
     {
-      unsigned r_type = ELF_R_TYPE (abfd, irel->r_info);
-      reloc_howto_type *r = riscv_elf_rtype_to_howto (r_type);
-
-      /* Adjust branches and jumps that cross the deleted bytes. */
-      if (r != NULL && r->pc_relative)
+      /* Only relocations not aganist symbols need be adjusted. */
+      if (ELF_R_SYM (abfd, irel->r_info) == 0)
 	{
-          if (irel->r_offset < addr && irel->r_offset + irel->r_addend > addr)
+	  /* Adjust branches and jumps that cross the deleted bytes. */
+	  if (irel->r_offset < addr && irel->r_offset + irel->r_addend > addr)
 	    irel->r_addend -= count;
-          if (irel->r_offset > addr && irel->r_offset + irel->r_addend <= addr)
+	  if (irel->r_offset > addr && irel->r_offset + irel->r_addend <= addr)
 	    irel->r_addend += count;
 	}
 
