@@ -1675,6 +1675,7 @@ validate_mips_insn (const struct riscv_opcode *opc)
         {
         case 'g': USE_BITS (OP_MASK_IMMNGPR, OP_SH_IMMNGPR); break;
         case 'f': USE_BITS (OP_MASK_IMMNFPR, OP_SH_IMMNFPR); break;
+        case 'p': used_bits |= ENCODE_ITYPE_IMM(-1U); break;
         case 'n': USE_BITS (OP_MASK_IMMSEGNELM, OP_SH_IMMSEGNELM); break;
         case 'd': USE_BITS (OP_MASK_VRD, OP_SH_VRD); break;
         case 's': USE_BITS (OP_MASK_VRS, OP_SH_VRS); break;
@@ -1726,7 +1727,7 @@ validate_mips_insn (const struct riscv_opcode *opc)
 	return 0;
       }
 #undef USE_BITS
-  if ((used_bits&0xffffffff) != 0xffffffff)
+  if ((used_bits & 0xffffffff) != 0xffffffff)
     {
       as_bad (_("internal: bad mips opcode (bits 0x%lx undefined): %s %s"),
 	      ~used_bits & 0xffffffff, opc->name, opc->args);
@@ -1997,6 +1998,17 @@ mips_ip (char *str, struct mips_cl_insn *ip)
                     as_warn( _( "Improper nfpr amount (%lu)" ),
                              (unsigned long) imm_expr.X_add_number );
                   INSERT_OPERAND( IMMNFPR, *ip, imm_expr.X_add_number );
+                  imm_expr.X_op = O_absent;
+                  s = expr_end;
+                  continue;
+                case 'p':
+                  my_getExpression( &imm_expr, s);
+                  if (!((unsigned long) imm_expr.X_add_number == 16 ||
+                        (unsigned long) imm_expr.X_add_number == 32 ||
+                        (unsigned long) imm_expr.X_add_number == 64))
+                    as_warn( _("Improper precision configuration (%lu)" ),
+                             (unsigned long) imm_expr.X_add_number );
+                  INSERT_OPERAND( CUSTOM_IMM, *ip, imm_expr.X_add_number );
                   imm_expr.X_op = O_absent;
                   s = expr_end;
                   continue;
