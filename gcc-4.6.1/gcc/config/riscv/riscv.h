@@ -1149,62 +1149,59 @@ typedef struct mips_args {
 #define ASM_APP_OFF " #NO_APP\n"
 #endif
 
-#define REGISTER_NAMES							  \
-{ "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",	   \
-  "x8",  "x9",  "x10", "x11", "x12", "x13", "x14", "x15",	   \
-  "x16", "x17", "x18", "x19", "x20", "x21", "x22", "x23",	   \
-  "x24", "x25", "x26", "x27", "x28", "x29", "x30", "x31",	   \
-  "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",	   \
-  "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",	   \
-  "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",	   \
-  "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",	   \
-  "vx0", "vx1", "vx2", "vx3", "vx4", "vx5", "vx6", "vx7",	   \
-  "vx8", "vx9", "vx10","vx11","vx12","vx13","vx14","vx15",	   \
-  "vx16","vx17","vx18","vx19","vx20","vx21","vx22","vx23",	   \
-  "vx24","vx25","vx26","vx27","vx28","vx29","vx30","vx31",	   \
-  "vf0", "vf1", "vf2", "vf3", "vf4", "vf5", "vf6", "vf7",	   \
-  "vf8", "vf9", "vf10","vf11","vf12","vf13","vf14","vf15",	   \
-  "vf16","vf17","vf18","vf19","vf20","vf21","vf22","vf23",	   \
-  "vf24","vf25","vf26","vf27","vf28","vf29","vf30","vf31",	   \
+#define REGISTER_NAMES						\
+{ "zero","ra",  "s0",  "s1",  "s2",  "s3",  "s4",  "s5",	\
+  "s6",  "s7",  "s8",  "s9",  "s10", "s11", "sp",  "tp",	\
+  "v0",  "v1",  "a0",  "a1",  "a2",  "a3",  "a4",  "a5",	\
+  "a6",  "a7",  "t0",  "t1",  "t2",  "t3",  "t4",  "gp",	\
+  "f0",  "f1",  "f2",  "f3",  "f4",  "f5",  "f6",  "f7",	\
+  "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",	\
+  "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",	\
+  "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",	\
+  "vx0", "vx1", "vx2", "vx3", "vx4", "vx5", "vx6", "vx7",	\
+  "vx8", "vx9", "vx10","vx11","vx12","vx13","vx14","vx15",	\
+  "vx16","vx17","vx18","vx19","vx20","vx21","vx22","vx23",	\
+  "vx24","vx25","vx26","vx27","vx28","vx29","vx30","vx31",	\
+  "vf0", "vf1", "vf2", "vf3", "vf4", "vf5", "vf6", "vf7",	\
+  "vf8", "vf9", "vf10","vf11","vf12","vf13","vf14","vf15",	\
+  "vf16","vf17","vf18","vf19","vf20","vf21","vf22","vf23",	\
+  "vf24","vf25","vf26","vf27","vf28","vf29","vf30","vf31",	\
   "arg", "frame", "fakec", "", }
-
-/* List the "software" names for each register.  Also list the numerical
-   names for $fp and $sp.  */
 
 #define ADDITIONAL_REGISTER_NAMES					\
 {									\
-  { "zero",	 0 + GP_REG_FIRST },					\
-  { "ra",	 1 + GP_REG_FIRST },					\
-  { "s0",	 2 + GP_REG_FIRST },					\
-  { "s1",	 3 + GP_REG_FIRST },					\
-  { "s2",	 4 + GP_REG_FIRST },					\
-  { "s3",	 5 + GP_REG_FIRST },					\
-  { "s4",	 6 + GP_REG_FIRST },					\
-  { "s5",	 7 + GP_REG_FIRST },					\
-  { "s6",	 8 + GP_REG_FIRST },					\
-  { "s7",	 9 + GP_REG_FIRST },					\
-  { "s8",	10 + GP_REG_FIRST },					\
-  { "s9",	11 + GP_REG_FIRST },					\
-  { "s10",	12 + GP_REG_FIRST },					\
-  { "s11",	13 + GP_REG_FIRST },					\
-  { "sp",	14 + GP_REG_FIRST },					\
-  { "tp",	15 + GP_REG_FIRST },					\
-  { "v0",	16 + GP_REG_FIRST },					\
-  { "v1",	17 + GP_REG_FIRST },					\
-  { "a0",	18 + GP_REG_FIRST },					\
-  { "a1",	19 + GP_REG_FIRST },					\
-  { "a2",	20 + GP_REG_FIRST },					\
-  { "a3",	21 + GP_REG_FIRST },					\
-  { "a4",	22 + GP_REG_FIRST },					\
-  { "a5",	23 + GP_REG_FIRST },					\
-  { "a6",	24 + GP_REG_FIRST },					\
-  { "a7",	25 + GP_REG_FIRST },					\
-  { "t0",	26 + GP_REG_FIRST },					\
-  { "t1",	27 + GP_REG_FIRST },					\
-  { "t2",	28 + GP_REG_FIRST },					\
-  { "t3",	29 + GP_REG_FIRST },					\
-  { "t4",	30 + GP_REG_FIRST },					\
-  { "gp",	31 + GP_REG_FIRST },					\
+  { "x0",	 0 + GP_REG_FIRST },					\
+  { "x1",	 1 + GP_REG_FIRST },					\
+  { "x2",	 2 + GP_REG_FIRST },					\
+  { "x3",	 3 + GP_REG_FIRST },					\
+  { "x4",	 4 + GP_REG_FIRST },					\
+  { "x5",	 5 + GP_REG_FIRST },					\
+  { "x6",	 6 + GP_REG_FIRST },					\
+  { "x7",	 7 + GP_REG_FIRST },					\
+  { "x8",	 8 + GP_REG_FIRST },					\
+  { "x9",	 9 + GP_REG_FIRST },					\
+  { "x10",	10 + GP_REG_FIRST },					\
+  { "x11",	11 + GP_REG_FIRST },					\
+  { "x12",	12 + GP_REG_FIRST },					\
+  { "x13",	13 + GP_REG_FIRST },					\
+  { "x14",	14 + GP_REG_FIRST },					\
+  { "x15",	15 + GP_REG_FIRST },					\
+  { "x16",	16 + GP_REG_FIRST },					\
+  { "x17",	17 + GP_REG_FIRST },					\
+  { "x18",	18 + GP_REG_FIRST },					\
+  { "x19",	19 + GP_REG_FIRST },					\
+  { "x20",	20 + GP_REG_FIRST },					\
+  { "x21",	21 + GP_REG_FIRST },					\
+  { "x22",	22 + GP_REG_FIRST },					\
+  { "x23",	23 + GP_REG_FIRST },					\
+  { "x24",	24 + GP_REG_FIRST },					\
+  { "x25",	25 + GP_REG_FIRST },					\
+  { "x26",	26 + GP_REG_FIRST },					\
+  { "x27",	27 + GP_REG_FIRST },					\
+  { "x28",	28 + GP_REG_FIRST },					\
+  { "x29",	29 + GP_REG_FIRST },					\
+  { "x30",	30 + GP_REG_FIRST },					\
+  { "x31",	31 + GP_REG_FIRST },					\
   { "fs0",	 0 + FP_REG_FIRST },					\
   { "fs1",	 1 + FP_REG_FIRST },					\
   { "fs2",	 2 + FP_REG_FIRST },					\
