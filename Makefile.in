@@ -43,7 +43,9 @@ linux: build-gcc-linux-stage2
 build-binutils-newlib:
 	rm -rf $@
 	mkdir $@
-	cd $@ && $(srcdir)/binutils-$(BINUTILS_VERSION)/configure \
+	cd $@ && \
+	CFLAGS+=-Wno-error=deprecated-declarations \
+	$(srcdir)/binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-elf \
 		--program-prefix=riscv- \
 		--prefix=$(INSTALL_DIR) \
