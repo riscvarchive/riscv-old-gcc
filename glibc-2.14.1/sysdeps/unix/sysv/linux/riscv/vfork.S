@@ -49,9 +49,9 @@ LEAF(__vfork)
 	li		v0,__NR_clone
 	scall
 
-	RESTORE_PID
+	bltz		v0,L(error)
 
-	bnez		a3,L(error)
+	RESTORE_PID
 
 	ret
 

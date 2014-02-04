@@ -79,9 +79,8 @@ LEAF (__getcontext)
 
 	li	v0, SYS_ify (rt_sigprocmask)
 	scall
-	bnez	a3, 99f
+	bltz	v0, 99f
 
-	move	v0, zero
 	ret
 
 99:	j	__syscall_error

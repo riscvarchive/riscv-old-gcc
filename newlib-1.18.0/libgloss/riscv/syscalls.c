@@ -89,13 +89,13 @@
 // Open a file.
 
 #define syscall_errno(n, a, b, c, d) \
-        __syscall_errno(n, (long)(a), (long)(b), (long)(c), (long)(d))
-static inline long __syscall_errno(long n, long a, long b, long c, long d)
+        __internal_syscall(n, (long)(a), (long)(b), (long)(c), (long)(d))
+
+int __syscall_error()
 {
-  sysret_t s = __internal_syscall(n, a, b, c, d);
-  if (__builtin_expect(s.err, 0))
-    errno = -s.result;
-  return s.result;
+  register int v0 asm("v0");
+  errno = -v0;
+  return -1;
 }
 
 int open(const char* name, int flags, int mode)
@@ -420,4 +420,3 @@ void _exit(int exit_status)
   syscall_errno(SYS_exit, exit_status, 0, 0, 0);
   while (1);
 }
-

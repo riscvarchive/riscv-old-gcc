@@ -65,10 +65,10 @@
      result_var; })
 
 #undef INTERNAL_SYSCALL_DECL
-#define INTERNAL_SYSCALL_DECL(err) long err
+#define INTERNAL_SYSCALL_DECL(err) do { } while (0)
 
 #undef INTERNAL_SYSCALL_ERROR_P
-#define INTERNAL_SYSCALL_ERROR_P(val, err)   ((long) (err))
+#define INTERNAL_SYSCALL_ERROR_P(val, err)   ((long) (val) < 0)
 
 #undef INTERNAL_SYSCALL_ERRNO
 #define INTERNAL_SYSCALL_ERRNO(val, err)     (-val)
@@ -87,13 +87,11 @@
 									\
 	{								\
 	register long __v0 asm("v0") = number;				\
-	register long __a3 asm("a3");					\
 	__asm__ volatile ( 						\
 	"scall\n\t" 							\
-	: "+r" (__v0), "=r" (__a3) 					\
+	: "+r" (__v0)							\
 	: "r" (__v0)							\
 	: __SYSCALL_CLOBBERS); 						\
-	err = __a3;							\
 	_sys_result = __v0;						\
 	}								\
 	_sys_result;							\
@@ -106,13 +104,11 @@
 	{								\
 	register long __v0 asm("v0") = number;				\
 	register long __a0 asm("a0") = (long) (arg0); 			\
-	register long __a3 asm("a3");					\
 	__asm__ volatile ( 						\
 	"scall\n\t" 							\
-	: "+r" (__v0), "=r" (__a3) 					\
+	: "+r" (__v0)							\
 	: "r" (__v0), "r"(__a0)						\
 	: __SYSCALL_CLOBBERS); 						\
-	err = __a3;							\
 	_sys_result = __v0;						\
 	}								\
 	_sys_result;							\
@@ -126,13 +122,11 @@
 	register long __v0 asm("v0") = number;				\
 	register long __a0 asm("a0") = (long) (arg0); 			\
 	register long __a1 asm("a1") = (long) (arg1); 			\
-	register long __a3 asm("a3");					\
 	__asm__ volatile ( 						\
 	"scall\n\t" 							\
-	: "+r" (__v0), "=r" (__a3) 					\
+	: "+r" (__v0)							\
 	: "r" (__v0), "r"(__a0), "r"(__a1)				\
 	: __SYSCALL_CLOBBERS); 						\
-	err = __a3;							\
 	_sys_result = __v0;						\
 	}								\
 	_sys_result;							\
@@ -147,13 +141,11 @@
 	register long __a0 asm("a0") = (long) (arg0); 			\
 	register long __a1 asm("a1") = (long) (arg1); 			\
 	register long __a2 asm("a2") = (long) (arg2); 			\
-	register long __a3 asm("a3");					\
 	__asm__ volatile ( 						\
 	"scall\n\t" 							\
-	: "+r" (__v0), "=r" (__a3) 					\
+	: "+r" (__v0)							\
 	: "r" (__v0), "r"(__a0), "r"(__a1), "r"(__a2)			\
 	: __SYSCALL_CLOBBERS); 						\
-	err = __a3;							\
 	_sys_result = __v0;						\
 	}								\
 	_sys_result;							\
@@ -171,10 +163,9 @@
 	register long __a3 asm("a3") = (long) (arg3);   		\
 	__asm__ volatile ( 						\
 	"scall\n\t" 							\
-	: "+r" (__v0), "+r" (__a3) 					\
+	: "+r" (__v0)							\
 	: "r" (__v0), "r"(__a0), "r"(__a1), "r"(__a2), "r"(__a3)	\
 	: __SYSCALL_CLOBBERS); 						\
-	err = __a3;							\
 	_sys_result = __v0;						\
 	}								\
 	_sys_result;							\
@@ -193,10 +184,9 @@
 	register long __a4 asm("a4") = (long) (arg4);   		\
 	__asm__ volatile ( 						\
 	"scall\n\t" 							\
-	: "+r" (__v0), "+r" (__a3) 					\
+	: "+r" (__v0)							\
 	: "r" (__v0), "r"(__a0), "r"(__a1), "r"(__a2), "r"(__a3), "r"(__a4)     \
 	: __SYSCALL_CLOBBERS); 						\
-	err = __a3;							\
 	_sys_result = __v0;						\
 	}								\
 	_sys_result;							\
@@ -216,10 +206,9 @@
 	register long __a5 asm("a5") = (long) (arg5);   		\
 	__asm__ volatile ( 						\
 	"scall\n\t" 							\
-	: "+r" (__v0), "+r" (__a3) 					\
+	: "+r" (__v0)							\
 	: "r" (__v0), "r"(__a0), "r"(__a1), "r"(__a2), "r"(__a3), "r"(__a4), "r"(__a5)     \
 	: __SYSCALL_CLOBBERS); 						\
-	err = __a3;							\
 	_sys_result = __v0;						\
 	}								\
 	_sys_result;							\
@@ -240,10 +229,9 @@
 	register long __a6 asm("a6") = (long) (arg6);   		\
 	__asm__ volatile ( 						\
 	"scall\n\t" 							\
-	: "+r" (__v0), "+r" (__a3) 					\
+	: "+r" (__v0)							\
 	: "r" (__v0), "r"(__a0), "r"(__a1), "r"(__a2), "r"(__a3), "r"(__a4), "r"(__a5), "r"(__a6)     \
 	: __SYSCALL_CLOBBERS); 						\
-	err = __a3;							\
 	_sys_result = __v0;						\
 	}								\
 	_sys_result;							\

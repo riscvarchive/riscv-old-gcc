@@ -34,13 +34,7 @@
 #define SYS_gettimeofday 169
 #define SYS_times 153
 
-typedef struct
-{
-  long result;
-  long err;
-} sysret_t;
-
-static inline sysret_t
+static inline long
 __internal_syscall(long n, long _a0, long _a1, long _a2, long _a3)
 {
   register long v0 asm("v0") = n;
@@ -49,12 +43,11 @@ __internal_syscall(long n, long _a0, long _a1, long _a2, long _a3)
   register long a2 asm("a2") = _a2;
   register long a3 asm("a3") = _a3;
 
-  asm volatile ("scall" : "+r"(v0), "+r"(a3) : "r"(a0), "r"(a1), "r"(a2));
+  asm volatile ("scall\n"
+		"bltz v0, __syscall_error"
+		: "+r"(v0) : "r"(a0), "r"(a1), "r"(a2), "r"(a3));
 
-  sysret_t s;
-  s.result = v0;
-  s.err = a3;
-  return s;
+  return v0;
 }
 
 #endif

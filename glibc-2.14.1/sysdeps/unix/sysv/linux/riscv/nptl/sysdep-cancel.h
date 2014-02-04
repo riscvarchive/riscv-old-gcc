@@ -45,7 +45,7 @@
     SAVESTK;								      \
     li v0, SYS_ify(syscall_name);					      \
     scall;								      \
-    bnez a3, SYSCALL_ERROR_LABEL;			       		      \
+    bltz v0, SYSCALL_ERROR_LABEL;			       		      \
     RESTORESTK;								      \
     ret;								      \
   .size __##syscall_name##_nocancel,.-__##syscall_name##_nocancel;	      \
@@ -55,7 +55,7 @@
     bnez v1, L(pseudo_cancel);  					      \
     li v0, SYS_ify(syscall_name);					      \
     scall;								      \
-    bnez a3, SYSCALL_ERROR_LABEL;			       		      \
+    bltz v0, SYSCALL_ERROR_LABEL;			       		      \
     RESTORESTK;								      \
     ret;								      \
   L(pseudo_cancel):							      \
@@ -69,13 +69,11 @@
       li v0, SYS_ify (syscall_name);				      	      \
       scall;								      \
       REG_S v0, STKOFF_SC_V0(sp);		/* save syscall result */             \
-      REG_S a3, STKOFF_SC_ERR(sp);	/* save syscall error flag */	      \
       REG_L a0, STKOFF_SVMSK(sp);		/* pass mask as arg1 */		      \
       CDISABLE;								      \
-      REG_L a3, STKOFF_SC_ERR(sp);	/* restore syscall error flag */      \
-      REG_L ra, STKOFF_RA(sp);		/* restore return address */	      \
       REG_L v0, STKOFF_SC_V0(sp);		/* restore syscall result */          \
-      bnez a3, SYSCALL_ERROR_LABEL;					      \
+      REG_L ra, STKOFF_RA(sp);		/* restore return address */	      \
+      bltz v0, SYSCALL_ERROR_LABEL;					      \
       RESTORESTK;								      \
     L(pseudo_end):
 
@@ -116,8 +114,7 @@
 # define STKOFF_A0	(STKOFF_A1 + SZREG)	/* MT and 1 arg.  */
 # define STKOFF_RA	(STKOFF_A0 + SZREG)	/* Used if MT.  */
 # define STKOFF_SC_V0	(STKOFF_RA + SZREG)	/* Used if MT.  */
-# define STKOFF_SC_ERR	(STKOFF_SC_V0 + SZREG)	/* Used if MT.  */
-# define STKOFF_SVMSK	(STKOFF_SC_ERR + SZREG)	/* Used if MT.  */
+# define STKOFF_SVMSK	(STKOFF_SC_V0 + SZREG)	/* Used if MT.  */
 
 # define STKSPACE	(STKOFF_SVMSK + SZREG)
 # define SAVESTK 	addi sp, sp, -STKSPACE; cfi_adjust_cfa_offset(STKSPACE)

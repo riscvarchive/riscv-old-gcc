@@ -43,7 +43,7 @@ __brk (void *addr)
     asm ("scall"		/* Perform the system call.  */
 	 : "+r" (res)
 	 : "r" (arg)
-	 : "a3", __SYSCALL_CLOBBERS);
+	 : __SYSCALL_CLOBBERS);
 
     newbrk = (void *) res;
   }

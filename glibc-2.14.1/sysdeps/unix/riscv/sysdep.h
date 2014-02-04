@@ -66,7 +66,7 @@
   ENTRY(name)							\
   li v0, SYS_ify(syscall_name);					\
   scall;							\
-  bne a3, zero, 99b;						\
+  bltz v0, 99b;							\
 L(syse1):
 
 #endif

@@ -62,7 +62,7 @@ LEAF(__clone)
 	li		v0,__NR_clone
 	scall
 
-	bnez		a3,L(error)
+	bltz		v0,L(error)
 	beqz		v0,L(thread_start)
 
 	/* Successful return from the parent */

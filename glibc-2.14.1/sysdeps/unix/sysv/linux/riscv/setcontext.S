@@ -42,65 +42,64 @@ LEAF (__setcontext)
 	add     a1, a0, UCONTEXT_SIGMASK
 	li	a0, SIG_SETMASK
 
-	li	v0, SYS_ify (rt_sigprocmask)
+	li	t0, SYS_ify (rt_sigprocmask)
 	scall
 
-	REG_L   v0, 0(sp)
+	REG_L   t0, 0(sp)
 	addi    sp, sp, SZREG
-	bnez	a3, 99f
+	bltz	v0, 99f
 
 #ifdef __riscv_hard_float
-	lw	v1, MCONTEXT_FSR(v0)
+	lw	v1, MCONTEXT_FSR(t0)
 
-	fld	fs0, ( 0 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs1, ( 1 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs2, ( 2 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs3, ( 3 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs4, ( 4 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs5, ( 5 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs6, ( 6 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs7, ( 7 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs8, ( 8 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs9, ( 9 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs10,(10 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs11,(11 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs12,(12 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs13,(13 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs14,(14 * 8 + MCONTEXT_FPREGS)(v0)
-	fld	fs15,(15 * 8 + MCONTEXT_FPREGS)(v0)
+	fld	fs0, ( 0 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs1, ( 1 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs2, ( 2 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs3, ( 3 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs4, ( 4 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs5, ( 5 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs6, ( 6 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs7, ( 7 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs8, ( 8 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs9, ( 9 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs10,(10 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs11,(11 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs12,(12 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs13,(13 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs14,(14 * 8 + MCONTEXT_FPREGS)(t0)
+	fld	fs15,(15 * 8 + MCONTEXT_FPREGS)(t0)
 
 	fssr	v1
 #endif /* __mips_hard_float */
 
 	/* Note the contents of argument registers will be random
 	   unless makecontext() has been called.  */
-	REG_L	ra, ( 1 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s0, ( 2 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s1, ( 3 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s2, ( 4 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s3, ( 5 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s4, ( 6 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s5, ( 7 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s6, ( 8 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s7, ( 9 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s8, (10 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s9, (11 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s10,(12 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	s11,(13 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	sp, (14 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	tp, (15 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a0, (18 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a1, (19 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a2, (20 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a3, (21 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a4, (22 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a5, (23 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a6, (24 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	a7, (25 * SZREG + MCONTEXT_GREGS)(v0)
-	REG_L	v1, MCONTEXT_PC(v0)
+	REG_L	ra, ( 1 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s0, ( 2 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s1, ( 3 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s2, ( 4 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s3, ( 5 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s4, ( 6 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s5, ( 7 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s6, ( 8 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s7, ( 9 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s8, (10 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s9, (11 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s10,(12 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	s11,(13 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	sp, (14 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	tp, (15 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	a0, (18 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	a1, (19 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	a2, (20 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	a3, (21 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	a4, (22 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	a5, (23 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	a6, (24 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	a7, (25 * SZREG + MCONTEXT_GREGS)(t0)
+	REG_L	v1, MCONTEXT_PC(t0)
 	addi    sp, sp, SZREG
 
-	move	v0, zero
 	jr	v1
 
 98:

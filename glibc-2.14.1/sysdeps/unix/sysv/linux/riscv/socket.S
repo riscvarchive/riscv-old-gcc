@@ -76,7 +76,7 @@ LEAF (__socket)
 	scall
 
 	addi  sp, sp, SZREG*NARGS
-	bnez	a3, 99f
+	bltz	v0, 99f
 
 #if defined NEED_CANCELLATION && defined CENABLE
 1:unimp
