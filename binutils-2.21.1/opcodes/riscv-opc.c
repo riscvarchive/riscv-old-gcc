@@ -618,13 +618,16 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"vsetcfg",   "Xhwacha", "s", MATCH_VSETCFG, MASK_VSETCFG | MASK_IMM, match_opcode, 0},
 {"vsetcfg",   "Xhwacha", "#g,#f", MATCH_VSETCFG, MASK_VSETCFG | MASK_RS1, match_opcode, 0},
 {"vsetcfg",   "Xhwacha", "s,#g,#f", MATCH_VSETCFG, MASK_VSETCFG, match_opcode, 0},
-{"vsetprec",  "Xhwacha", "#p", MATCH_VSETPREC, MASK_VSETPREC, match_opcode, 0},
+{"vsetucfg",  "Xhwacha", "d,u", MATCH_LUI, MASK_LUI, match_opcode, INSN_ALIAS | WR_xd},
 {"vsetvl",    "Xhwacha", "d,s", MATCH_VSETVL, MASK_VSETVL, match_opcode, 0},
 {"vgetcfg",   "Xhwacha", "d", MATCH_VGETCFG, MASK_VGETCFG, match_opcode, 0},
 {"vgetvl",    "Xhwacha", "d", MATCH_VGETVL, MASK_VGETVL, match_opcode, 0},
 
 {"vmvv",      "Xhwacha", "#d,#s", MATCH_VMVV, MASK_VMVV, match_opcode, 0},
 {"vmsv",      "Xhwacha", "#d,s", MATCH_VMSV, MASK_VMSV, match_opcode, 0},
+{"vfmvv",     "Xhwacha", "#D,#S", MATCH_VFMVV, MASK_VFMVV, match_opcode, 0},
+{"vfmsv",     "Xhwacha", "#D,s", MATCH_VFMSV, MASK_VFMSV, match_opcode, 0},
+
 {"vf",        "Xhwacha", "q(s)", MATCH_VF, MASK_VF, match_opcode, 0},
 
 {"vxcptcause",   "Xhwacha", "d", MATCH_VXCPTCAUSE, MASK_VXCPTCAUSE, match_opcode, 0},
