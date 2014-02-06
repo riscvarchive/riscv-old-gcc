@@ -145,7 +145,6 @@ build-gcc-linux-stage2: build-glibc-linux
 		--disable-libmudflap \
 		--disable-libssp \
 		--disable-libquadmath \
-		--disable-libgomp \
 		--disable-nls \
 		--disable-multilib \
 		--disable-bootstrap \
