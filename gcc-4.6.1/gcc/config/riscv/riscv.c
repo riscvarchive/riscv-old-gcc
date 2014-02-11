@@ -2874,7 +2874,7 @@ mips_va_start (tree valist, rtx nextarg)
 rtx
 mips_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
 {
-  rtx pattern, insn;
+  rtx pattern;
 
   if (!call_insn_operand (addr, VOIDmode))
     {
@@ -2924,16 +2924,7 @@ mips_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
       pattern = fn (result, addr, args_size);
     }
 
-  insn = emit_call_insn (pattern);
-
-  if (TARGET_USE_GOT)
-    {
-      /* See the comment above set_got_version for details.  */
-      use_reg (&CALL_INSN_FUNCTION_USAGE (insn),
-	       gen_rtx_REG (Pmode, GOT_VERSION_REGNUM));
-      emit_insn (gen_update_got_version ());
-    }
-  return insn;
+  return emit_call_insn (pattern);
 }
 
 /* Emit straight-line code to move LENGTH bytes from SRC to DEST.
@@ -3508,18 +3499,6 @@ mips_initial_elimination_offset (int from, int to)
   return src - dest;
 }
 
-/* Implement TARGET_EXTRA_LIVE_ON_ENTRY.  */
-
-static void
-mips_extra_live_on_entry (bitmap regs)
-{
-  if (TARGET_USE_GOT)
-    {
-      /* See the comment above set_got_version for details.  */
-      bitmap_set_bit (regs, GOT_VERSION_REGNUM);
-    }
-}
-
 /* Implement RETURN_ADDR_RTX.  We do not support moving back to a
    previous frame.  */
 
@@ -3859,9 +3838,6 @@ mips_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
 	  || mclass == MODE_VECTOR_FLOAT)
 	return size <= UNITS_PER_FPVALUE;
     }
-
-  if (regno == GOT_VERSION_REGNUM)
-    return mode == SImode;
 
   return false;
 }
@@ -5015,11 +4991,6 @@ mips_epilogue_uses (unsigned int regno)
   if (regno == RETURN_ADDR_REGNUM)
     return true;
 
-  /* If using a GOT, say that the epilogue also uses GOT_VERSION_REGNUM.
-     See the comment above set_got_version for details.  */
-  if (TARGET_USE_GOT && (regno) == GOT_VERSION_REGNUM)
-    return true;
-
   return false;
 }
 
@@ -5267,9 +5238,6 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
    be compiled or called.  They don't in themselves prevent inlining.  */
 #undef TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P
 #define TARGET_FUNCTION_ATTRIBUTE_INLINABLE_P hook_bool_const_tree_true
-
-#undef TARGET_EXTRA_LIVE_ON_ENTRY
-#define TARGET_EXTRA_LIVE_ON_ENTRY mips_extra_live_on_entry
 
 #undef TARGET_USE_BLOCKS_FOR_CONSTANT_P
 #define TARGET_USE_BLOCKS_FOR_CONSTANT_P hook_bool_mode_const_rtx_true

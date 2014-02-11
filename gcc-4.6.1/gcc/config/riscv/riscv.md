@@ -48,8 +48,6 @@
 
   ;; GP manipulation.
   UNSPEC_EH_RETURN
-  UNSPEC_SET_GOT_VERSION
-  UNSPEC_UPDATE_GOT_VERSION
 
   ;; Symbolic accesses.
   UNSPEC_LOAD_CALL
@@ -88,7 +86,6 @@
 
 (define_constants
   [(RETURN_ADDR_REGNUM		1)
-   (GOT_VERSION_REGNUM		130)
 
    (UNSPEC_RISCV_VLOAD          700)
    (UNSPEC_RISCV_VSTORE         701)
@@ -2532,88 +2529,12 @@
   DONE;
 })
 
-(define_expand "exception_receiver"
-  [(const_int 0)]
-  "TARGET_USE_GOT"
-{
-  /* See the comment above set_got_version for details.  */
-  emit_insn (gen_set_got_version ());
-  DONE;
-})
-
-(define_expand "nonlocal_goto_receiver"
-  [(const_int 0)]
-  "TARGET_USE_GOT"
-{
-  /* See the comment above set_got_version for details.  */
-  emit_insn (gen_set_got_version ());
-  DONE;
-})
-
 ;;
 ;;  ....................
 ;;
 ;;	FUNCTION CALLS
 ;;
 ;;  ....................
-
-;; Instructions to load a call address from the GOT.  The address might
-;; point to a function or to a lazy binding stub.  In the latter case,
-;; the stub will use the dynamic linker to resolve the function, which
-;; in turn will change the GOT entry to point to the function's real
-;; address.
-;;
-;; This means that every call, even pure and constant ones, can
-;; potentially modify the GOT entry.  And once a stub has been called,
-;; we must not call it again.
-;;
-;; We represent this restriction using an imaginary, fixed, call-saved
-;; register called GOT_VERSION_REGNUM.  The idea is to make the register
-;; live throughout the function and to change its value after every
-;; potential call site.  This stops any rtx value that uses the register
-;; from being computed before an earlier call.  To do this, we:
-;;
-;;    - Ensure that the register is live on entry to the function,
-;;	so that it is never thought to be used uninitalized.
-;;
-;;    - Ensure that the register is live on exit from the function,
-;;	so that it is live throughout.
-;;
-;;    - Make each call (lazily-bound or not) use the current value
-;;	of GOT_VERSION_REGNUM, so that updates of the register are
-;;	not moved across call boundaries.
-;;
-;;    - Add "ghost" definitions of the register to the beginning of
-;;	blocks reached by EH and ABNORMAL_CALL edges, because those
-;;	edges may involve calls that normal paths don't.  (E.g. the
-;;	unwinding code that handles a non-call exception may change
-;;	lazily-bound GOT entries.)  We do this by making the
-;;	exception_receiver and nonlocal_goto_receiver expanders emit
-;;	a set_got_version instruction.
-;;
-;;    - After each call (lazily-bound or not), use a "ghost"
-;;	update_got_version instruction to change the register's value.
-;;	This instruction mimics the _possible_ effect of the dynamic
-;;	resolver during the call and it remains live even if the call
-;;	itself becomes dead.
-;;
-;;    - Leave GOT_VERSION_REGNUM out of all register classes.
-;;	The register is therefore not a valid register_operand
-;;	and cannot be moved to or from other registers.
-
-(define_insn "set_got_version"
-  [(set (reg:SI GOT_VERSION_REGNUM)
-	(unspec_volatile:SI [(const_int 0)] UNSPEC_SET_GOT_VERSION))]
-  "TARGET_USE_GOT"
-  ""
-  [(set_attr "type" "ghost")])
-
-(define_insn "update_got_version"
-  [(set (reg:SI GOT_VERSION_REGNUM)
-	(unspec:SI [(reg:SI GOT_VERSION_REGNUM)] UNSPEC_UPDATE_GOT_VERSION))]
-  "TARGET_USE_GOT"
-  ""
-  [(set_attr "type" "ghost")])
 
 ;; Sibling calls.  All these patterns use jump instructions.
 

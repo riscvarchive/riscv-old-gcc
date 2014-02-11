@@ -560,13 +560,11 @@ struct mips_cpu_info {
    - 32 floating point registers
    - 32 vector integer registers
    - 32 vector floating point registers
-   - 3 fake registers:
+   - 2 fake registers:
 	- ARG_POINTER_REGNUM
-	- FRAME_POINTER_REGNUM
-	- GOT_VERSION_REGNUM (see the comment above set_got_version for details)
-   - 1 dummy entry that were used at various times in the past. */
+	- FRAME_POINTER_REGNUM */
 
-#define FIRST_PSEUDO_REGISTER 132
+#define FIRST_PSEUDO_REGISTER 130
 
 /* By default, fix the global pointer ($28), the stack pointer ($30),
    and the thread pointer ($31). */
@@ -585,7 +583,7 @@ struct mips_cpu_info {
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   /* Others.  */                                                        \
-  1, 1, 1, 1 \
+  1, 1 \
 }
 
 
@@ -614,7 +612,7 @@ struct mips_cpu_info {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,			\
   /* Others.  */                                                        \
-  1, 1, 1, 1 \
+  1, 1 \
 }
 
 #define CALL_REALLY_USED_REGISTERS                                      \
@@ -631,7 +629,7 @@ struct mips_cpu_info {
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
   1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,			\
   /* Others.  */                                                        \
-  1, 1, 0, 0 \
+  1, 1 \
 }
 
 /* Internal macros to classify a register number as to whether it's a
@@ -850,7 +848,7 @@ enum reg_class
  112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,	\
   /* None of the remaining classes have defined call-saved		\
      registers.  */							\
- 128,129,130,131 \
+ 128,129 \
 }
 
 /* True if VALUE is a signed 16-bit number.  */
@@ -1166,7 +1164,7 @@ typedef struct mips_args {
   "vf8", "vf9", "vf10","vf11","vf12","vf13","vf14","vf15",	\
   "vf16","vf17","vf18","vf19","vf20","vf21","vf22","vf23",	\
   "vf24","vf25","vf26","vf27","vf28","vf29","vf30","vf31",	\
-  "arg", "frame", "fakec", "", }
+  "arg", "frame", }
 
 #define ADDITIONAL_REGISTER_NAMES					\
 {									\
