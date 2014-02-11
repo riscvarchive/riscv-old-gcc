@@ -306,6 +306,9 @@ struct mips_elf_link_hash_table
 
   /* The number of reserved entries at the beginning of the GOT.  */
   unsigned int reserved_gotno;
+
+  /* Whether or not relaxation is enabled. */
+  bfd_boolean relax;
 };
 
 /* Get the MIPS ELF linker hash table from a link_info structure.  */
@@ -563,11 +566,11 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_UTYPE_IMM(-1U),		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* Low 16 bits of symbol value.  */
+  /* Low 12 bits of symbol value.  */
   HOWTO (R_RISCV_LO12_I,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
+	 RISCV_IMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
@@ -578,11 +581,11 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_ITYPE_IMM(-1U) | (OP_MASK_RS1 << OP_SH_RS1),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* Low 16 bits of symbol value.  */
+  /* Low 12 bits of symbol value.  */
   HOWTO (R_RISCV_LO12_S,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
+	 RISCV_IMM_BITS,	/* bitsize */
 	 FALSE,			/* pc_relative */
 	 0,			/* bitpos */
 	 complain_overflow_dont, /* complain_on_overflow */
@@ -593,8 +596,35 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_STYPE_IMM(-1U) | (OP_MASK_RS1 << OP_SH_RS1),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  EMPTY_HOWTO (8),
-  EMPTY_HOWTO (9),
+  /* Distance between AUIPC and corresponding ADD/load.  */
+  HOWTO (R_RISCV_PCREL_LO12_I,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_LO12_I",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* Distance between AUIPC and corresponding store.  */
+  HOWTO (R_RISCV_PCREL_LO12_S,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_LO12_S",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 ENCODE_STYPE_IMM(-1U),	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
 
   HOWTO (R_RISCV_BRANCH,	/* type */
 	 0,			/* rightshift */
@@ -1126,11 +1156,13 @@ static const struct elf_reloc_map riscv_reloc_map[] =
   { BFD_RELOC_RISCV_HI20, R_RISCV_HI20 },
   { BFD_RELOC_RISCV_LO12_I, R_RISCV_LO12_I },
   { BFD_RELOC_RISCV_LO12_S, R_RISCV_LO12_S },
+  { BFD_RELOC_RISCV_PCREL_LO12_I, R_RISCV_PCREL_LO12_I },
+  { BFD_RELOC_RISCV_PCREL_LO12_S, R_RISCV_PCREL_LO12_S },
   { BFD_RELOC_RISCV_CALL, R_RISCV_CALL },
   { BFD_RELOC_RISCV_PCREL_HI20, R_RISCV_PCREL_HI20 },
   { BFD_RELOC_MIPS_JMP, R_RISCV_JAL },
-  { BFD_RELOC_MIPS_GOT_HI16, R_RISCV_GOT_HI20 },
-  { BFD_RELOC_MIPS_GOT_LO16, R_RISCV_GOT_LO12 },
+  { BFD_RELOC_RISCV_GOT_HI20, R_RISCV_GOT_HI20 },
+  { BFD_RELOC_RISCV_GOT_LO12, R_RISCV_GOT_LO12 },
   { BFD_RELOC_MIPS_TLS_DTPMOD32, R_RISCV_TLS_DTPMOD32 },
   { BFD_RELOC_MIPS_TLS_DTPREL32, R_RISCV_TLS_DTPREL32 },
   { BFD_RELOC_MIPS_TLS_DTPMOD64, R_RISCV_TLS_DTPMOD64 },
@@ -1240,14 +1272,14 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value, bfd_vma addr,
   for (j = 0; j < X_NA; j++)
     entry[i++] = RISCV_STYPE(SREG(abfd), X_SP, X_A0+j, (j+1)*regbytes);
   offset = addr + i*4;
-  entry[i++] = RISCV_UTYPE(AUIPC, X_V1, RISCV_AUIPC_HIGH_PART(gotplt_value, offset));
-  entry[i++] = RISCV_ITYPE(ADDI, X_V1, X_V1, RISCV_CONST_LOW_PART(gotplt_value));
+  entry[i++] = RISCV_UTYPE(AUIPC, X_V1, RISCV_PCREL_HIGH_PART(gotplt_value, offset));
+  entry[i++] = RISCV_ITYPE(ADDI, X_V1, X_V1, RISCV_PCREL_LOW_PART(gotplt_value, offset));
   entry[i++] = RISCV_ITYPE(LREG(abfd), X_A0, X_V1, regbytes);
   entry[i++] = RISCV_ITYPE(LREG(abfd), X_V1, X_V1, 0);
   bfd_vma after_first_plt = addr + RISCV_PLT0_SIZE + RISCV_PLT_SIZE;
   offset = addr + i*4;
-  entry[i++] = RISCV_UTYPE(AUIPC, X_A1, RISCV_AUIPC_HIGH_PART(after_first_plt, offset));
-  entry[i++] = RISCV_ITYPE(ADDI, X_A1, X_A1, RISCV_CONST_LOW_PART(after_first_plt));
+  entry[i++] = RISCV_UTYPE(AUIPC, X_A1, RISCV_PCREL_HIGH_PART(after_first_plt, offset));
+  entry[i++] = RISCV_ITYPE(ADDI, X_A1, X_A1, RISCV_PCREL_LOW_PART(after_first_plt, offset));
   entry[i++] = RISCV_RTYPE(SUB, X_A1, X_V0, X_A1);
   if (RISCV_PLT_SIZE != 2*regbytes)
   {
@@ -1278,8 +1310,8 @@ riscv_make_plt_entry(bfd* abfd, bfd_vma got_address, bfd_vma plt0_addr,
      jal    v0, plt0 [this is where the got entry initially points]
   */
 
-  entry[0] = RISCV_UTYPE(AUIPC, X_V0, RISCV_AUIPC_HIGH_PART(got_address, addr));
-  entry[1] = RISCV_ITYPE(LREG(abfd),  X_V0, X_V0, RISCV_CONST_LOW_PART(got_address));
+  entry[0] = RISCV_UTYPE(AUIPC, X_V0, RISCV_PCREL_HIGH_PART(got_address, addr));
+  entry[1] = RISCV_ITYPE(LREG(abfd),  X_V0, X_V0, RISCV_PCREL_LOW_PART(got_address, addr));
   entry[2] = RISCV_ITYPE(JALR, 0, X_V0, 0);
   bfd_vma got_val = addr + 12;
   entry[3] = RISCV_UJTYPE(JAL, X_V0, plt0_addr - got_val);
@@ -3082,7 +3114,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       bfd_vma got;
       value = addend + (symbol ? symbol : p);
 
-      if (eh != NULL && eh->plt.offset != MINUS_ONE
+      if (htab->relax && eh != NULL && eh->plt.offset != MINUS_ONE
 	  && (got = riscv_elf_got_plt_val_from_offset (eh->plt.offset, info),
 	      got -= gp,
 	      VALID_ITYPE_IMM (got))
@@ -3094,8 +3126,8 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	}
       else
 	{
-      	  auipc |= ENCODE_UTYPE_IMM (RISCV_AUIPC_HIGH_PART (value, p));
-      	  jalr |= ENCODE_ITYPE_IMM (value);
+      	  auipc |= ENCODE_UTYPE_IMM (RISCV_PCREL_HIGH_PART (value, p));
+      	  jalr |= ENCODE_ITYPE_IMM (RISCV_PCREL_LOW_PART (value, p));
 	}
 
       bfd_put (32, input_bfd, auipc, contents + relocation->r_offset);
@@ -3142,37 +3174,54 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       break;
 
     case R_RISCV_PCREL_HI20:
-      value = ENCODE_UTYPE_IMM (RISCV_AUIPC_HIGH_PART (addend + symbol, p));
+      value = ENCODE_UTYPE_IMM (RISCV_PCREL_HIGH_PART (addend + symbol, p));
       break;
 
     case R_RISCV_HI20:
       value = ENCODE_UTYPE_IMM (RISCV_LUI_HIGH_PART (addend + symbol));
       break;
 
+    case R_RISCV_PCREL_LO12_I:
+    case R_RISCV_PCREL_LO12_S:
+      {
+	bfd_vma insn = bfd_get (32, input_bfd, contents + relocation->r_offset);
+	bfd_vma rd = (insn >> OP_SH_RD) & OP_MASK_RD;
+	bfd_vma rs1 = (insn >> OP_SH_RS1) & OP_MASK_RS1;
+	value = -(p + addend);
+
+	if (r_type == R_RISCV_PCREL_LO12_I)
+	  {
+	    if (rs1 == GP_REG && rd != GP_REG)
+	      value = 0;
+	    value = ENCODE_ITYPE_IMM (EXTRACT_ITYPE_IMM (insn) + value);
+	  }
+	else
+	  value = ENCODE_STYPE_IMM (EXTRACT_STYPE_IMM (insn) + value);
+      	break;
+      }
+
     case R_RISCV_LO12_I:
     case R_RISCV_LO12_S:
-    {
-      bfd_vma insn = bfd_get (32, input_bfd, contents + relocation->r_offset);
-      bfd_vma rs1 = (insn >> OP_SH_RS1) & OP_MASK_RS1;
+      {
+	bfd_vma insn = bfd_get (32, input_bfd, contents + relocation->r_offset);
+	bfd_vma rs1 = (insn >> OP_SH_RS1) & OP_MASK_RS1;
 
-      value = symbol + addend;
-      if (gp != 0 && value != gp
-	  && value - gp + (bfd_vma)RISCV_IMM_REACH/2 < (bfd_vma)RISCV_IMM_REACH)
-	{
-	  /* Convert to GP-relative reference. */
-	  value -= gp;
-	  rs1 = GP_REG;
-	}
-      else if (!info->shared && value == 0)
-	rs1 = 0; /* Absolute 0 isn't PC-relative, so use x0 as base. */
+	value = symbol + addend;
+	if (htab->relax && gp != 0 && value != gp
+	    && value - gp + (bfd_vma)RISCV_IMM_REACH/2 < (bfd_vma)RISCV_IMM_REACH)
+	  {
+	    /* Convert to GP-relative reference. */
+	    value -= gp;
+	    rs1 = GP_REG;
+	  }
 
-      if (r_type == R_RISCV_LO12_I)
-	value = ENCODE_ITYPE_IMM (value);
-      else
-	value = ENCODE_STYPE_IMM (value);
-      value |= rs1 << OP_SH_RS1;
-      break;
-    }
+	if (r_type == R_RISCV_LO12_I)
+	  value = ENCODE_ITYPE_IMM (value);
+	else
+	  value = ENCODE_STYPE_IMM (value);
+	value |= rs1 << OP_SH_RS1;
+	break;
+      }
     case R_RISCV_TLS_GD:
     case R_RISCV_TLS_GOTTPREL:
     case R_RISCV_TLS_LDM:
@@ -3184,7 +3233,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_GD_HI20:
     case R_RISCV_TLS_LDM_HI20:
     case R_RISCV_GOT_HI20:
-      value = ENCODE_UTYPE_IMM (RISCV_AUIPC_HIGH_PART (g, p));
+      value = ENCODE_UTYPE_IMM (RISCV_PCREL_HIGH_PART (g, p));
       break;
 
     case R_RISCV_TLS_GOT_LO12:
@@ -5697,6 +5746,10 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
   Elf_Internal_Rela *irel, *irelend;
   bfd_byte *contents = NULL;
   Elf_Internal_Sym *isymbuf = NULL;
+  struct mips_elf_link_hash_table *htab;
+  
+  htab = mips_elf_hash_table (link_info);
+  htab->relax = TRUE;
 
   *again = FALSE;
 
@@ -5719,8 +5772,9 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
       bfd_vma symval;
       bfd_boolean call = ELF_R_TYPE (abfd, irel->r_info) == (int) R_RISCV_CALL;
       bfd_boolean auipc = ELF_R_TYPE (abfd, irel->r_info) == (int) R_RISCV_PCREL_HI20;
+      bfd_boolean lui = ELF_R_TYPE (abfd, irel->r_info) == (int) R_RISCV_HI20;
 
-      if (!call && !auipc)
+      if (!call && !auipc && !lui)
 	continue;
 
       /* Get the section contents.  */
@@ -5780,14 +5834,8 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 	    h =  (struct elf_link_hash_entry *) h->root.u.i.link;
 
 	  if (h->plt.offset != MINUS_ONE)
-	    {
-	      struct mips_elf_link_hash_table *htab;
-
-	      htab = mips_elf_hash_table (link_info);
-	      symval = (htab->splt->output_section->vma
-			+ htab->splt->output_offset
-			+ h->plt.offset);
-	    }
+	    symval = (htab->splt->output_section->vma
+		      + htab->splt->output_offset + h->plt.offset);
 	  else
 #endif
 	  if (h->root.type != bfd_link_hash_defined
@@ -5807,9 +5855,10 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 					  symtab_hdr, isymbuf, internal_relocs,
 					  irel, symval, again))
 	goto error_return;
-      if (auipc && !_bfd_riscv_relax_auipc (abfd, sec, link_info, contents,
-					    symtab_hdr, isymbuf, internal_relocs,
-					    irel, symval, again))
+      if ((auipc || lui) &&
+	  !_bfd_riscv_relax_auipc (abfd, sec, link_info, contents,
+				   symtab_hdr, isymbuf, internal_relocs,
+				   irel, symval, again))
 	goto error_return;
     }
 

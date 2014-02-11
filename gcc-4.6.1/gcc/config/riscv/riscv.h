@@ -563,7 +563,7 @@ struct mips_cpu_info {
    - 3 fake registers:
 	- ARG_POINTER_REGNUM
 	- FRAME_POINTER_REGNUM
-	- GOT_VERSION_REGNUM (see the comment above load_call<mode> for details)
+	- GOT_VERSION_REGNUM (see the comment above set_got_version for details)
    - 1 dummy entry that were used at various times in the past. */
 
 #define FIRST_PSEUDO_REGISTER 132

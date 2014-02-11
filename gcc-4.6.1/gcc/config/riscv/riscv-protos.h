@@ -44,7 +44,6 @@ along with GCC; see the file COPYING3.  If not see
 enum mips_symbol_type {
   SYMBOL_ABSOLUTE,
   SYMBOL_GOT_DISP,
-  SYMBOL_GOTOFF_DISP,
   SYMBOL_TLS,
   SYMBOL_TPREL
 };

@@ -706,7 +706,6 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
 
     case SYMBOL_TLS:
     case SYMBOL_GOT_DISP:
-    case SYMBOL_GOTOFF_DISP:
       return false;
     }
   gcc_unreachable ();
@@ -720,8 +719,9 @@ static int riscv_symbol_insns (enum mips_symbol_type type)
   if (type == SYMBOL_TLS)
     return 0;
 
-  /* The reference itself, plus LUI or AUIPC for most symbols. */
-  return 1 + mips_split_p[type];
+  /* For PIC, AUIPC+LD for the GOT access, followed by reference itself.
+     For non-PIC, LUI followed by the reference itself. */
+  return 2 + flag_pic;
 }
 
 /* A for_each_rtx callback.  Stop the search if *X references a
@@ -1178,16 +1178,6 @@ mips_unspec_offset_high (rtx temp, rtx base, rtx addr,
 }
 
 /* Load an entry from the GOT. */
-static rtx riscv_got_load(rtx temp, rtx sym)
-{
-  rtx hi, lo_sum;
-
-  hi = mips_unspec_offset_high (temp, NULL, sym, SYMBOL_GOTOFF_DISP);
-  lo_sum = mips_unspec_address (sym, SYMBOL_GOTOFF_DISP);
-
-  return (Pmode == DImode ? gen_unspec_gotdi(hi, lo_sum) : gen_unspec_gotsi(hi, lo_sum));
-}
-
 static rtx riscv_got_load_tls_gd(rtx dest, rtx sym)
 {
   return (Pmode == DImode ? gen_got_load_tls_gddi(dest, sym) : gen_got_load_tls_gdsi(dest, sym));
@@ -1227,15 +1217,14 @@ mips_split_symbol (rtx temp, rtx addr, enum machine_mode mode, rtx *low_out)
     {
       switch (symbol_type)
 	{
-	case SYMBOL_GOT_DISP:
-	  *low_out = riscv_got_load (temp, addr);
-	  break;
-
-	default:
+	case SYMBOL_ABSOLUTE:
 	  high = gen_rtx_HIGH (Pmode, copy_rtx (addr));
       	  high = mips_force_temporary (temp, high);
       	  *low_out = gen_rtx_LO_SUM (Pmode, high, addr);
 	  break;
+	
+	default:
+	  gcc_unreachable ();
 	}
     }
 
@@ -2141,9 +2130,7 @@ mips_output_move (rtx dest, rtx src)
 	{
 	  enum mips_symbol_type symbol_type;
 	  gcc_assert (mips_symbolic_constant_p (XEXP (src, 0), &symbol_type));
-	  if (!TARGET_USE_GOT && symbol_type == SYMBOL_TPREL)
-	    return "lui\t%0,%h1";
-	  return "auipc\t%0,%h1";
+	  return "lui\t%0,%h1";
 	}
 
       if (symbolic_operand (src, VOIDmode))
@@ -2941,7 +2928,7 @@ mips_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
 
   if (TARGET_USE_GOT)
     {
-      /* See the comment above load_call<mode> for details.  */
+      /* See the comment above set_got_version for details.  */
       use_reg (&CALL_INSN_FUNCTION_USAGE (insn),
 	       gen_rtx_REG (Pmode, GOT_VERSION_REGNUM));
       emit_insn (gen_update_got_version ());
@@ -3095,22 +3082,16 @@ mips_init_relocs (void)
   memset (mips_hi_relocs, '\0', sizeof (mips_hi_relocs));
   memset (mips_lo_relocs, '\0', sizeof (mips_lo_relocs));
 
-  mips_split_p[SYMBOL_ABSOLUTE] = true;
-  mips_hi_relocs[SYMBOL_ABSOLUTE] = "%pcrel_hi(";
-  mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
-
-  if (flag_pic)
+  if (!flag_pic)
     {
-      mips_split_p[SYMBOL_GOT_DISP] = true;
+      mips_split_p[SYMBOL_ABSOLUTE] = true;
+      mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
+      mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
 
-      mips_split_p[SYMBOL_GOTOFF_DISP] = true;
-      mips_hi_relocs[SYMBOL_GOTOFF_DISP] = "%got_hi(";
-      mips_lo_relocs[SYMBOL_GOTOFF_DISP] = "%got_lo(";
+      mips_split_p[SYMBOL_TPREL] = true;
+      mips_hi_relocs[SYMBOL_TPREL] = "%tprel_hi(";
+      mips_lo_relocs[SYMBOL_TPREL] = "%tprel_lo(";
     }
-  
-  mips_split_p[SYMBOL_TPREL] = true;
-  mips_hi_relocs[SYMBOL_TPREL] = "%tprel_hi(";
-  mips_lo_relocs[SYMBOL_TPREL] = "%tprel_lo(";
 }
 
 /* Print symbolic operand OP, which is part of a HIGH or LO_SUM
@@ -3534,7 +3515,7 @@ mips_extra_live_on_entry (bitmap regs)
 {
   if (TARGET_USE_GOT)
     {
-      /* See the comment above load_call<mode> for details.  */
+      /* See the comment above set_got_version for details.  */
       bitmap_set_bit (regs, GOT_VERSION_REGNUM);
     }
 }
@@ -5035,7 +5016,7 @@ mips_epilogue_uses (unsigned int regno)
     return true;
 
   /* If using a GOT, say that the epilogue also uses GOT_VERSION_REGNUM.
-     See the comment above load_call<mode> for details.  */
+     See the comment above set_got_version for details.  */
   if (TARGET_USE_GOT && (regno) == GOT_VERSION_REGNUM)
     return true;
 

@@ -395,11 +395,15 @@
 ;; Likewise the 64-bit truncate-and-shift patterns.
 (define_mode_iterator SUBDI [QI HI SI])
 (define_mode_iterator HISI [HI SI])
+(define_mode_iterator ANYI [QI HI SI (DI "TARGET_64BIT")])
 
 ;; This mode iterator allows :ANYF to be used wherever a scalar or vector
 ;; floating-point mode is allowed.
 (define_mode_iterator ANYF [(SF "TARGET_HARD_FLOAT")
 			    (DF "TARGET_HARD_FLOAT")])
+(define_mode_iterator ANYIF [QI HI SI (DI "TARGET_64BIT")
+			     (SF "TARGET_HARD_FLOAT")
+			     (DF "TARGET_HARD_FLOAT")])
 
 ;; Like ANYF, but only applies to scalar modes.
 (define_mode_iterator SCALARF [(SF "TARGET_HARD_FLOAT")
@@ -415,10 +419,11 @@
 ;; instruction.
 (define_mode_attr size [(QI "b") (HI "h")])
 
-;; Mode attributes for GPR loads.
-(define_mode_attr load [(SI "lw") (DI "ld")])
+;; Mode attributes for loads.
+(define_mode_attr load [(QI "lb") (HI "lh") (SI "lw") (DI "ld") (SF "flw") (DF "fld")])
+
 ;; Instruction names for stores.
-(define_mode_attr store [(QI "sb") (HI "sh") (SI "sw") (DI "sd")])
+(define_mode_attr store [(QI "sb") (HI "sh") (SI "sw") (DI "sd") (SF "fsw") (DF "fsd")])
 
 ;; This attribute gives the best constraint to use for registers of
 ;; a given mode.
@@ -1715,14 +1720,18 @@
 ;;
 ;;  ....................
 
-;; Convenience expander that generates the rhs of a load_got<mode> insn.
-(define_expand "unspec_got<mode>"
-  [(unspec:P [(match_operand:P 0)
-	      (match_operand:P 1)] UNSPEC_LOAD_GOT)])
-
 ;; Lower-level instructions for loading an address from the GOT.
 ;; We could use MEMs, but an unspec gives more optimization
 ;; opportunities.
+
+(define_insn "got_load<mode>"
+   [(set (match_operand:P 0 "register_operand" "=d")
+       (unspec:P [(match_operand:P 1 "symbolic_operand" "")]
+		 UNSPEC_LOAD_GOT))]
+  "TARGET_USE_GOT"
+  "la\t%0,%1"
+   [(set_attr "got" "load")
+    (set_attr "mode" "<MODE>")])
 
 (define_insn "load_got<mode>"
   [(set (match_operand:P 0 "register_operand" "=d")
@@ -1761,7 +1770,7 @@
 	(lo_sum:P (match_operand:P 1 "register_operand" "d")
 		  (match_operand:P 2 "immediate_operand" "")))]
   ""
-  { return Pmode == SImode && TARGET_64BIT ? "addw\t%0,%1,%R2" : "add\t%0,%1,%R2"; }
+  "add\t%0,%1,%R2"
   [(set_attr "alu_type" "add")
    (set_attr "mode" "<MODE>")])
 
@@ -2527,7 +2536,7 @@
   [(const_int 0)]
   "TARGET_USE_GOT"
 {
-  /* See the comment above load_call<mode> for details.  */
+  /* See the comment above set_got_version for details.  */
   emit_insn (gen_set_got_version ());
   DONE;
 })
@@ -2536,7 +2545,7 @@
   [(const_int 0)]
   "TARGET_USE_GOT"
 {
-  /* See the comment above load_call<mode> for details.  */
+  /* See the comment above set_got_version for details.  */
   emit_insn (gen_set_got_version ());
   DONE;
 })
@@ -2591,16 +2600,6 @@
 ;;    - Leave GOT_VERSION_REGNUM out of all register classes.
 ;;	The register is therefore not a valid register_operand
 ;;	and cannot be moved to or from other registers.
-
-(define_insn "load_call<mode>"
-  [(set (match_operand:P 0 "register_operand" "=d")
-	(unspec:P [(match_operand:P 1 "register_operand" "d")
-		   (match_operand:P 2 "immediate_operand" "")
-		   (reg:SI GOT_VERSION_REGNUM)] UNSPEC_LOAD_CALL))]
-  "TARGET_USE_GOT"
-  "<load>\t%0,%R2(%1)"
-  [(set_attr "got" "load")
-   (set_attr "mode" "<MODE>")])
 
 (define_insn "set_got_version"
   [(set (reg:SI GOT_VERSION_REGNUM)

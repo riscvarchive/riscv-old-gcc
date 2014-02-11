@@ -57,7 +57,7 @@ memset:
   sll a3, a3, 2
 .set push
 .set norvc
-  auipc a4, %pcrel_hi(1f)
+  lui a4, %hi(1f)
   add a3, a3, a4
   jalr x0, a3, %lo(1f)
 
@@ -87,7 +87,7 @@ memset:
   sll a3, a5, 2
 .set push
 .set norvc
-  auipc a4, %pcrel_hi(1f)
+  lui a4, %hi(1f)
   add a3, a3, a4
 1:jalr x0, a3, %lo(1b)
 

@@ -113,7 +113,7 @@ struct riscv_private_data
 {
   bfd_vma gp;
   bfd_vma print_addr;
-  bfd_vma auipc[OP_MASK_RD + 1];
+  bfd_vma hi_addr[OP_MASK_RD + 1];
 };
 
 /* ISA and processor type to disassemble for, and register names to use.
@@ -241,10 +241,10 @@ arg_print (struct disassemble_info *info, unsigned long val,
 static void
 maybe_print_address (struct riscv_private_data *pd, int base_reg, int offset)
 {
-  if (pd->auipc[base_reg] != (bfd_vma)-1)
+  if (pd->hi_addr[base_reg] != (bfd_vma)-1)
     {
-      pd->print_addr = pd->auipc[base_reg] + offset;
-      pd->auipc[base_reg] = -1;
+      pd->print_addr = pd->hi_addr[base_reg] + offset;
+      pd->hi_addr[base_reg] = -1;
     }
   else if (base_reg == GP_REG && pd->gp)
     pd->print_addr = pd->gp + offset;
@@ -419,7 +419,9 @@ print_insn_args (const char *d,
 
 	case 'd':
 	  if ((l & MASK_AUIPC) == MATCH_AUIPC)
-	    pd->auipc[rd] = (pc & -RISCV_IMM_REACH) + (EXTRACT_UTYPE_IMM (l) << RISCV_IMM_BITS);
+	    pd->hi_addr[rd] = pc + (EXTRACT_UTYPE_IMM (l) << RISCV_IMM_BITS);
+	  else if ((l & MASK_LUI) == MATCH_LUI)
+	    pd->hi_addr[rd] = EXTRACT_UTYPE_IMM (l) << RISCV_IMM_BITS;
 	  (*info->fprintf_func) (info->stream, "%s", mips_gpr_names[rd]);
 	  break;
 
@@ -646,8 +648,8 @@ print_insn_mips (bfd_vma memaddr,
       pd = info->private_data = calloc(1, sizeof (struct riscv_private_data));
       pd->gp = -1;
       pd->print_addr = -1;
-      for (i = 0; i < (int) ARRAY_SIZE(pd->auipc); i++)
-	pd->auipc[i] = -1;
+      for (i = 0; i < (int) ARRAY_SIZE(pd->hi_addr); i++)
+	pd->hi_addr[i] = -1;
 
       for (i = 0; i < info->symtab_size; i++)
 	if (strcmp (bfd_asymbol_name (info->symtab[i]), "_gp") == 0)

@@ -18,8 +18,7 @@ strcmp:
 #if SZREG == 4
   li t3, 0x7f7f7f7f
 #else
-  auipc t3, %pcrel_hi(mask)
-  REG_L	t3, %lo(mask)(t3)
+  ld t3, mask
 #endif
 
   .macro check_one_word i n

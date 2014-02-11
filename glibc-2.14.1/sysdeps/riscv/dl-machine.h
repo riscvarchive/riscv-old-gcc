@@ -99,8 +99,8 @@ static inline ElfW(Addr)
 elf_machine_load_address (void)
 {
   ElfW(Addr) link, load;
-  asm ("lui %0, %%hi(_begin); auipc %1, %%pcrel_hi(_begin)"
-       : "=r"(link), "=r"(load));
+  asm ("lui %0, %%hi(_begin); add %0, %0, %%lo(_begin)" : "=r"(link));
+  asm ("lla %0, _begin" : "=r"(load));
   return load - link;
 }
 

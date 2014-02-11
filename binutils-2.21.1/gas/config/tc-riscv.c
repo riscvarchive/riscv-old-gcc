@@ -475,7 +475,6 @@ static char *expr_end;
    mips_ip.  */
 
 static expressionS imm_expr;
-static expressionS imm2_expr;
 static expressionS offset_expr;
 
 /* Relocs associated with imm_expr and offset_expr.  */
@@ -1255,7 +1254,6 @@ md_assemble (char *str)
   struct mips_cl_insn insn;
 
   imm_expr.X_op = O_absent;
-  imm2_expr.X_op = O_absent;
   offset_expr.X_op = O_absent;
   imm_reloc = BFD_RELOC_UNUSED;
   offset_reloc = BFD_RELOC_UNUSED;
@@ -1444,6 +1442,7 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 
 	case 'j':
 	case 'u':
+	case 'q':
 	  gas_assert (ep != NULL);
 	  r = va_arg (args, int);
 	  continue;
@@ -1494,12 +1493,29 @@ normalize_address_expr (expressionS *ex)
 
 /* Load an entry from the GOT. */
 static void
-load_got_addr (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
-               bfd_reloc_code_real_type hi_reloc,
-	       bfd_reloc_code_real_type lo_reloc)
+pcrel_access (int destreg, int tempreg, expressionS *ep,
+	      const char* lo_insn, const char* lo_pattern,
+              bfd_reloc_code_real_type hi_reloc,
+	      bfd_reloc_code_real_type lo_reloc)
 {
   macro_build (ep, "auipc", "d,u", tempreg, hi_reloc);
-  macro_build (ep, lo_insn, "d,s,j", destreg, tempreg, lo_reloc);
+  macro_build (ep, lo_insn, lo_pattern, destreg, tempreg, lo_reloc);
+}
+
+static void
+pcrel_load (int destreg, int tempreg, expressionS *ep, const char* lo_insn,
+            bfd_reloc_code_real_type hi_reloc,
+	    bfd_reloc_code_real_type lo_reloc)
+{
+  pcrel_access (destreg, tempreg, ep, lo_insn, "d,s,j", hi_reloc, lo_reloc);
+}
+
+static void
+pcrel_store (int srcreg, int tempreg, expressionS *ep, const char* lo_insn,
+             bfd_reloc_code_real_type hi_reloc,
+	     bfd_reloc_code_real_type lo_reloc)
+{
+  pcrel_access (srcreg, tempreg, ep, lo_insn, "t,s,q", hi_reloc, lo_reloc);
 }
 
 /* PC-relative function call using AUIPC/JALR, relaxed to JAL. */
@@ -1584,11 +1600,12 @@ load_const (int reg, expressionS *ep)
 static void
 macro (struct mips_cl_insn *ip)
 {
-  unsigned int rd, rs1;
+  unsigned int rd, rs1, rs2;
   int mask;
 
   rd = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
   rs1 = (ip->insn_opcode >> OP_SH_RS1) & OP_MASK_RS1;
+  rs2 = (ip->insn_opcode >> OP_SH_RS2) & OP_MASK_RS2;
   mask = ip->insn_mo->mask;
 
   switch (mask)
@@ -1606,22 +1623,97 @@ macro (struct mips_cl_insn *ip)
       if (offset_expr.X_op == O_constant)
         load_const (rd, &offset_expr);
       else if (is_pic && mask == M_LA) /* Global PIC symbol */
-	load_got_addr (rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
-	               BFD_RELOC_MIPS_GOT_HI16, BFD_RELOC_MIPS_GOT_LO16);
+	pcrel_load (rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
+	            BFD_RELOC_RISCV_GOT_HI20, BFD_RELOC_RISCV_GOT_LO12);
       else /* Local PIC symbol, or any non-PIC symbol */
-	load_got_addr (rd, rd, &offset_expr, "addi",
-	               BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_LO12_I);
+	pcrel_load (rd, rd, &offset_expr, "addi",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LA_TLS_GD: 
-      load_got_addr(rd, rd, &offset_expr, "addi",
-                    BFD_RELOC_RISCV_TLS_GD_HI20, BFD_RELOC_RISCV_TLS_GD_LO12);
+      pcrel_load(rd, rd, &offset_expr, "addi",
+                 BFD_RELOC_RISCV_TLS_GD_HI20, BFD_RELOC_RISCV_TLS_GD_LO12);
       break;
 
     case M_LA_TLS_IE: 
-      load_got_addr(rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
-                    BFD_RELOC_RISCV_TLS_GOT_HI20, BFD_RELOC_RISCV_TLS_GOT_LO12);
+      pcrel_load(rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
+                 BFD_RELOC_RISCV_TLS_GOT_HI20, BFD_RELOC_RISCV_TLS_GOT_LO12);
       break;
+
+    case M_LB:
+	pcrel_load (rd, rd, &offset_expr, "lb",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+	break;
+
+    case M_LBU:
+	pcrel_load (rd, rd, &offset_expr, "lbu",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+	break;
+
+    case M_LH:
+	pcrel_load (rd, rd, &offset_expr, "lh",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+	break;
+
+    case M_LHU:
+	pcrel_load (rd, rd, &offset_expr, "lhu",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+	break;
+
+    case M_LW:
+	pcrel_load (rd, rd, &offset_expr, "lw",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+	break;
+
+    case M_LWU:
+	pcrel_load (rd, rd, &offset_expr, "lwu",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+	break;
+
+    case M_LD:
+	pcrel_load (rd, rd, &offset_expr, "ld",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+	break;
+
+    case M_FLW:
+	pcrel_load (rd, rd, &offset_expr, "flw",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+	break;
+
+    case M_FLD:
+	pcrel_load (rd, rd, &offset_expr, "fld",
+	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+	break;
+
+    case M_SB:
+	pcrel_store (rs2, rs1, &offset_expr, "sb",
+	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+	break;
+
+    case M_SH:
+	pcrel_store (rs2, rs1, &offset_expr, "sh",
+	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+	break;
+
+    case M_SW:
+	pcrel_store (rs2, rs1, &offset_expr, "sw",
+	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+	break;
+
+    case M_SD:
+	pcrel_store (rs2, rs1, &offset_expr, "sd",
+	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+	break;
+
+    case M_FSW:
+	pcrel_store (rs2, rs1, &offset_expr, "fsw",
+	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+	break;
+
+    case M_FSD:
+	pcrel_store (rs2, rs1, &offset_expr, "fsd",
+	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+	break;
 
     case M_JUMP:
       rd = 0;
@@ -1745,10 +1837,6 @@ static const struct percent_op_match percent_op_utype[] =
 {
   {"%tprel_hi", BFD_RELOC_RISCV_TPREL_HI20},
   {"%hi", BFD_RELOC_RISCV_HI20},
-  {"%pcrel_hi", BFD_RELOC_RISCV_PCREL_HI20},
-  {"%got_hi", BFD_RELOC_MIPS_GOT_HI16},
-  {"%tlsgd_hi", BFD_RELOC_RISCV_TLS_GD_HI20},
-  {"%tlsie_hi", BFD_RELOC_RISCV_TLS_GOT_HI20},
   {0, 0}
 };
 
@@ -1756,9 +1844,6 @@ static const struct percent_op_match percent_op_itype[] =
 {
   {"%lo", BFD_RELOC_RISCV_LO12_I},
   {"%tprel_lo", BFD_RELOC_RISCV_TPREL_LO12_I},
-  {"%got_lo", BFD_RELOC_MIPS_GOT_LO16},
-  {"%tlsgd_lo", BFD_RELOC_RISCV_TLS_GD_LO12},
-  {"%tlsie_lo", BFD_RELOC_RISCV_TLS_GOT_LO12},
   {0, 0}
 };
 
@@ -2446,25 +2531,23 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
   switch (fixP->fx_r_type)
     {
     case BFD_RELOC_MIPS_TLS_GD:
-    case BFD_RELOC_RISCV_TLS_GD_HI20:
-    case BFD_RELOC_RISCV_TLS_GD_LO12:
     case BFD_RELOC_MIPS_TLS_LDM:
-    case BFD_RELOC_RISCV_TLS_LDM_HI20:
-    case BFD_RELOC_RISCV_TLS_LDM_LO12:
     case BFD_RELOC_MIPS_TLS_DTPREL32:
     case BFD_RELOC_MIPS_TLS_DTPREL64:
-    case BFD_RELOC_RISCV_TLS_GOT_HI20:
-    case BFD_RELOC_RISCV_TLS_GOT_LO12:
     case BFD_RELOC_RISCV_TPREL_HI20:
     case BFD_RELOC_RISCV_TPREL_LO12_I:
     case BFD_RELOC_RISCV_TPREL_LO12_S:
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
       /* fall through */
 
-    case BFD_RELOC_RISCV_HI20:
+    case BFD_RELOC_RISCV_TLS_GOT_HI20:
+    case BFD_RELOC_RISCV_TLS_GD_HI20:
+    case BFD_RELOC_RISCV_TLS_LDM_HI20:
+    case BFD_RELOC_RISCV_GOT_HI20:
     case BFD_RELOC_RISCV_PCREL_HI20:
-    case BFD_RELOC_MIPS_GOT_HI16:
-    case BFD_RELOC_MIPS_GOT_LO16:
+    case BFD_RELOC_RISCV_HI20:
+    case BFD_RELOC_RISCV_LO12_I:
+    case BFD_RELOC_RISCV_LO12_S:
     case BFD_RELOC_RISCV_ADD32:
     case BFD_RELOC_RISCV_ADD64:
     case BFD_RELOC_RISCV_SUB32:
@@ -2484,11 +2567,11 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  fixP->fx_subsy = NULL;
 
 	  if (fixP->fx_r_type == BFD_RELOC_64)
-	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD64,
-	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB64;
+	    fixP->fx_r_type = BFD_RELOC_RISCV_ADD64,
+	    fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB64;
 	  else
-	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD32,
-	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB32;
+	    fixP->fx_r_type = BFD_RELOC_RISCV_ADD32,
+	    fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB32;
 	}
       /* fall through */
 
@@ -2504,9 +2587,42 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	}
       break;
 
+    case BFD_RELOC_RISCV_TLS_GOT_LO12:
+    case BFD_RELOC_RISCV_TLS_GD_LO12:
+    case BFD_RELOC_RISCV_TLS_LDM_LO12:
+      S_SET_THREAD_LOCAL (fixP->fx_addsy);
+      /* fall through */
+
+    case BFD_RELOC_RISCV_GOT_LO12:
+    case BFD_RELOC_RISCV_PCREL_LO12_S:
+    case BFD_RELOC_RISCV_PCREL_LO12_I:
+      gas_assert (fixP->fx_subsy == NULL);
+      if (fixP->fx_addsy != NULL)
+	{
+	  /* Record the distance between the high and low parts.
+	     For now, we assume AUIPC is immediately before us, and so
+	     this distance is -4. */
+	  fixP->fx_next = xmemdup (fixP, sizeof (*fixP), sizeof (*fixP));
+	  fixP->fx_next->fx_addsy = NULL;
+	  fixP->fx_next->fx_offset = -4;
+
+	  switch (fixP->fx_r_type)
+	    {
+	    case BFD_RELOC_RISCV_PCREL_LO12_S:
+	      fixP->fx_r_type = BFD_RELOC_RISCV_LO12_S;
+	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_PCREL_LO12_S;
+	      break;
+
+	    case BFD_RELOC_RISCV_PCREL_LO12_I:
+	      fixP->fx_r_type = BFD_RELOC_RISCV_LO12_I;
+	    default:
+	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_PCREL_LO12_I;
+	      break;
+	    }
+	}
+      break;
+
     case BFD_RELOC_RISCV_CALL:
-    case BFD_RELOC_RISCV_LO12_I:
-    case BFD_RELOC_RISCV_LO12_S:
     case BFD_RELOC_MIPS_JMP:
     case BFD_RELOC_12_PCREL:
       break;
