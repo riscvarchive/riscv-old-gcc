@@ -5178,51 +5178,6 @@ _bfd_riscv_elf_write_section (bfd *output_bfd,
   return TRUE;
 }
 
-bfd_boolean
-_bfd_riscv_elf_find_nearest_line (bfd *abfd, asection *section,
-				 asymbol **symbols, bfd_vma offset,
-				 const char **filename_ptr,
-				 const char **functionname_ptr,
-				 unsigned int *line_ptr)
-{
-  if (_bfd_dwarf1_find_nearest_line (abfd, section, symbols, offset,
-				     filename_ptr, functionname_ptr,
-				     line_ptr))
-    return TRUE;
-
-  if (_bfd_dwarf2_find_nearest_line (abfd, section, symbols, offset,
-				     filename_ptr, functionname_ptr,
-				     line_ptr, ABI_64_P (abfd) ? 8 : 0,
-				     &elf_tdata (abfd)->dwarf2_find_line_info))
-    return TRUE;
-
-  return _bfd_elf_find_nearest_line (abfd, section, symbols, offset,
-				     filename_ptr, functionname_ptr,
-				     line_ptr);
-}
-
-bfd_boolean
-_bfd_riscv_elf_find_inliner_info (bfd *abfd,
-				 const char **filename_ptr,
-				 const char **functionname_ptr,
-				 unsigned int *line_ptr)
-{
-  bfd_boolean found;
-  found = _bfd_dwarf2_find_inliner_info (abfd, filename_ptr,
-					 functionname_ptr, line_ptr,
-					 & elf_tdata (abfd)->dwarf2_find_line_info);
-  return found;
-}
-
-bfd_boolean
-_bfd_riscv_elf_set_section_contents (bfd *abfd, sec_ptr section,
-				    const void *location,
-				    file_ptr offset, bfd_size_type count)
-{
-  return _bfd_elf_set_section_contents (abfd, section, location, offset,
-					count);
-}
-
 /* Create a MIPS ELF linker hash table.  */
 
 struct bfd_link_hash_table *

@@ -196,10 +196,7 @@ elf32_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define elf_backend_ignore_discarded_relocs \
 					_bfd_riscv_elf_ignore_discarded_relocs
 #define elf_backend_write_section	_bfd_riscv_elf_write_section
-#define bfd_elf32_find_nearest_line	_bfd_riscv_elf_find_nearest_line
-#define bfd_elf32_find_inliner_info	_bfd_riscv_elf_find_inliner_info
 #define bfd_elf32_new_section_hook	_bfd_riscv_elf_new_section_hook
-#define bfd_elf32_set_section_contents	_bfd_riscv_elf_set_section_contents
 #define bfd_elf32_bfd_get_relocated_section_contents \
 				bfd_generic_get_relocated_section_contents
 #define bfd_elf32_bfd_link_hash_table_create \

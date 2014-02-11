@@ -194,10 +194,7 @@ elf64_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 /* We don't set bfd_elf64_bfd_is_local_label_name because the 32-bit
    MIPS-specific function only applies to IRIX5, which had no 64-bit
    ABI.  */
-#define bfd_elf64_find_nearest_line	_bfd_riscv_elf_find_nearest_line
-#define bfd_elf64_find_inliner_info	_bfd_riscv_elf_find_inliner_info
 #define bfd_elf64_new_section_hook	_bfd_riscv_elf_new_section_hook
-#define bfd_elf64_set_section_contents	_bfd_riscv_elf_set_section_contents
 #define bfd_elf64_bfd_get_relocated_section_contents \
 				bfd_generic_get_relocated_section_contents
 #define bfd_elf64_bfd_link_hash_table_create \
