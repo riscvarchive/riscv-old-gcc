@@ -71,7 +71,38 @@ elf_machine_runtime_link_map (ElfW(Addr) gpreg, ElfW(Addr) stub_pc)
   return NULL;
 }
 
-void _dl_runtime_resolve(void)
-{
-  while (1);
-}
+/* Assembler veneer called from the PLT header code when using PLTs.
+   The PLT header places the 2 args to _dl_fixup into t0 and t1. */
+asm ("\n\
+	.text\n\
+	.align	2\n\
+	.globl	_dl_runtime_pltresolve\n\
+	.type	_dl_runtime_pltresolve,@function\n\
+_dl_runtime_pltresolve:\n\
+	# Save arguments and sp value in stack.\n\
+1:	addi sp, sp, " STRINGXP(-10*SZREG) "\n\
+	" STRINGXP(REG_S) " ra, 9*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_S) " a0, 1*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_S) " a1, 2*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_S) " a2, 3*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_S) " a3, 4*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_S) " a4, 5*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_S) " a5, 6*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_S) " a6, 7*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_S) " a7, 8*" STRINGXP(SZREG) "(sp)\n\
+	mv a0, t0\n\
+	mv a1, t1\n\
+	jal _dl_fixup\n\
+	" STRINGXP(REG_L) " ra, 9*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_L) " a0, 1*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_L) " a1, 2*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_L) " a2, 3*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_L) " a3, 4*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_L) " a4, 5*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_L) " a5, 6*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_L) " a6, 7*" STRINGXP(SZREG) "(sp)\n\
+	" STRINGXP(REG_L) " a7, 8*" STRINGXP(SZREG) "(sp)\n\
+	addi sp, sp, " STRINGXP(10*SZREG) "\n\
+	jr	v0\n\
+	.size	_dl_runtime_pltresolve, .-_dl_runtime_pltresolve\n\
+");

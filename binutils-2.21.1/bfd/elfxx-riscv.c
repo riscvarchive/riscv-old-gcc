@@ -1231,17 +1231,15 @@ riscv_elf_info_to_howto_rela (bfd *abfd, arelent *cache_ptr,
   cache_ptr->addend = dst->r_addend;
 }
 
-#define RISCV_PLT0_INSNS 32
+#define RISCV_PLT0_INSNS 8
 #define RISCV_PLT_INSNS 4
 #define RISCV_PLT0_SIZE (RISCV_PLT0_INSNS * 4)
 #define RISCV_PLT_SIZE (RISCV_PLT_INSNS * 4)
 
-#define X_SP 14
 #define X_V0 16
 #define X_V1 17
-#define X_A0 18
-#define X_A1 19
-#define X_NA 8
+#define X_T0 26
+#define X_T1 27
 
 /* The format of the first PLT entry.  */
 
@@ -1251,47 +1249,34 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_value, bfd_vma addr,
 {
   /* save ra and arg registers to stack
      auipc  v1, %hi(GOTPLT)
-     addi   v1, v1, %lo(GOTPLT)
-     ld     a0, PTRSIZE(v1)
-     ld     v1, 0(v1)
-     auipc  a1, %hi(after first regular PLT entry)
-     addi   a1, a1, %lo(after first regular PLT entry)
-     sub    a1, v0, a1
-     srli   a1, a1, 1 [RV32 only]
-     jalr   v1
-     restore ra and arg registers from stack
-     jr     v0
+     ld     t0, %lo(GOTPLT) + PTRSIZE(v1)
+     ld     v1, %lo(GOTPLT)(v1)
+     auipc  t1, %hi(after first regular PLT entry)
+     addi   t1, t1, %lo(after first regular PLT entry)
+     sub    t1, v0, t1
+     srli   t1, t1, 1 [RV32 only]
+     jr     v1
   */
 
-  int i = 0, j, regbytes = ABI_64_P(abfd) ? 8 : 4;
-  int stackadj = (((1+X_NA)*regbytes - 1)/16 + 1)*16;
+  int i = 0, regbytes = ABI_64_P(abfd) ? 8 : 4;
   bfd_vma offset;
 
-  entry[i++] = RISCV_ITYPE(ADDI, X_SP, X_SP, -stackadj);
-  entry[i++] = RISCV_STYPE(SREG(abfd), X_SP, LINK_REG, 0);
-  for (j = 0; j < X_NA; j++)
-    entry[i++] = RISCV_STYPE(SREG(abfd), X_SP, X_A0+j, (j+1)*regbytes);
   offset = addr + i*4;
+  BFD_ASSERT (gotplt_value % (2*regbytes) == 0);
   entry[i++] = RISCV_UTYPE(AUIPC, X_V1, RISCV_PCREL_HIGH_PART(gotplt_value, offset));
-  entry[i++] = RISCV_ITYPE(ADDI, X_V1, X_V1, RISCV_PCREL_LOW_PART(gotplt_value, offset));
-  entry[i++] = RISCV_ITYPE(LREG(abfd), X_A0, X_V1, regbytes);
-  entry[i++] = RISCV_ITYPE(LREG(abfd), X_V1, X_V1, 0);
+  entry[i++] = RISCV_ITYPE(LREG(abfd), X_T0, X_V1, RISCV_PCREL_LOW_PART(gotplt_value + regbytes, offset));
+  entry[i++] = RISCV_ITYPE(LREG(abfd), X_V1, X_V1, RISCV_PCREL_LOW_PART(gotplt_value, offset));
   bfd_vma after_first_plt = addr + RISCV_PLT0_SIZE + RISCV_PLT_SIZE;
   offset = addr + i*4;
-  entry[i++] = RISCV_UTYPE(AUIPC, X_A1, RISCV_PCREL_HIGH_PART(after_first_plt, offset));
-  entry[i++] = RISCV_ITYPE(ADDI, X_A1, X_A1, RISCV_PCREL_LOW_PART(after_first_plt, offset));
-  entry[i++] = RISCV_RTYPE(SUB, X_A1, X_V0, X_A1);
+  entry[i++] = RISCV_UTYPE(AUIPC, X_T1, RISCV_PCREL_HIGH_PART(after_first_plt, offset));
+  entry[i++] = RISCV_ITYPE(ADDI, X_T1, X_T1, RISCV_PCREL_LOW_PART(after_first_plt, offset));
+  entry[i++] = RISCV_RTYPE(SUB, X_T1, X_V0, X_T1);
   if (RISCV_PLT_SIZE != 2*regbytes)
   {
     BFD_ASSERT (RISCV_PLT_SIZE == 2*2*regbytes);
-    entry[i++] = RISCV_ITYPE(SRLI, X_A1, X_A1, 1);
+    entry[i++] = RISCV_ITYPE(SRLI, X_T1, X_T1, 1);
   }
-  entry[i++] = RISCV_ITYPE(JALR, LINK_REG, X_V1, 0);
-  entry[i++] = RISCV_ITYPE(LREG(abfd), LINK_REG, X_SP, 0);
-  for (j = 0; j < X_NA; j++)
-    entry[i++] = RISCV_ITYPE(LREG(abfd), X_A0+j, X_SP, (j+1)*regbytes);
-  entry[i++] = RISCV_ITYPE(ADDI, X_SP, X_SP, stackadj);
-  entry[i++] = RISCV_ITYPE(JALR, 0, X_V0, 0);
+  entry[i++] = RISCV_ITYPE(JALR, 0, X_V1, 0);
 
   BFD_ASSERT(i <= RISCV_PLT0_INSNS);
   while (i < RISCV_PLT0_INSNS)

@@ -604,38 +604,20 @@ __attribute__((always_inline))
 elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
 {
 # ifndef RTLD_BOOTSTRAP
-  ElfW(Addr) *got;
-  extern void _dl_runtime_resolve (ElfW(Word));
-  extern void _dl_fixup (void);
-
-  if (lazy)
-    {
-      /* The GOT entries for functions have not yet been filled in.
-	 Their initial contents will arrange when called to put an
-	 offset into the .dynsym section in t8, the return address
-	 in t7 and then jump to _GLOBAL_OFFSET_TABLE[0].  */
-      got = (ElfW(Addr) *) D_PTR (l, l_info[DT_PLTGOT]);
-
-      /* Store the runtime resolver's address in got[0]. */
-      got[0] = (ElfW(Addr)) &_dl_runtime_resolve;
-      /* Store the link map in got[1]. */
-      got[1] = (ElfW(Addr)) l;
-    }
-
   /* Relocate global offset table.  */
   elf_machine_got_rel (l, lazy);
 
   /* If using PLTs, fill in the first two entries of .got.plt.  */
-  if (l->l_info[DT_JMPREL] && lazy)
+  if (l->l_info[DT_JMPREL])
     {
-      ElfW(Addr) *gotplt;
-      gotplt = (ElfW(Addr) *) D_PTR (l, l_info[DT_MIPS (PLTGOT)]);
+      extern void _dl_runtime_pltresolve (void);
+      ElfW(Addr) *gotplt = (ElfW(Addr) *) D_PTR (l, l_info[DT_MIPS (PLTGOT)]);
       /* If a library is prelinked but we have to relocate anyway,
 	 we have to be able to undo the prelinking of .got.plt.
 	 The prelinker saved the address of .plt for us here.  */
       if (gotplt[1])
 	l->l_mach.plt = gotplt[1] + l->l_addr;
-      gotplt[0] = (ElfW(Addr)) &_dl_fixup;
+      gotplt[0] = (ElfW(Addr)) &_dl_runtime_pltresolve;
       gotplt[1] = (ElfW(Addr)) l;
       /* Relocate subsequent .got.plt entries. */
       for (gotplt += 2; *gotplt; gotplt++)
