@@ -58,21 +58,6 @@
 (define_special_predicate "pc_or_label_operand"
   (match_code "pc,label_ref"))
 
-(define_predicate "const_call_insn_operand"
-  (match_code "const,symbol_ref,label_ref")
-{
-  enum mips_symbol_type symbol_type;
-
-  if (!mips_symbolic_constant_p (op, &symbol_type))
-    return false;
-
-  return symbol_type == SYMBOL_ABSOLUTE;
-})
-
-(define_predicate "call_insn_operand"
-  (ior (match_operand 0 "const_call_insn_operand")
-       (match_operand 0 "register_operand")))
-
 ;; A legitimate CONST_INT operand that takes more than one instruction
 ;; to load.
 (define_predicate "splittable_const_int_operand"
@@ -162,6 +147,19 @@
   return (mips_symbolic_constant_p (op, &type)
 	  && type == SYMBOL_ABSOLUTE);
 })
+
+(define_predicate "plt_symbolic_operand"
+  (match_code "const,symbol_ref,label_ref")
+{
+  enum mips_symbol_type type;
+  return (mips_symbolic_constant_p (op, &type)
+	  && type == SYMBOL_GOT_DISP && TARGET_PLT);
+})
+
+(define_predicate "call_insn_operand"
+  (ior (match_operand 0 "absolute_symbolic_operand")
+       (match_operand 0 "plt_symbolic_operand")
+       (match_operand 0 "register_operand")))
 
 (define_predicate "symbol_ref_operand"
   (match_code "symbol_ref"))

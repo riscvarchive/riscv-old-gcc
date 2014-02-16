@@ -40,13 +40,8 @@ OTHER_GOT_RELOC_SECTIONS="
 GOT=".got          ${RELOCATING-0} : { *(.got) }"
 unset OTHER_READWRITE_SECTIONS
 unset OTHER_RELRO_SECTIONS
-OTHER_SDATA_SECTIONS="
-  .got.plt      ${RELOCATING-0} : { *(.got.plt) }
-  .srodata      ${RELOCATING-0} : { *(.srodata.cst*) }
-"
 
 # Magic symbols.
-SDATA_START_SYMBOLS="_gp = . + 0x800; ${_GOTPLT}"
 TEXT_START_SYMBOLS='_ftext = . ;'
 DATA_START_SYMBOLS='_fdata = . ;'
 OTHER_BSS_SYMBOLS='_fbss = .;'
@@ -54,6 +49,12 @@ OTHER_BSS_SYMBOLS='_fbss = .;'
 INITIAL_READONLY_SECTIONS=
 if test -z "${CREATE_SHLIB}"; then
   INITIAL_READONLY_SECTIONS=".interp       ${RELOCATING-0} : { *(.interp) }"
+  if test -z "${RELOCATING}"; then
+    SDATA_START_SYMBOLS="_gp = . + 0x800;
+    *(.got.plt) *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata*)"
+  fi
+else
+  OTHER_READONLY_SECTIONS=".srodata      ${RELOCATING-0} : { *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata*) }"
 fi
 
 TEXT_DYNAMIC=

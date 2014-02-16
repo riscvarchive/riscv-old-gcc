@@ -1520,9 +1520,10 @@ pcrel_store (int srcreg, int tempreg, expressionS *ep, const char* lo_insn,
 
 /* PC-relative function call using AUIPC/JALR, relaxed to JAL. */
 static void
-riscv_call (int destreg, int tempreg, expressionS *ep)
+riscv_call (int destreg, int tempreg, expressionS *ep,
+	    bfd_reloc_code_real_type reloc)
 {
-  macro_build (ep, "auipc", "d,u", tempreg, BFD_RELOC_RISCV_CALL);
+  macro_build (ep, "auipc", "d,u", tempreg, reloc);
   macro_build (NULL, "jalr", "d,s", destreg, tempreg);
 }
 
@@ -1722,7 +1723,7 @@ macro (struct mips_cl_insn *ip)
       rd = LINK_REG;
 do_call:
       rs1 = reg_lookup_assert ("t0", RTYPE_GP);
-      riscv_call (rd, rs1, &offset_expr);
+      riscv_call (rd, rs1, &offset_expr, offset_reloc);
       break;
 
     default:
@@ -2375,6 +2376,14 @@ alu_op:
 	      offset_reloc = BFD_RELOC_MIPS_JMP;
 	      continue;
 
+	    case 'c':
+	      my_getExpression (&offset_expr, s);
+	      s = expr_end;
+	      offset_reloc = BFD_RELOC_RISCV_CALL;
+	      if (*s == '@')
+		offset_reloc = BFD_RELOC_RISCV_CALL_PLT, s++;
+	      continue;
+
 	    default:
 	      as_bad (_("bad char = '%c'\n"), *args);
 	      internalError ();
@@ -2623,6 +2632,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       break;
 
     case BFD_RELOC_RISCV_CALL:
+    case BFD_RELOC_RISCV_CALL_PLT:
     case BFD_RELOC_MIPS_JMP:
     case BFD_RELOC_12_PCREL:
       break;

@@ -2561,7 +2561,9 @@
   [(call (mem:SI (match_operand 0 "call_insn_operand" "j,S"))
 	 (match_operand 1 "" ""))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[0]) ? "jr\t%0" : "jump\t%0"; }
+  { return REG_P (operands[0]) ? "jr\t%0"
+	   : absolute_symbolic_operand (operands[0], VOIDmode) ? "jump\t%0"
+	   : "jump\t%0@"; }
   [(set_attr "type" "call")])
 
 (define_expand "sibcall_value"
@@ -2580,7 +2582,9 @@
         (call (mem:SI (match_operand 1 "call_insn_operand" "j,S"))
               (match_operand 2 "" "")))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" : "jump\t%1"; }
+  { return REG_P (operands[1]) ? "jr\t%1"
+	   : absolute_symbolic_operand (operands[1], VOIDmode) ? "jump\t%1"
+	   : "jump\t%1@"; }
   [(set_attr "type" "call")])
 
 (define_insn "sibcall_value_multiple_internal"
@@ -2592,7 +2596,9 @@
 	      (match_dup 2)))
    (clobber (match_scratch:SI 4 "=j,j"))]
   "SIBLING_CALL_P (insn)"
-  { return REG_P (operands[1]) ? "jr\t%1" : "jump\t%1"; }
+  { return REG_P (operands[1]) ? "jr\t%1"
+	   : absolute_symbolic_operand (operands[1], VOIDmode) ? "jump\t%1"
+	   : "jump\t%1@"; }
   [(set_attr "type" "call")])
 
 (define_expand "call"
@@ -2611,7 +2617,9 @@
 	 (match_operand 1 "" ""))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[0]) ? "jalr\t%0" : "call\t%0"; }
+  { return REG_P (operands[0]) ? "jalr\t%0"
+	   : absolute_symbolic_operand (operands[0], VOIDmode) ? "call\t%0"
+	   : "call\t%0@"; }
   [(set_attr "jal" "indirect,direct")])
 
 (define_expand "call_value"
@@ -2632,7 +2640,9 @@
               (match_operand 2 "" "")))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" : "call\t%1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1"
+	   : absolute_symbolic_operand (operands[1], VOIDmode) ? "call\t%1"
+	   : "call\t%1@"; }
   [(set_attr "jal" "indirect,direct")])
 
 ;; See comment for call_internal.
@@ -2645,7 +2655,9 @@
 	      (match_dup 2)))
    (clobber (reg:SI RETURN_ADDR_REGNUM))]
   ""
-  { return REG_P (operands[1]) ? "jalr\t%1" : "call\t%1"; }
+  { return REG_P (operands[1]) ? "jalr\t%1"
+	   : absolute_symbolic_operand (operands[1], VOIDmode) ? "call\t%1"
+	   : "call\t%1@"; }
   [(set_attr "jal" "indirect,direct")])
 
 ;; Call subroutine returning any type.

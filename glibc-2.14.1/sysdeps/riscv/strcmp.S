@@ -119,8 +119,11 @@ END(strcmp)
 weak_alias(strcmp, __GI_strcmp)
 
 #if SZREG == 8
+#ifdef __PIC__
+.section .rodata.cst8,"aM",@progbits,8
+#else
 .section .srodata.cst8,"aM",@progbits,8
+#endif
 .align 3
-mask:
-.dword 0x7f7f7f7f7f7f7f7f
+mask: .8byte 0x7f7f7f7f7f7f7f7f
 #endif

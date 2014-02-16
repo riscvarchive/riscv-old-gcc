@@ -668,7 +668,20 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
 	 TRUE),			/* pcrel_offset */
 
-  EMPTY_HOWTO (13),
+  HOWTO (R_RISCV_CALL_PLT,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 TRUE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc,	/* special_function */
+	 "R_RISCV_CALL_PLT",	/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0,			/* dst_mask */
+	 TRUE),			/* pcrel_offset */
+
   EMPTY_HOWTO (14),
   EMPTY_HOWTO (15),
   EMPTY_HOWTO (16),
@@ -1159,6 +1172,7 @@ static const struct elf_reloc_map riscv_reloc_map[] =
   { BFD_RELOC_RISCV_PCREL_LO12_I, R_RISCV_PCREL_LO12_I },
   { BFD_RELOC_RISCV_PCREL_LO12_S, R_RISCV_PCREL_LO12_S },
   { BFD_RELOC_RISCV_CALL, R_RISCV_CALL },
+  { BFD_RELOC_RISCV_CALL_PLT, R_RISCV_CALL_PLT },
   { BFD_RELOC_RISCV_PCREL_HI20, R_RISCV_PCREL_HI20 },
   { BFD_RELOC_MIPS_JMP, R_RISCV_JAL },
   { BFD_RELOC_RISCV_GOT_HI20, R_RISCV_GOT_HI20 },
@@ -3091,16 +3105,21 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value -= addend + symbol;
       break;
 
+    case R_RISCV_CALL_PLT:
     case R_RISCV_CALL:
     {
-      struct elf_link_hash_entry *eh = (struct elf_link_hash_entry*)h;
       bfd_vma auipc = bfd_get (32, input_bfd, contents + relocation->r_offset);
       bfd_vma jalr = bfd_get (32, input_bfd, contents + relocation->r_offset + 4);
       bfd_vma got;
+
+      if (info->shared && h && h->root.plt.offset != MINUS_ONE)
+	symbol = (htab->splt->output_section->vma
+		  + htab->splt->output_offset + h->root.plt.offset);
+
       value = addend + (symbol ? symbol : p);
 
-      if (htab->relax && eh != NULL && eh->plt.offset != MINUS_ONE
-	  && (got = riscv_elf_got_plt_val_from_offset (eh->plt.offset, info),
+      if (htab->relax && h != NULL && h->root.plt.offset != MINUS_ONE
+	  && (got = riscv_elf_got_plt_val_from_offset (h->root.plt.offset, info),
 	      got -= gp,
 	      VALID_ITYPE_IMM (got))
 	  && VALID_ITYPE_IMM (addend))
@@ -3121,6 +3140,9 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       return bfd_reloc_continue;
     }
     case R_RISCV_JAL:
+      if (info->shared && h && h->root.plt.offset != MINUS_ONE)
+	symbol = (htab->splt->output_section->vma
+		  + htab->splt->output_offset + h->root.plt.offset);
       value = addend;
       if (symbol)
 	value += symbol - p;
@@ -3785,11 +3807,14 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	    h->pointer_equality_needed = TRUE;
 	  /* Fall through.  */
 
+	case R_RISCV_CALL_PLT:
+	  if (info->shared && h)
+	    h->needs_plt = TRUE;
 	case R_RISCV_JAL:
-	case R_RISCV_BRANCH:
 	case R_RISCV_CALL:
 	  if (h)
 	    ((struct mips_elf_link_hash_entry *) h)->has_static_relocs = TRUE;
+	case R_RISCV_BRANCH:
 	  break;
 	}
 
@@ -4599,7 +4624,6 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       BFD_ASSERT (h->dynindx != -1);
       BFD_ASSERT (htab->splt != NULL);
       BFD_ASSERT (h->plt.offset <= htab->splt->size);
-      BFD_ASSERT (!h->def_regular);
 
       /* Calculate the address of the PLT header.  */
       header_address = (htab->splt->output_section->vma
@@ -4633,7 +4657,8 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
 					  plt_index, h->dynindx,
 					  R_RISCV_JUMP_SLOT, got_address);
 
-      sym->st_shndx = SHN_UNDEF;
+      if (!h->def_regular)
+	sym->st_shndx = SHN_UNDEF;
     }
 
   BFD_ASSERT (h->dynindx != -1
@@ -5711,10 +5736,11 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
     {
       bfd_vma symval;
       bfd_boolean call = ELF_R_TYPE (abfd, irel->r_info) == (int) R_RISCV_CALL;
+      bfd_boolean call_plt = ELF_R_TYPE (abfd, irel->r_info) == (int) R_RISCV_CALL_PLT;
       bfd_boolean auipc = ELF_R_TYPE (abfd, irel->r_info) == (int) R_RISCV_PCREL_HI20;
       bfd_boolean lui = ELF_R_TYPE (abfd, irel->r_info) == (int) R_RISCV_HI20;
 
-      if (!call && !auipc && !lui)
+      if (!call && !call_plt && !auipc && !lui)
 	continue;
 
       /* Get the section contents.  */
@@ -5765,21 +5791,16 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 
 	  indx = ELF_R_SYM (abfd, irel->r_info) - symtab_hdr->sh_info;
 	  h = elf_sym_hashes (abfd)[indx];
-	  /* The following #if 0 prevents relaxing auipc/jalr calls to
-	     PLT stubs into jal calls to PLT stubs.  Instead, we relax
-	     them into ld(gp)/jalr, bypassing the PLT (except for the
-	     first invocation).  We might revisit this decision. */
-#if 0
-	  while (h->root.type == bfd_link_hash_indirect)
-	    h =  (struct elf_link_hash_entry *) h->root.u.i.link;
+
+	  while (h->root.type == bfd_link_hash_indirect
+		 || h->root.type == bfd_link_hash_warning)
+	    h = (struct elf_link_hash_entry *) h->root.u.i.link;
 
 	  if (h->plt.offset != MINUS_ONE)
 	    symval = (htab->splt->output_section->vma
 		      + htab->splt->output_offset + h->plt.offset);
-	  else
-#endif
-	  if (h->root.type != bfd_link_hash_defined
-	      && h->root.type != bfd_link_hash_defweak)
+	  else if (h->root.type != bfd_link_hash_defined
+		   && h->root.type != bfd_link_hash_defweak)
 	    continue;
 	  else
 	    {
@@ -5791,9 +5812,10 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 
       symval += irel->r_addend;
 
-      if (call && !_bfd_riscv_relax_call (abfd, sec, link_info, contents,
-					  symtab_hdr, isymbuf, internal_relocs,
-					  irel, symval, again))
+      if ((call || call_plt) &&
+	  !_bfd_riscv_relax_call (abfd, sec, link_info, contents,
+				  symtab_hdr, isymbuf, internal_relocs,
+				  irel, symval, again))
 	goto error_return;
       if ((auipc || lui) &&
 	  !_bfd_riscv_relax_auipc (abfd, sec, link_info, contents,

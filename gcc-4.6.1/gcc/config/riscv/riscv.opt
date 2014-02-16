@@ -42,6 +42,10 @@ mmemcpy
 Target Report Mask(MEMCPY)
 Don't optimize block moves
 
+mplt
+Target Report Var(TARGET_PLT) Init(1)
+When generating -fpic code, allow the use of PLTs. Ignored for fno-pic.
+
 msoft-float
 Target Report RejectNegative Mask(SOFT_FLOAT_ABI)
 Prevent the use of all hardware floating-point instructions

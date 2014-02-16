@@ -2127,11 +2127,7 @@ mips_output_move (rtx dest, rtx src)
 	return "li\t%0,%1";
 
       if (src_code == HIGH)
-	{
-	  enum mips_symbol_type symbol_type;
-	  gcc_assert (mips_symbolic_constant_p (XEXP (src, 0), &symbol_type));
-	  return "lui\t%0,%h1";
-	}
+	return "lui\t%0,%h1";
 
       if (symbolic_operand (src, VOIDmode))
 	return SYMBOL_REF_LOCAL_P (src) ? "lla\t%0,%1" : "la\t%0,%1";
@@ -4737,7 +4733,7 @@ mips_output_mi_thunk (FILE *file, tree thunk_fndecl ATTRIBUTE_UNUSED,
 
   /* Determine if we can use a sibcall to call FUNCTION directly.  */
   fnaddr = XEXP (DECL_RTL (function), 0);
-  use_sibcall_p = const_call_insn_operand (fnaddr, Pmode);
+  use_sibcall_p = absolute_symbolic_operand (fnaddr, Pmode);
 
   /* We need two temporary registers in some cases.  */
   temp1 = gen_rtx_REG (Pmode, GP_RETURN);
