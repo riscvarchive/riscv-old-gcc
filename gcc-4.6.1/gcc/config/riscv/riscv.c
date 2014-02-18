@@ -2130,7 +2130,12 @@ mips_output_move (rtx dest, rtx src)
 	return "lui\t%0,%h1";
 
       if (symbolic_operand (src, VOIDmode))
-	return SYMBOL_REF_LOCAL_P (src) ? "lla\t%0,%1" : "la\t%0,%1";
+	{
+	  if (SYMBOL_REF_LOCAL_P (src)
+	      || (src_code == LABEL_REF && !LABEL_REF_NONLOCAL_P (src)))
+	    return "lla\t%0,%1";
+	  return "la\t%0,%1";
+	}
     }
   if (src_code == REG && FP_REG_P (REGNO (src)))
     {

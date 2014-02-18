@@ -2406,21 +2406,24 @@
    (set_attr "mode" "none")])
 
 (define_expand "tablejump"
-  [(set (pc)
-	(match_operand 0 "register_operand"))
-   (use (label_ref (match_operand 1 "")))]
+  [(set (pc) (match_operand 0 "register_operand" ""))
+	      (use (label_ref (match_operand 1 "" "")))]
   ""
 {
-  if (Pmode == SImode)
-    emit_jump_insn (gen_tablejumpsi (operands[0], operands[1]));
-  else
+  if (flag_pic)
+      operands[0] = expand_simple_binop (Pmode, PLUS, operands[0],
+					 gen_rtx_LABEL_REF (Pmode, operands[1]),
+					 NULL_RTX, 0, OPTAB_DIRECT);
+
+  if (flag_pic && Pmode == DImode)
     emit_jump_insn (gen_tablejumpdi (operands[0], operands[1]));
+  else
+    emit_jump_insn (gen_tablejumpsi (operands[0], operands[1]));
   DONE;
 })
 
 (define_insn "tablejump<mode>"
-  [(set (pc)
-	(match_operand:P 0 "register_operand" "d"))
+  [(set (pc) (match_operand:GPR 0 "register_operand" "d"))
    (use (label_ref (match_operand 1 "" "")))]
   ""
   "jr\t%0"

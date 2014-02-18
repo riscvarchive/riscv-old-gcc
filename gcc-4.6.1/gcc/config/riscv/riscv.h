@@ -1093,8 +1093,7 @@ typedef struct mips_args {
   ((SYMBOL_REF_FLAGS (RTX) & SYMBOL_FLAG_BIND_NOW) != 0)
 
 #define JUMP_TABLES_IN_TEXT_SECTION 0
-#define CASE_VECTOR_MODE ptr_mode
-#define CASE_VECTOR_PC_RELATIVE 0
+#define CASE_VECTOR_MODE SImode
 
 /* Define this as 1 if `char' should by default be signed; else as 0.  */
 #define DEFAULT_SIGNED_CHAR 0
@@ -1278,29 +1277,13 @@ do {									\
 /* This is how to output an element of a case-vector that is absolute.  */
 
 #define ASM_OUTPUT_ADDR_VEC_ELT(STREAM, VALUE)				\
-  fprintf (STREAM, "\t%s\t%sL%d\n",					\
-	   ptr_mode == DImode ? ".dword" : ".word",			\
-	   LOCAL_LABEL_PREFIX,						\
-	   VALUE)
+  fprintf (STREAM, "\t.word\t%sL%d\n", LOCAL_LABEL_PREFIX, VALUE)
 
-/* This is how to output an element of a case-vector.  We can make the
-   entries PC-relative in MIPS16 code and GP-relative when .gp(d)word
-   is supported.  */
+/* This is how to output an element of a PIC case-vector. */
 
 #define ASM_OUTPUT_ADDR_DIFF_ELT(STREAM, BODY, VALUE, REL)		\
-do {									\
-  fprintf (STREAM, "\t%s\t%sL%d\n",					\
-	   ptr_mode == DImode ? ".dword" : ".word",			\
-	   LOCAL_LABEL_PREFIX, VALUE);					\
-} while (0)
-
-/* Don't put jump tables in .rodata for PIC.  We need to relocate them. */
-#undef ASM_OUTPUT_BEFORE_CASE_LABEL
-#define ASM_OUTPUT_BEFORE_CASE_LABEL(FILE, PREFIX, NUM, TABLE) \
-  if (flag_pic) { \
-    fprintf (FILE, "%s\n", DATA_SECTION_ASM_OP); \
-    ASM_OUTPUT_ALIGN (FILE, exact_log2 (POINTER_SIZE/8)); \
-  }
+  fprintf (STREAM, "\t.word\t%sL%d-%sL%d\n",				\
+	   LOCAL_LABEL_PREFIX, VALUE, LOCAL_LABEL_PREFIX, REL)
 
 /* This is how to output an assembler line
    that says to advance the location counter

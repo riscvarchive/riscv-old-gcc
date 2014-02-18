@@ -93,7 +93,9 @@ extern void mips_define_label (symbolS *);
   (OUTPUT_FLAVOR == bfd_target_elf_flavour)
 
 #define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG) ((SEG)->flags & SEC_CODE)
+#define TC_FORCE_RELOCATION_SUB_LOCAL(FIX, SEG) 1
 #define TC_VALIDATE_FIX_SUB(FIX, SEG) TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG)
+#define DIFF_EXPR_OK 1
 
 extern void mips_pop_insert (void);
 #define md_pop_insert()		mips_pop_insert()
