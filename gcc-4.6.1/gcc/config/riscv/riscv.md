@@ -844,7 +844,7 @@
 	     (minus:SI (truncate:SI (match_operand:DI 1 "reg_or_0_operand" "dJ"))
 		      (match_operand:SI 2 "register_operand" "d")))]
   "TARGET_64BIT"
-  "addw\t%0,%z1,%2"
+  "subw\t%0,%z1,%2"
   [(set_attr "type" "arith")
    (set_attr "mode" "SI")])
 
@@ -853,7 +853,7 @@
 	     (minus:SI (match_operand:SI 1 "reg_or_0_operand" "dJ")
 		      (truncate:SI (match_operand:DI 2 "register_operand" "d"))))]
   "TARGET_64BIT"
-  "addw\t%0,%z1,%2"
+  "subw\t%0,%z1,%2"
   [(set_attr "type" "arith")
    (set_attr "mode" "SI")])
 
