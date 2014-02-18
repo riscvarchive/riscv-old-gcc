@@ -42,6 +42,20 @@
 # define islessgreater(x, y) (!!(isless(x, y) + isgreater(x, y)))
 # define isunordered(x, y) (((x) == (x)) + ((y) == (y)) < 2)
 
+extern inline int __attribute_used__ __signbit (double __x)
+{
+  union { double __d; long __i[sizeof(double)/sizeof(long)]; } __u;
+  __u.__d = __x;
+  return __u.__i[sizeof(double)/sizeof(long)-1] < 0;
+}
+
+extern inline int __attribute_used__ __signbitf (float __x)
+{
+  union { float __d; int __i; } __u;
+  __u.__d = __x;
+  return __u.__i < 0;
+}
+
 #endif /* __USE_ISOC99 */
 
 #if (!defined __NO_MATH_INLINES || defined __LIBC_INTERNAL_MATH_INLINES) && defined __OPTIMIZE__
