@@ -325,7 +325,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"fsflags",   "F",   "s",  MATCH_FSFLAGS, MASK_FSFLAGS | MASK_RD, match_opcode,  RD_xs1 },
 {"fsflags",   "F",   "d,s",  MATCH_FSFLAGS, MASK_FSFLAGS, match_opcode,  WR_xd|RD_xs1 },
 {"flw",       "F",   "D,o(s)",  MATCH_FLW, MASK_FLW, match_opcode,   WR_fd|RD_xs1 },
-{"flw",       "F",   "D,A",  0, (int) M_FLW, match_never,  INSN_MACRO },
+{"flw",       "F",   "D,A,s",  0, (int) M_FLW, match_never,  INSN_MACRO },
 {"fsw",       "F",   "T,q(s)",  MATCH_FSW, MASK_FSW, match_opcode,   RD_xs1|RD_fs2 },
 {"fsw",       "F",   "T,A,s",  0, (int) M_FSW, match_never,  INSN_MACRO },
 {"fmv.x.s",   "F",   "d,S",  MATCH_FMV_X_S, MASK_FMV_X_S, match_opcode,  WR_xd|RD_fs1 },
@@ -378,7 +378,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 
 /* Double-precision floating-point instruction subset */
 {"fld",       "D",   "D,o(s)",  MATCH_FLD, MASK_FLD, match_opcode,  WR_fd|RD_xs1 },
-{"fld",       "D",   "D,A",  0, (int) M_FLD, match_never,  INSN_MACRO },
+{"fld",       "D",   "D,A,s",  0, (int) M_FLD, match_never,  INSN_MACRO },
 {"fsd",       "D",   "T,q(s)",  MATCH_FSD, MASK_FSD, match_opcode,  RD_xs1|RD_fs2 },
 {"fsd",       "D",   "T,A,s",  0, (int) M_FSD, match_never,  INSN_MACRO },
 {"fmv.d",     "D",   "D,U",  MATCH_FSGNJ_D, MASK_FSGNJ_D, match_rs1_eq_rs2,   INSN_ALIAS|WR_fd|RD_fs1|RD_fs2 },

@@ -403,6 +403,10 @@ static const pseudo_typeS mips_pseudo_table[] =
   {"origin", s_org, 0},
   {"repeat", s_rept, 0},
 
+  /* leb128 doesn't work with relaxation; disallow it */
+  {"uleb128", s_err, 0},
+  {"sleb128", s_err, 0},
+
   /* These pseudo-ops are defined in read.c, but must be overridden
      here for one reason or another.  */
   {"align", s_align, 0},
@@ -1619,102 +1623,102 @@ macro (struct mips_cl_insn *ip)
     case M_LLA:
       /* Load the address of a symbol into a register. */
       if (!IS_SEXT_32BIT_NUM (offset_expr.X_add_number))
-        as_bad(_("offset too large"));
+	as_bad(_("offset too large"));
 
       if (offset_expr.X_op == O_constant)
-        load_const (rd, &offset_expr);
+	load_const (rd, &offset_expr);
       else if (is_pic && mask == M_LA) /* Global PIC symbol */
 	pcrel_load (rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
-	            BFD_RELOC_RISCV_GOT_HI20, BFD_RELOC_RISCV_GOT_LO12);
+		    BFD_RELOC_RISCV_GOT_HI20, BFD_RELOC_RISCV_GOT_LO12);
       else /* Local PIC symbol, or any non-PIC symbol */
 	pcrel_load (rd, rd, &offset_expr, "addi",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+		    BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LA_TLS_GD: 
-      pcrel_load(rd, rd, &offset_expr, "addi",
-                 BFD_RELOC_RISCV_TLS_GD_HI20, BFD_RELOC_RISCV_TLS_GD_LO12);
+      pcrel_load (rd, rd, &offset_expr, "addi",
+		  BFD_RELOC_RISCV_TLS_GD_HI20, BFD_RELOC_RISCV_TLS_GD_LO12);
       break;
 
     case M_LA_TLS_IE: 
-      pcrel_load(rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
-                 BFD_RELOC_RISCV_TLS_GOT_HI20, BFD_RELOC_RISCV_TLS_GOT_LO12);
+      pcrel_load (rd, rd, &offset_expr, LOAD_ADDRESS_INSN,
+		  BFD_RELOC_RISCV_TLS_GOT_HI20, BFD_RELOC_RISCV_TLS_GOT_LO12);
       break;
 
     case M_LB:
-	pcrel_load (rd, rd, &offset_expr, "lb",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
-	break;
+      pcrel_load (rd, rd, &offset_expr, "lb",
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+      break;
 
     case M_LBU:
-	pcrel_load (rd, rd, &offset_expr, "lbu",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
-	break;
+      pcrel_load (rd, rd, &offset_expr, "lbu",
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+      break;
 
     case M_LH:
-	pcrel_load (rd, rd, &offset_expr, "lh",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
-	break;
+      pcrel_load (rd, rd, &offset_expr, "lh",
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+      break;
 
     case M_LHU:
-	pcrel_load (rd, rd, &offset_expr, "lhu",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
-	break;
+      pcrel_load (rd, rd, &offset_expr, "lhu",
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+      break;
 
     case M_LW:
-	pcrel_load (rd, rd, &offset_expr, "lw",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
-	break;
+      pcrel_load (rd, rd, &offset_expr, "lw",
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+      break;
 
     case M_LWU:
-	pcrel_load (rd, rd, &offset_expr, "lwu",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
-	break;
+      pcrel_load (rd, rd, &offset_expr, "lwu",
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+      break;
 
     case M_LD:
-	pcrel_load (rd, rd, &offset_expr, "ld",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
-	break;
+      pcrel_load (rd, rd, &offset_expr, "ld",
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+      break;
 
     case M_FLW:
-	pcrel_load (rd, rd, &offset_expr, "flw",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
-	break;
+      pcrel_load (rd, rs1, &offset_expr, "flw",
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+      break;
 
     case M_FLD:
-	pcrel_load (rd, rd, &offset_expr, "fld",
-	            BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
-	break;
+      pcrel_load (rd, rs1, &offset_expr, "fld",
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
+      break;
 
     case M_SB:
-	pcrel_store (rs2, rs1, &offset_expr, "sb",
-	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
-	break;
+      pcrel_store (rs2, rs1, &offset_expr, "sb",
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+      break;
 
     case M_SH:
-	pcrel_store (rs2, rs1, &offset_expr, "sh",
-	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
-	break;
+      pcrel_store (rs2, rs1, &offset_expr, "sh",
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+      break;
 
     case M_SW:
-	pcrel_store (rs2, rs1, &offset_expr, "sw",
-	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
-	break;
+      pcrel_store (rs2, rs1, &offset_expr, "sw",
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+      break;
 
     case M_SD:
-	pcrel_store (rs2, rs1, &offset_expr, "sd",
-	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
-	break;
+      pcrel_store (rs2, rs1, &offset_expr, "sd",
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+      break;
 
     case M_FSW:
-	pcrel_store (rs2, rs1, &offset_expr, "fsw",
-	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
-	break;
+      pcrel_store (rs2, rs1, &offset_expr, "fsw",
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+      break;
 
     case M_FSD:
-	pcrel_store (rs2, rs1, &offset_expr, "fsd",
-	             BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
-	break;
+      pcrel_store (rs2, rs1, &offset_expr, "fsd",
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+      break;
 
     case M_JUMP:
       rd = 0;

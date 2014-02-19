@@ -715,13 +715,14 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
 
 static int riscv_symbol_insns (enum mips_symbol_type type)
 {
-  /* We don't treat a bare TLS symbol as constants.  */
-  if (type == SYMBOL_TLS)
-    return 0;
-
-  /* For PIC, AUIPC+LD for the GOT access, followed by reference itself.
-     For non-PIC, LUI followed by the reference itself. */
-  return 2 + flag_pic;
+  switch (type)
+  {
+    case SYMBOL_TLS: return 0; /* Depends on the TLS model. */
+    case SYMBOL_ABSOLUTE: return 2; /* LUI + the reference itself */
+    case SYMBOL_TPREL: return 3; /* LUI + ADD TP + the reference itself */
+    case SYMBOL_GOT_DISP: return 3; /* AUIPC + LD GOT + the reference itself */
+    default: gcc_unreachable();
+  }
 }
 
 /* A for_each_rtx callback.  Stop the search if *X references a
