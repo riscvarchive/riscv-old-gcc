@@ -1236,20 +1236,6 @@ md_begin (void)
 
   /* set the default alignment for the text section (2**2) */
   record_alignment (text_section, 2);
-
-#ifdef OBJ_ELF
-  if (IS_ELF)
-    {
-      /* Sections must be aligned to 16 byte boundaries.  When configured
-         for an embedded ELF target, we don't bother.  */
-      if (strncmp (TARGET_OS, "elf", 3) != 0)
-	{
-	  (void) bfd_set_section_alignment (stdoutput, text_section, 4);
-	  (void) bfd_set_section_alignment (stdoutput, data_section, 4);
-	  (void) bfd_set_section_alignment (stdoutput, bss_section, 4);
-	}
-    }
-#endif /* OBJ_ELF */
 }
 
 void
@@ -2725,8 +2711,6 @@ s_align (int x ATTRIBUTE_UNUSED)
 static void
 s_change_sec (int sec)
 {
-  segT seg;
-
 #ifdef OBJ_ELF
   /* The ELF backend needs to know that we are changing sections, so
      that .previous works correctly.  We could do something like check
@@ -2752,17 +2736,8 @@ s_change_sec (int sec)
       subseg_set (bss_section, (subsegT) get_absolute_expression ());
       demand_empty_rest_of_line ();
       break;
-
     case 'r':
-      seg = subseg_new (".rodata", (subsegT) get_absolute_expression ());
-      if (IS_ELF)
-	{
-	  bfd_set_section_flags (stdoutput, seg, (SEC_ALLOC | SEC_LOAD
-						  | SEC_READONLY | SEC_RELOC
-						  | SEC_DATA));
-	  if (strncmp (TARGET_OS, "elf", 3) != 0)
-	    record_alignment (seg, 4);
-	}
+      subseg_new (".rodata", (subsegT) get_absolute_expression ());
       demand_empty_rest_of_line ();
       break;
     }
@@ -2978,26 +2953,6 @@ static void
 s_dtpreldword (int ignore ATTRIBUTE_UNUSED)
 {
   s_dtprel_internal (8);
-}
-
-valueT
-md_section_align (asection *seg, valueT addr)
-{
-  int align = bfd_get_section_alignment (stdoutput, seg);
-
-  if (IS_ELF)
-    {
-      /* We don't need to align ELF sections to the full alignment.
-	 However, Irix 5 may prefer that we align them at least to a 16
-	 byte boundary.  We don't bother to align the sections if we
-	 are targeted for an embedded system.  */
-      if (strncmp (TARGET_OS, "elf", 3) == 0)
-        return addr;
-      if (align > 4)
-        align = 4;
-    }
-
-  return ((addr + (1 << align) - 1) & (-1 << align));
 }
 
 /* Compute the length of a branch sequence, and adjust the

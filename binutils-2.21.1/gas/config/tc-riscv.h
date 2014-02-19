@@ -45,6 +45,7 @@ struct expressionS;
   mips_relax_frag(segment, fragp, stretch)
 extern int mips_relax_frag (asection *, struct frag *, long);
 
+#define md_section_align(seg,size)	(size)
 #define md_undefined_symbol(name)	(0)
 #define md_operand(x)
 
