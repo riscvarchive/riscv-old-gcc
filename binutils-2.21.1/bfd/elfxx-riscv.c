@@ -94,11 +94,7 @@ struct mips_got_entry
     struct mips_elf_link_hash_entry *h;
   } d;
 
-  /* The TLS types included in this GOT entry (specifically, GD and
-     IE).  The GD and IE flags can be added as we encounter new
-     relocations.  LDM can also be set; it will always be alone, not
-     combined with any GD or IE flags.  An LDM GOT entry will be
-     a local symbol entry with r_symndx == 0.  */
+  /* The TLS types included in this GOT entry (specifically, GD and IE). */
   unsigned char tls_type;
 
   /* The offset from the beginning of the .got section to the entry
@@ -157,11 +153,6 @@ struct mips_got_info
   struct htab *got_entries;
   /* A hash table of mips_got_page_entry structures.  */
   struct htab *got_page_entries;
-  /* This is the GOT index of the TLS LDM entry for the GOT, MINUS_ONE
-     for none, or MINUS_TWO for not yet assigned.  This is needed
-     because a single-GOT link may have multiple hash table entries
-     for the LDM.  It does not get initialized in multi-GOT mode.  */
-  bfd_vma tls_ldm_offset;
 };
 
 /* Another structure used to pass arguments for got entries traversal.  */
@@ -252,7 +243,6 @@ struct mips_elf_link_hash_entry
 
 #define GOT_NORMAL	0
 #define GOT_TLS_GD	1
-#define GOT_TLS_LDM	2
 #define GOT_TLS_IE	4
 #define GOT_TLS_OFFSET_DONE    0x40
 #define GOT_TLS_DONE    0x80
@@ -334,8 +324,6 @@ struct mips_htab_traverse_info
    || r_type == R_RISCV_TLS_DTPREL32		\
    || r_type == R_RISCV_TLS_DTPREL64		\
    || TLS_GD_RELOC_P(r_type)			\
-   || TLS_LDM_RELOC_P(r_type)			\
-   || r_type == R_RISCV_TLS_LDM			\
    || r_type == R_RISCV_TLS_DTPREL_HI16		\
    || r_type == R_RISCV_TLS_DTPREL_LO16		\
    || TLS_GOTTPREL_RELOC_P(r_type)		\
@@ -354,11 +342,6 @@ struct mips_htab_traverse_info
   ((r_type) == R_RISCV_TLS_GD			\
    || (r_type) == R_RISCV_TLS_GD_HI20		\
    || (r_type) == R_RISCV_TLS_GD_LO12)
-
-#define TLS_LDM_RELOC_P(r_type) \
-  ((r_type) == R_RISCV_TLS_LDM			\
-   || (r_type) == R_RISCV_TLS_LDM_HI20		\
-   || (r_type) == R_RISCV_TLS_LDM_LO12)
 
 /* The structure of the runtime procedure descriptor created by the
    loader for use by the static exception system.  */
@@ -891,20 +874,7 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* TLS local dynamic variable reference.  */
-  HOWTO (R_RISCV_TLS_LDM,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,	/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_TLS_LDM",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (43),
 
   /* TLS local dynamic offset.  */
   HOWTO (R_RISCV_TLS_DTPREL_HI16,	/* type */
@@ -1042,35 +1012,8 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* High 16 bits of displacement in global offset table.  */
-  HOWTO (R_RISCV_TLS_LDM_HI20,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_TLS_LDM_HI20",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* Low 16 bits of displacement in global offset table.  */
-  HOWTO (R_RISCV_TLS_LDM_LO12,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,			/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_dont, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc,	/* special_function */
-	 "R_RISCV_TLS_LDM_LO12",	/* name */
-	 FALSE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (55),
+  EMPTY_HOWTO (56),
 
   /* 32 bit relocation with no addend.  */
   HOWTO (R_RISCV_GLOB_DAT,	/* type */
@@ -1182,7 +1125,6 @@ static const struct elf_reloc_map riscv_reloc_map[] =
   { BFD_RELOC_MIPS_TLS_DTPMOD64, R_RISCV_TLS_DTPMOD64 },
   { BFD_RELOC_MIPS_TLS_DTPREL64, R_RISCV_TLS_DTPREL64 },
   { BFD_RELOC_MIPS_TLS_GD, R_RISCV_TLS_GD },
-  { BFD_RELOC_MIPS_TLS_LDM, R_RISCV_TLS_LDM },
   { BFD_RELOC_MIPS_TLS_TPREL32, R_RISCV_TLS_TPREL32 },
   { BFD_RELOC_MIPS_TLS_TPREL64, R_RISCV_TLS_TPREL64 },
   { BFD_RELOC_RISCV_TPREL_HI20, R_RISCV_TPREL_HI20 },
@@ -1192,8 +1134,6 @@ static const struct elf_reloc_map riscv_reloc_map[] =
   { BFD_RELOC_RISCV_TLS_GOT_LO12, R_RISCV_TLS_GOT_LO12 },
   { BFD_RELOC_RISCV_TLS_GD_HI20, R_RISCV_TLS_GD_HI20 },
   { BFD_RELOC_RISCV_TLS_GD_LO12, R_RISCV_TLS_GD_LO12 },
-  { BFD_RELOC_RISCV_TLS_LDM_HI20, R_RISCV_TLS_LDM_HI20 },
-  { BFD_RELOC_RISCV_TLS_LDM_LO12, R_RISCV_TLS_LDM_LO12 }
 };
 
 /* Given a BFD reloc type, return a howto structure.  */
@@ -1554,7 +1494,6 @@ mips_elf_got_entry_hash (const void *entry_)
   const struct mips_got_entry *entry = (struct mips_got_entry *)entry_;
 
   return entry->symndx
-    + ((entry->tls_type & GOT_TLS_LDM) << 17)
     + (! entry->abfd ? mips_elf_hash_bfd_vma (entry->d.address)
        : entry->abfd->id
          + (entry->symndx >= 0 ? mips_elf_hash_bfd_vma (entry->d.addend)
@@ -1566,10 +1505,6 @@ mips_elf_got_entry_eq (const void *entry1, const void *entry2)
 {
   const struct mips_got_entry *e1 = (struct mips_got_entry *)entry1;
   const struct mips_got_entry *e2 = (struct mips_got_entry *)entry2;
-
-  /* An LDM entry can only match another LDM entry.  */
-  if ((e1->tls_type ^ e2->tls_type) & GOT_TLS_LDM)
-    return 0;
 
   return e1->abfd == e2->abfd && e1->symndx == e2->symndx
     && (! e1->abfd ? e1->d.address == e2->d.address
@@ -1661,9 +1596,6 @@ mips_tls_got_relocs (struct bfd_link_info *info, unsigned char tls_type,
     }
 
   if (tls_type & GOT_TLS_IE)
-    ret++;
-
-  if ((tls_type & GOT_TLS_LDM) && info->shared)
     ret++;
 
   return ret;
@@ -1850,24 +1782,6 @@ mips_elf_initialize_tls_slots (bfd *abfd, bfd_vma got_offset,
 			   sgot->contents + offset);
     }
 
-  if (*tls_type_p & GOT_TLS_LDM)
-    {
-      /* The initial offset is zero, and the LD offsets will include the
-	 bias by DTP_OFFSET.  */
-      MIPS_ELF_PUT_WORD (abfd, 0,
-			 sgot->contents + got_offset
-			 + MIPS_ELF_GOT_SIZE (abfd));
-
-      if (!info->shared)
-	MIPS_ELF_PUT_WORD (abfd, 1,
-			   sgot->contents + got_offset);
-      else
-	mips_elf_output_dynamic_relocation
-	  (abfd, sreloc, sreloc->reloc_count++, indx,
-	   ABI_64_P (abfd) ? R_RISCV_TLS_DTPMOD64 : R_RISCV_TLS_DTPMOD32,
-	   sgot->output_offset + sgot->output_section->vma + got_offset);
-    }
-
   *tls_type_p |= GOT_TLS_DONE;
 }
 
@@ -1881,8 +1795,7 @@ mips_tls_got_index (bfd *abfd, bfd_vma got_index, unsigned char *tls_type,
 		    int r_type, struct bfd_link_info *info,
 		    struct mips_elf_link_hash_entry *h, bfd_vma symbol)
 {
-  BFD_ASSERT (TLS_GOTTPREL_RELOC_P(r_type) || TLS_GD_RELOC_P(r_type)
-	      || TLS_LDM_RELOC_P(r_type));
+  BFD_ASSERT (TLS_GOTTPREL_RELOC_P(r_type) || TLS_GD_RELOC_P(r_type));
 
   mips_elf_initialize_tls_slots (abfd, got_index, tls_type, info, h, symbol);
 
@@ -1895,18 +1808,7 @@ mips_tls_got_index (bfd *abfd, bfd_vma got_index, unsigned char *tls_type,
 	return got_index;
     }
 
-  if (TLS_GD_RELOC_P(r_type))
-    {
-      BFD_ASSERT (*tls_type & GOT_TLS_GD);
-      return got_index;
-    }
-
-  if (TLS_LDM_RELOC_P(r_type))
-    {
-      BFD_ASSERT (*tls_type & GOT_TLS_LDM);
-      return got_index;
-    }
-
+  BFD_ASSERT (*tls_type & GOT_TLS_GD);
   return got_index;
 }
 
@@ -2047,13 +1949,7 @@ mips_elf_create_local_got_entry (bfd *abfd, struct bfd_link_info *info,
       struct mips_got_entry *p;
 
       entry.abfd = ibfd;
-      if (TLS_LDM_RELOC_P(r_type))
-	{
-	  entry.tls_type = GOT_TLS_LDM;
-	  entry.symndx = 0;
-	  entry.d.addend = 0;
-	}
-      else if (h == NULL)
+      if (h == NULL)
 	{
 	  entry.symndx = r_symndx;
 	  entry.d.addend = 0;
@@ -2327,15 +2223,11 @@ mips_elf_record_local_got_symbol (bfd *abfd, long symndx, bfd_vma addend,
     {
       entry.gotidx = -1;
       entry.tls_type = tls_flag;
+      BFD_ASSERT (tls_flag & (GOT_TLS_IE | GOT_TLS_GD));
       if (tls_flag == GOT_TLS_IE)
 	g->tls_gotno += 1;
-      else if (tls_flag == GOT_TLS_GD)
+      else
 	g->tls_gotno += 2;
-      else if (g->tls_ldm_offset == MINUS_ONE)
-	{
-	  g->tls_ldm_offset = MINUS_TWO;
-	  g->tls_gotno += 2;
-	}
     }
   else
     {
@@ -2654,24 +2546,12 @@ mips_elf_initialize_tls_index (void **entryp, void *p)
     }
   else
     {
-      if (entry->tls_type & GOT_TLS_LDM)
-	{
-	  /* There are separate mips_got_entry objects for each input bfd
-	     that requires an LDM entry.  Make sure that all LDM entries in
-	     a GOT resolve to the same index.  */
-	  if (g->tls_ldm_offset != MINUS_TWO && g->tls_ldm_offset != MINUS_ONE)
-	    {
-	      entry->gotidx = g->tls_ldm_offset;
-	      return 1;
-	    }
-	  g->tls_ldm_offset = next_index;
-	}
       entry->gotidx = next_index;
       tls_type = entry->tls_type;
     }
 
   /* Account for the entries we've just allocated.  */
-  if (tls_type & (GOT_TLS_GD | GOT_TLS_LDM))
+  if (tls_type & GOT_TLS_GD)
     g->tls_assigned_gotno += 2;
   if (tls_type & GOT_TLS_IE)
     g->tls_assigned_gotno += 1;
@@ -2775,7 +2655,6 @@ mips_elf_create_got_section (bfd *abfd, struct bfd_link_info *info)
   g->local_gotno = 0;
   g->page_gotno = 0;
   g->assigned_gotno = 0;
-  g->tls_ldm_offset = MINUS_ONE;
   g->got_entries = htab_try_create (1, mips_elf_got_entry_hash,
 				    mips_elf_got_entry_eq, NULL);
   if (g->got_entries == NULL)
@@ -3012,18 +2891,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     case R_RISCV_TLS_GOTTPREL:
     case R_RISCV_TLS_GOT_HI20:
     case R_RISCV_TLS_GOT_LO12:
-    case R_RISCV_TLS_LDM:
-    case R_RISCV_TLS_LDM_HI20:
-    case R_RISCV_TLS_LDM_LO12:
-      /* Find the index into the GOT where this value is located.  */
-      if (TLS_LDM_RELOC_P(r_type))
-	{
-	  g = mips_elf_local_got_index (abfd, input_bfd, info,
-					0, 0, NULL, r_type);
-	  if (g == MINUS_ONE)
-	    return bfd_reloc_outofrange;
-	}
-      else if (!local_p)
+      if (!local_p)
 	{
 	      BFD_ASSERT (addend == 0);
 	      g = mips_elf_global_got_index (dynobj, &h->root, r_type, info);
@@ -3231,21 +3099,18 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       }
     case R_RISCV_TLS_GD:
     case R_RISCV_TLS_GOTTPREL:
-    case R_RISCV_TLS_LDM:
       value = ENCODE_ITYPE_IMM (g);
       overflowed_p = !VALID_ITYPE_IMM (value);
       break;
 
     case R_RISCV_TLS_GOT_HI20:
     case R_RISCV_TLS_GD_HI20:
-    case R_RISCV_TLS_LDM_HI20:
     case R_RISCV_GOT_HI20:
       value = ENCODE_UTYPE_IMM (RISCV_PCREL_HIGH_PART (g, p));
       break;
 
     case R_RISCV_TLS_GOT_LO12:
     case R_RISCV_TLS_GD_LO12:
-    case R_RISCV_TLS_LDM_LO12:
     case R_RISCV_GOT_LO12:
       value = ENCODE_ITYPE_IMM (g);
       break;
@@ -3752,9 +3617,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_RISCV_TLS_GD:
 	case R_RISCV_TLS_GD_HI20:
 	case R_RISCV_TLS_GD_LO12:
-	case R_RISCV_TLS_LDM:
-	case R_RISCV_TLS_LDM_HI20:
-	case R_RISCV_TLS_LDM_LO12:
 	  if (dynobj == NULL)
 	    elf_hash_table (info)->dynobj = dynobj = abfd;
 	  if (!mips_elf_create_got_section (dynobj, info))
@@ -3846,16 +3708,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	    info->flags |= DF_STATIC_TLS;
 	  /* Fall through */
 
-	case R_RISCV_TLS_LDM:
-	case R_RISCV_TLS_LDM_HI20:
-	case R_RISCV_TLS_LDM_LO12:
-	  if (TLS_LDM_RELOC_P(r_type))
-	    {
-	      r_symndx = STN_UNDEF;
-	      h = NULL;
-	    }
-	  /* Fall through */
-
 	case R_RISCV_TLS_GD:
 	case R_RISCV_TLS_GD_HI20:
 	case R_RISCV_TLS_GD_LO12:
@@ -3864,8 +3716,6 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  {
 	    unsigned char flag = (TLS_GD_RELOC_P(r_type)
 				  ? GOT_TLS_GD
-				  : TLS_LDM_RELOC_P(r_type)
-				  ? GOT_TLS_LDM
 				  : GOT_TLS_IE);
 	    if (h != NULL)
 	      {
@@ -3878,7 +3728,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	      }
 	    else
 	      {
-		BFD_ASSERT (flag == GOT_TLS_LDM || r_symndx != STN_UNDEF);
+		BFD_ASSERT (r_symndx != STN_UNDEF);
 
 		if (!mips_elf_record_local_got_symbol (abfd, r_symndx,
 						       rel->r_addend,
@@ -4071,17 +3921,13 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
 	{
 	  BFD_ASSERT (htab->sgotplt->size == 0);
 
-	  /* If we're using the PLT additions to the psABI, each PLT
-	     entry is 16 bytes and the PLT0 entry is 32 bytes.
-	     Encourage better cache usage by aligning.  We do this
-	     lazily to avoid pessimizing traditional objects.  */
+	  /* PLT entries are 16 bytes.  Don't let them span I$ lines. */
 	  if (!bfd_set_section_alignment (dynobj, htab->splt, 4))
 	    return FALSE;
 
-	  /* Make sure that .got.plt is word-aligned.  We do this lazily
-	     for the same reason as above.  */
+	  /* The PLT header requires .got.plt be 2-word aligned. */
 	  if (!bfd_set_section_alignment (dynobj, htab->sgotplt,
-					  MIPS_ELF_LOG_FILE_ALIGN (dynobj)))
+					  MIPS_ELF_LOG_FILE_ALIGN (dynobj)+1))
 	    return FALSE;
 
 	  htab->splt->size += htab->plt_header_size;
@@ -4232,7 +4078,7 @@ mips_elf_lay_out_got (bfd *output_bfd, struct bfd_link_info *info)
   if (page_gotno > g->page_gotno)
     page_gotno = g->page_gotno;
 
-  g->local_gotno += page_gotno;
+  g->local_gotno += page_gotno * 0;
   s->size += g->local_gotno * MIPS_ELF_GOT_SIZE (output_bfd);
   s->size += g->global_gotno * MIPS_ELF_GOT_SIZE (output_bfd);
 

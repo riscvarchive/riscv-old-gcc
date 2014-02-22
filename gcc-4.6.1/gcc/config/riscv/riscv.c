@@ -1303,7 +1303,8 @@ mips_legitimize_tls_address (rtx loc)
   switch (model)
     {
     case TLS_MODEL_LOCAL_DYNAMIC:
-      /* We don't support LDM TLS, so fall through.*/
+      /* Rely on section anchors for the optimization that LDM TLS
+	 provides.  The anchor's address is loaded with GD TLS. */
     case TLS_MODEL_GLOBAL_DYNAMIC:
       v0 = gen_rtx_REG (Pmode, GP_RETURN);
       insn = mips_call_tls_get_addr (loc, v0);

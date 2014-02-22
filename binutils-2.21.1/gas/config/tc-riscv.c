@@ -2530,7 +2530,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
   switch (fixP->fx_r_type)
     {
     case BFD_RELOC_MIPS_TLS_GD:
-    case BFD_RELOC_MIPS_TLS_LDM:
     case BFD_RELOC_MIPS_TLS_DTPREL32:
     case BFD_RELOC_MIPS_TLS_DTPREL64:
     case BFD_RELOC_RISCV_TPREL_HI20:
@@ -2541,7 +2540,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_RISCV_TLS_GOT_HI20:
     case BFD_RELOC_RISCV_TLS_GD_HI20:
-    case BFD_RELOC_RISCV_TLS_LDM_HI20:
     case BFD_RELOC_RISCV_GOT_HI20:
     case BFD_RELOC_RISCV_PCREL_HI20:
     case BFD_RELOC_RISCV_HI20:
@@ -2588,7 +2586,6 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
     case BFD_RELOC_RISCV_TLS_GOT_LO12:
     case BFD_RELOC_RISCV_TLS_GD_LO12:
-    case BFD_RELOC_RISCV_TLS_LDM_LO12:
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
       /* fall through */
 

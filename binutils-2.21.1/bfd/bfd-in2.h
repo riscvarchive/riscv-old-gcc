@@ -4788,8 +4788,6 @@ value in a word.  The relocation is relative offset from  */
   BFD_RELOC_RISCV_TLS_GOT_LO12,
   BFD_RELOC_RISCV_TLS_GD_HI20,
   BFD_RELOC_RISCV_TLS_GD_LO12,
-  BFD_RELOC_RISCV_TLS_LDM_HI20,
-  BFD_RELOC_RISCV_TLS_LDM_LO12,
 
 /* This is used to tell the dynamic linker to copy the value out of
 the dynamic object into the runtime process image.  */
