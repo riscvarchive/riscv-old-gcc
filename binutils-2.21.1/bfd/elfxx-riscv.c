@@ -103,30 +103,6 @@ struct mips_got_entry
   long gotidx;
 };
 
-/* This structure describes a range of addends: [MIN_ADDEND, MAX_ADDEND].
-   The structures form a non-overlapping list that is sorted by increasing
-   MIN_ADDEND.  */
-struct mips_got_page_range
-{
-  struct mips_got_page_range *next;
-  bfd_signed_vma min_addend;
-  bfd_signed_vma max_addend;
-};
-
-/* This structure describes the range of addends that are applied to page
-   relocations against a given symbol.  */
-struct mips_got_page_entry
-{
-  /* The input bfd in which the symbol is defined.  */
-  bfd *abfd;
-  /* The index of the symbol, as stored in the relocation r_info.  */
-  long symndx;
-  /* The ranges for this page entry.  */
-  struct mips_got_page_range *ranges;
-  /* The maximum number of page entries needed for RANGES.  */
-  bfd_vma num_pages;
-};
-
 /* This structure is used to hold .got information when linking.  */
 
 struct mips_got_info
@@ -145,14 +121,10 @@ struct mips_got_info
   unsigned int tls_assigned_gotno;
   /* The number of local .got entries, eventually including page entries.  */
   unsigned int local_gotno;
-  /* The maximum number of page entries needed.  */
-  unsigned int page_gotno;
   /* The number of local .got entries we have used.  */
   unsigned int assigned_gotno;
   /* A hash table holding members of the got.  */
   struct htab *got_entries;
-  /* A hash table of mips_got_page_entry structures.  */
-  struct htab *got_page_entries;
 };
 
 /* Another structure used to pass arguments for got entries traversal.  */
@@ -1512,25 +1484,6 @@ mips_elf_got_entry_eq (const void *entry1, const void *entry2)
 	: e1->d.h == e2->d.h);
 }
 
-static hashval_t
-mips_got_page_entry_hash (const void *entry_)
-{
-  const struct mips_got_page_entry *entry;
-
-  entry = (const struct mips_got_page_entry *) entry_;
-  return entry->abfd->id + entry->symndx;
-}
-
-static int
-mips_got_page_entry_eq (const void *entry1_, const void *entry2_)
-{
-  const struct mips_got_page_entry *entry1, *entry2;
-
-  entry1 = (const struct mips_got_page_entry *) entry1_;
-  entry2 = (const struct mips_got_page_entry *) entry2_;
-  return entry1->abfd == entry2->abfd && entry1->symndx == entry2->symndx;
-}
-
 /* Return the dynamic relocation section.  If it doesn't exist, try to
    create a new it if CREATE_P, otherwise return NULL.  Also return NULL
    if creation fails.  */
@@ -2245,116 +2198,6 @@ mips_elf_record_local_got_symbol (bfd *abfd, long symndx, bfd_vma addend,
   return TRUE;
 }
 
-/* Return the maximum number of GOT page entries required for RANGE.  */
-
-static bfd_vma
-mips_elf_pages_for_range (const struct mips_got_page_range *range)
-{
-  return (range->max_addend - range->min_addend + RISCV_IMM_REACH-1) >> RISCV_IMM_BITS;
-}
-
-/* Record that ABFD has a page relocation against symbol SYMNDX and
-   that ADDEND is the addend for that relocation.
-
-   This function creates an upper bound on the number of GOT slots
-   required; no attempt is made to combine references to non-overridable
-   global symbols across multiple input files.  */
-
-static bfd_boolean
-mips_elf_record_got_page_entry (struct bfd_link_info *info, bfd *abfd,
-				long symndx, bfd_signed_vma addend)
-{
-  struct mips_elf_link_hash_table *htab;
-  struct mips_got_info *g;
-  struct mips_got_page_entry lookup, *entry;
-  struct mips_got_page_range **range_ptr, *range;
-  bfd_vma old_pages, new_pages;
-  void **loc;
-
-  htab = mips_elf_hash_table (info);
-  BFD_ASSERT (htab != NULL);
-
-  g = htab->got_info;
-  BFD_ASSERT (g != NULL);
-
-  /* Find the mips_got_page_entry hash table entry for this symbol.  */
-  lookup.abfd = abfd;
-  lookup.symndx = symndx;
-  loc = htab_find_slot (g->got_page_entries, &lookup, INSERT);
-  if (loc == NULL)
-    return FALSE;
-
-  /* Create a mips_got_page_entry if this is the first time we've
-     seen the symbol.  */
-  entry = (struct mips_got_page_entry *) *loc;
-  if (!entry)
-    {
-      entry = bfd_alloc (abfd, sizeof (*entry));
-      if (!entry)
-	return FALSE;
-
-      entry->abfd = abfd;
-      entry->symndx = symndx;
-      entry->ranges = NULL;
-      entry->num_pages = 0;
-      *loc = entry;
-    }
-
-  /* Skip over ranges whose maximum extent cannot share a page entry
-     with ADDEND.  */
-  range_ptr = &entry->ranges;
-  while (*range_ptr && addend > (*range_ptr)->max_addend + RISCV_IMM_REACH/2-1)
-    range_ptr = &(*range_ptr)->next;
-
-  /* If we scanned to the end of the list, or found a range whose
-     minimum extent cannot share a page entry with ADDEND, create
-     a new singleton range.  */
-  range = *range_ptr;
-  if (!range || addend < range->min_addend - (RISCV_IMM_REACH/2-1))
-    {
-      range = bfd_alloc (abfd, sizeof (*range));
-      if (!range)
-	return FALSE;
-
-      range->next = *range_ptr;
-      range->min_addend = addend;
-      range->max_addend = addend;
-
-      *range_ptr = range;
-      entry->num_pages++;
-      g->page_gotno++;
-      return TRUE;
-    }
-
-  /* Remember how many pages the old range contributed.  */
-  old_pages = mips_elf_pages_for_range (range);
-
-  /* Update the ranges.  */
-  if (addend < range->min_addend)
-    range->min_addend = addend;
-  else if (addend > range->max_addend)
-    {
-      if (range->next && addend >= range->next->min_addend - (RISCV_IMM_REACH/2-1))
-	{
-	  old_pages += mips_elf_pages_for_range (range->next);
-	  range->max_addend = range->next->max_addend;
-	  range->next = range->next->next;
-	}
-      else
-	range->max_addend = addend;
-    }
-
-  /* Record any change in the total estimate.  */
-  new_pages = mips_elf_pages_for_range (range);
-  if (old_pages != new_pages)
-    {
-      entry->num_pages += new_pages - old_pages;
-      g->page_gotno += new_pages - old_pages;
-    }
-
-  return TRUE;
-}
-
 /* Add room for N relocations to the .rel(a).dyn section in ABFD.  */
 
 static void
@@ -2581,18 +2424,6 @@ mips_elf_local_relocation_p (bfd *input_bfd,
 
   return FALSE;
 }
-
-/* Sign-extend VALUE, which has the indicated number of BITS.  */
-
-bfd_vma
-_bfd_riscv_elf_sign_extend (bfd_vma value, int bits)
-{
-  if (value & ((bfd_vma) 1 << (bits - 1)))
-    /* VALUE is negative.  */
-    value |= ((bfd_vma) - 1) << bits;
-
-  return value;
-}
 
 /* Create the .got section to hold the global offset table.  */
 
@@ -2653,15 +2484,10 @@ mips_elf_create_got_section (bfd *abfd, struct bfd_link_info *info)
   g->reloc_only_gotno = 0;
   g->tls_gotno = 0;
   g->local_gotno = 0;
-  g->page_gotno = 0;
   g->assigned_gotno = 0;
   g->got_entries = htab_try_create (1, mips_elf_got_entry_hash,
 				    mips_elf_got_entry_eq, NULL);
   if (g->got_entries == NULL)
-    return FALSE;
-  g->got_page_entries = htab_try_create (1, mips_got_page_entry_hash,
-					 mips_got_page_entry_eq, NULL);
-  if (g->got_page_entries == NULL)
     return FALSE;
   htab->got_info = g;
   mips_elf_section_data (s)->elf.this_hdr.sh_flags |= SHF_ALLOC | SHF_WRITE;
@@ -3691,13 +3517,7 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	{
 	case R_RISCV_GOT_HI20:
 	case R_RISCV_GOT_LO12:
-	  if (!h)
-	    {
-	      if (!mips_elf_record_got_page_entry (info, abfd, r_symndx,
-						   rel->r_addend))
-		return FALSE;
-	    }
-	  else if (!mips_elf_record_global_got_symbol (h, abfd, info, 0))
+	  if (h && !mips_elf_record_global_got_symbol (h, abfd, info, 0))
 	    return FALSE;
 	  break;
 
@@ -3900,16 +3720,7 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
 
   hmips = (struct mips_elf_link_hash_entry *) h;
 
-  /* As above, VxWorks requires PLT entries for externally-defined
-     functions that are only accessed through call relocations.
-
-     Both VxWorks and non-VxWorks targets also need PLT entries if there
-     are static-only relocations against an externally-defined function.
-     This can technically occur for shared libraries if there are
-     branches to the symbol, although it is unlikely that this will be
-     used in practice due to the short ranges involved.  It can occur
-     for any relative or absolute relocation in executables; in that
-     case, the PLT entry becomes the function's canonical address.  */
+  /* Establish PLT entries for functions that don't bind locally. */
   if (h->type == STT_FUNC && hmips->has_static_relocs
 	   && !SYMBOL_CALLS_LOCAL (info, h)
 	   && !(ELF_ST_VISIBILITY (h->other) != STV_DEFAULT
@@ -4021,7 +3832,6 @@ mips_elf_lay_out_got (bfd *output_bfd, struct bfd_link_info *info)
   asection *s;
   struct mips_got_info *g;
   bfd_size_type loadable_size = 0;
-  bfd_size_type page_gotno;
   bfd *sub;
   struct mips_elf_count_tls_arg count_tls_arg;
   struct mips_elf_link_hash_table *htab;
@@ -4069,16 +3879,6 @@ mips_elf_lay_out_got (bfd *output_bfd, struct bfd_link_info *info)
 	}
     }
 
-  /* Assume there are two loadable segments consisting of contiguous
-     sections.  Is 5 enough?  */
-  page_gotno = (loadable_size >> 16) + 5;
-
-  /* Choose the smaller of the two estimates; both are intended to be
-     conservative.  */
-  if (page_gotno > g->page_gotno)
-    page_gotno = g->page_gotno;
-
-  g->local_gotno += page_gotno * 0;
   s->size += g->local_gotno * MIPS_ELF_GOT_SIZE (output_bfd);
   s->size += g->global_gotno * MIPS_ELF_GOT_SIZE (output_bfd);
 
@@ -5116,30 +4916,6 @@ mips_mach_extends_p (unsigned long base, unsigned long extension)
   return extension == base;
 }
 
-
-/* Merge object attributes from IBFD into OBFD.  Raise an error if
-   there are conflicting attributes.  */
-static bfd_boolean
-mips_elf_merge_obj_attributes (bfd *ibfd, bfd *obfd)
-{
-  if (!elf_known_obj_attributes_proc (obfd)[0].i)
-    {
-      /* This is the first object.  Copy the attributes.  */
-      _bfd_elf_copy_obj_attributes (ibfd, obfd);
-
-      /* Use the Tag_null value to indicate the attributes have been
-	 initialized.  */
-      elf_known_obj_attributes_proc (obfd)[0].i = 1;
-
-      return TRUE;
-    }
-
-  /* Merge Tag_compatibility attributes and any common GNU ones.  */
-  _bfd_elf_merge_object_attributes (ibfd, obfd);
-
-  return TRUE;
-}
-
 /* Merge backend specific data from an object file to the output
    object file when linking.  */
 
@@ -5172,7 +4948,7 @@ _bfd_riscv_elf_merge_private_bfd_data (bfd *ibfd, bfd *obfd)
       return FALSE;
     }
 
-  if (!mips_elf_merge_obj_attributes (ibfd, obfd))
+  if (!_bfd_elf_merge_object_attributes (ibfd, obfd))
     return FALSE;
 
   new_flags = elf_elfheader (ibfd)->e_flags;

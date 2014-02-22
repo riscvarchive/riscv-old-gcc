@@ -85,8 +85,6 @@ extern bfd_reloc_status_type _bfd_riscv_elf_generic_reloc
   (bfd *, arelent *, asymbol *, void *, asection *, bfd *, char **);
 extern bfd_boolean _bfd_riscv_relax_section
   (bfd *, asection *, struct bfd_link_info *, bfd_boolean *);
-extern bfd_vma _bfd_riscv_elf_sign_extend
-  (bfd_vma, int);
 extern void _bfd_riscv_elf_merge_symbol_attribute
   (struct elf_link_hash_entry *, const Elf_Internal_Sym *, bfd_boolean, bfd_boolean);
 extern char *_bfd_riscv_elf_get_target_dtag (bfd_vma);
