@@ -1250,14 +1250,8 @@ typedef struct mips_args {
 #undef  ASM_OUTPUT_ALIGNED_COMMON
 #define ASM_OUTPUT_ALIGNED_COMMON(FILE, NAME, SIZE, ALIGN)		\
 do {									\
-  if (riscv_size_ok_for_small_data_p (SIZE))				\
-    switch_to_section (sbss_section);					\
-  else									\
-    switch_to_section (bss_section);					\
   targetm.asm_out.globalize_label (FILE, NAME);				\
-  ASM_OUTPUT_ALIGN (FILE, exact_log2 ((ALIGN) / BITS_PER_UNIT));	\
-  ASM_OUTPUT_LABEL (FILE, NAME);					\
-  ASM_OUTPUT_SKIP (FILE, (SIZE) ? (SIZE) : 1);				\
+  ASM_OUTPUT_ALIGNED_LOCAL (FILE, NAME, SIZE, ALIGN);			\
 } while (0)
 
 /* Likewise, for local data. */
@@ -1270,6 +1264,8 @@ do {									\
   else									\
     switch_to_section (bss_section);					\
   ASM_OUTPUT_ALIGN (FILE, exact_log2 ((ALIGN) / BITS_PER_UNIT));	\
+  ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "object");			\
+  ASM_OUTPUT_SIZE_DIRECTIVE (FILE, NAME, SIZE);				\
   ASM_OUTPUT_LABEL (FILE, NAME);					\
   ASM_OUTPUT_SKIP (FILE, (SIZE) ? (SIZE) : 1);				\
 } while (0)
