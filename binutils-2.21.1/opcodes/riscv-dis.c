@@ -396,9 +396,11 @@ print_insn_args (const char *d,
 	            riscv_pred_succ, ARRAY_SIZE(riscv_pred_succ));
 	  break;
 
-	case 'j':
 	case 'o':
 	  maybe_print_address (pd, rs1, EXTRACT_ITYPE_IMM (l));
+	case 'j':
+	  if ((l & MASK_ADDI) == MATCH_ADDI)
+	    maybe_print_address (pd, rs1, EXTRACT_ITYPE_IMM (l));
 	  (*info->fprintf_func) (info->stream, "%d", EXTRACT_ITYPE_IMM (l));
 	  break;
 
