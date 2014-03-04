@@ -219,7 +219,7 @@ elf32_mips_grok_psinfo (bfd *abfd, Elf_Internal_Note *note)
 #define TARGET_BIG_SYM                  bfd_elf32_bigriscv_vec
 #define TARGET_BIG_NAME                 "elf32-bigriscv"
 
-#define ELF_MAXPAGESIZE			0x10000
+#define ELF_MAXPAGESIZE			0x1000
 #define ELF_COMMONPAGESIZE		0x1000
 
 #include "elf32-target.h"

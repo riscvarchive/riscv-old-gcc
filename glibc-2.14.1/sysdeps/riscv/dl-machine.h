@@ -58,7 +58,7 @@
   ((((type) == ELF_MACHINE_JMP_SLOT) * ELF_RTYPE_CLASS_PLT)	\
    | (((type) == R_RISCV_COPY) * ELF_RTYPE_CLASS_COPY))
 
-#define ELF_MACHINE_PLT_REL 1
+#define ELF_MACHINE_NO_RELA 1
 
 /* Translate a processor specific dynamic tag to the index
    in l_info array.  */
@@ -247,10 +247,11 @@ elf_machine_plt_value (struct link_map *map, const ElfW(Rel) *reloc,
 
 auto inline void
 __attribute__ ((always_inline))
-elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
-		   const ElfW(Sym) *sym, const struct r_found_version *version,
-		   void *reloc_addr, ElfW(Addr) r_addend, int inplace_p)
+elf_machine_rel (struct link_map *map, const ElfW(Rel) *reloc,
+		 const ElfW(Sym) *sym, const struct r_found_version *version,
+		 void *const reloc_addr)
 {
+  ElfW(Addr) r_info = reloc->r_info;
   const unsigned long int r_type = ELFW(R_TYPE) (r_info);
   ElfW(Addr) *addr_field = (ElfW(Addr) *) reloc_addr;
 
@@ -290,11 +291,7 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
 	  case R_MIPS_TLS_DTPREL64:
 	  case R_MIPS_TLS_DTPREL32:
 	    if (sym)
-	      {
-		if (inplace_p)
-		  r_addend = *addr_field;
-		*addr_field = r_addend + TLS_DTPREL_VALUE (sym);
-	      }
+	      *addr_field += TLS_DTPREL_VALUE (sym);
 	    break;
 
 	  case R_MIPS_TLS_TPREL32:
@@ -302,9 +299,7 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
 	    if (sym)
 	      {
 		CHECK_STATIC_TLS (map, sym_map);
-		if (inplace_p)
-		  r_addend = *addr_field;
-		*addr_field = r_addend + TLS_TPREL_VALUE (sym_map, sym);
+		*addr_field += TLS_TPREL_VALUE (sym_map, sym);
 	      }
 	    break;
 	  }
@@ -316,13 +311,6 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
     case R_MIPS_REL32:
       {
 	int symidx = ELFW(R_SYM) (r_info);
-	ElfW(Addr) reloc_value;
-
-	if (inplace_p)
-	  /* Support relocations on mis-aligned offsets.  */
-	  __builtin_memcpy (&reloc_value, reloc_addr, sizeof (reloc_value));
-	else
-	  reloc_value = r_addend;
 
 	if (symidx)
 	  {
@@ -349,7 +337,8 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
 #ifndef RTLD_BOOTSTRAP
 		if (map != &GL(dl_rtld_map))
 #endif
-		  reloc_value += sym->st_value + map->l_addr;
+		  if (sym->st_value + map->l_addr)
+		    *addr_field += sym->st_value + map->l_addr;
 	      }
 	    else
 	      {
@@ -360,7 +349,7 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
 		  = (const ElfW(Word))
 		    map->l_info[DT_MIPS (LOCAL_GOTNO)]->d_un.d_val;
 
-		reloc_value += got[symidx + local_gotno - gotsym];
+		*addr_field += got[symidx + local_gotno - gotsym];
 #endif
 	      }
 	  }
@@ -368,9 +357,8 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
 #ifndef RTLD_BOOTSTRAP
 	  if (map != &GL(dl_rtld_map))
 #endif
-	    reloc_value += map->l_addr;
-
-	__builtin_memcpy (reloc_addr, &reloc_value, sizeof (reloc_value));
+	    if (map->l_addr)
+	      *addr_field += map->l_addr;
       }
       break;
 #ifndef RTLD_BOOTSTRAP
@@ -401,13 +389,6 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
       {
 	struct link_map *sym_map;
 	ElfW(Addr) value;
-
-	/* The addend for a jump slot relocation must always be zero:
-	   calls via the PLT always branch to the symbol's address and
-	   not to the address plus a non-zero offset.  */
-	if (r_addend != 0)
-	  _dl_signal_error (0, map->l_name, NULL,
-			    "found jump slot relocation with non-zero addend");
 
 	sym_map = RESOLVE_MAP (&sym, version, r_type);
 	value = sym_map == NULL ? 0 : sym_map->l_addr + sym->st_value;
@@ -453,18 +434,6 @@ elf_machine_reloc (struct link_map *map, ElfW(Addr) r_info,
     }
 }
 
-/* Perform the relocation specified by RELOC and SYM (which is fully resolved).
-   MAP is the object containing the reloc.  */
-
-auto inline void
-__attribute__ ((always_inline))
-elf_machine_rel (struct link_map *map, const ElfW(Rel) *reloc,
-		 const ElfW(Sym) *sym, const struct r_found_version *version,
-		 void *const reloc_addr)
-{
-  elf_machine_reloc (map, reloc->r_info, sym, version, reloc_addr, 0, 1);
-}
-
 auto inline void
 __attribute__((always_inline))
 elf_machine_rel_relative (ElfW(Addr) l_addr, const ElfW(Rel) *reloc,
@@ -493,23 +462,6 @@ elf_machine_lazy_rel (struct link_map *map,
     }
   else
     _dl_reloc_bad_type (map, r_type, 1);
-}
-
-auto inline void
-__attribute__ ((always_inline))
-elf_machine_rela (struct link_map *map, const ElfW(Rela) *reloc,
-		  const ElfW(Sym) *sym, const struct r_found_version *version,
-		 void *const reloc_addr)
-{
-  elf_machine_reloc (map, reloc->r_info, sym, version, reloc_addr,
-		     reloc->r_addend, 0);
-}
-
-auto inline void
-__attribute__((always_inline))
-elf_machine_rela_relative (ElfW(Addr) l_addr, const ElfW(Rela) *reloc,
-			   void *const reloc_addr)
-{
 }
 
 #ifndef RTLD_BOOTSTRAP
@@ -620,8 +572,9 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
       gotplt[0] = (ElfW(Addr)) &_dl_runtime_pltresolve;
       gotplt[1] = (ElfW(Addr)) l;
       /* Relocate subsequent .got.plt entries. */
-      for (gotplt += 2; *gotplt; gotplt++)
-	*gotplt += l->l_addr;
+      if (l->l_addr)
+	for (gotplt += 2; *gotplt; gotplt++)
+	  *gotplt += l->l_addr;
     }
 
 # endif

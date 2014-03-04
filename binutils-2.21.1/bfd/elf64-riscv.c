@@ -239,7 +239,7 @@ extern bfd_boolean bfd_elf64_archive_write_armap
 #define TARGET_BIG_SYM			bfd_elf64_bigriscv_vec
 #define TARGET_BIG_NAME			"elf64-bigriscv"
 
-#define ELF_MAXPAGESIZE			0x10000
-#define ELF_COMMONPAGESIZE		0x1000
+#define ELF_MAXPAGESIZE			0x2000
+#define ELF_COMMONPAGESIZE		0x2000
 
 #include "elf64-target.h"
