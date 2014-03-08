@@ -139,9 +139,7 @@
 # else
 #  include "tcb-offsets.h"
 #  define SINGLE_THREAD_P(reg)						\
-	lui reg, %hi(MULTIPLE_THREADS_OFFSET);				\
-	add reg, reg, tp;                				\
-	lw reg, %lo(MULTIPLE_THREADS_OFFSET)(reg)
+	lw reg, MULTIPLE_THREADS_OFFSET(tp)
 #endif
 
 #elif !defined __ASSEMBLER__

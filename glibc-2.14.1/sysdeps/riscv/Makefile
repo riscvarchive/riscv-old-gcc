@@ -22,7 +22,6 @@ CFLAGS-dl-execstack.c += -mno-plt
 CFLAGS-dl-caller.c += -mno-plt
 CFLAGS-dl-open.c += -mno-plt
 CFLAGS-dl-close.c += -mno-plt
-CFLAGS-dl-trampoline.c += -mno-plt
 CFLAGS-dl-sysdep.c += -mno-plt
 CFLAGS-dl-environ.c += -mno-plt
 CFLAGS-dl-minimal.c += -mno-plt

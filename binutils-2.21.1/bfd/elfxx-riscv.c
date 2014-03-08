@@ -1247,8 +1247,8 @@ riscv_make_plt_entry(bfd* abfd, bfd_vma got_address, bfd_vma plt0_addr,
 /* Find the base offsets for thread-local storage in this object,
    for GD/LD and IE/LE respectively.  */
 
-#define TP_OFFSET 0x7000
-#define DTP_OFFSET 0x8000
+#define TP_OFFSET 0
+#define DTP_OFFSET 0x800
 
 static bfd_vma
 dtprel_base (struct bfd_link_info *info)

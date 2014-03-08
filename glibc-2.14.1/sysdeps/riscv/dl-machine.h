@@ -562,14 +562,14 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
   /* If using PLTs, fill in the first two entries of .got.plt.  */
   if (l->l_info[DT_JMPREL])
     {
-      extern void _dl_runtime_pltresolve (void);
+      extern void _dl_runtime_resolve (void);
       ElfW(Addr) *gotplt = (ElfW(Addr) *) D_PTR (l, l_info[DT_MIPS (PLTGOT)]);
       /* If a library is prelinked but we have to relocate anyway,
 	 we have to be able to undo the prelinking of .got.plt.
 	 The prelinker saved the address of .plt for us here.  */
       if (gotplt[1])
 	l->l_mach.plt = gotplt[1] + l->l_addr;
-      gotplt[0] = (ElfW(Addr)) &_dl_runtime_pltresolve;
+      gotplt[0] = (ElfW(Addr)) &_dl_runtime_resolve;
       gotplt[1] = (ElfW(Addr)) l;
       /* Relocate subsequent .got.plt entries. */
       if (l->l_addr)

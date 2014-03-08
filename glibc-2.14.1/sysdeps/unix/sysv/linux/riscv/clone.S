@@ -109,12 +109,8 @@ L(restore_pid):
 	li		v0,__NR_getpid
 	scall
 L(gotpid):
-	lui		a0,%hi(PID_OFFSET)
-	add		a0,a0,tp
-	sw		v0,%lo(PID_OFFSET)(a0)
-	lui		a0,%hi(PID_OFFSET)
-	add		a0,a0,tp
-	sw		v0,%lo(TID_OFFSET)(a0)
+	sw		v0,PID_OFFSET(tp)
+	sw		v0,TID_OFFSET(tp)
 	b		L(donepid)
 #endif
 

@@ -88,10 +88,9 @@ typedef struct
   (sizeof (struct pthread)						      \
    + ((sizeof (tcbhead_t) + TLS_TCB_ALIGN - 1) & ~(TLS_TCB_ALIGN - 1)))
 
-/* The thread pointer (in hardware register $29) points to the end of
-   the TCB + 0x7000, as for PowerPC.  The pthread_descr structure is
-   immediately in front of the TCB.  */
-# define TLS_TCB_OFFSET	0x7000
+/* The thread pointer tp points to the end of the TCB.
+   The pthread_descr structure is immediately in front of the TCB. */
+# define TLS_TCB_OFFSET	0
 
 /* Install the dtv pointer.  The pointer passed is to the element with
    index -1 which contain the length.  */

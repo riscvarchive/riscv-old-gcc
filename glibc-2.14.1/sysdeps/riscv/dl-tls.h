@@ -25,12 +25,12 @@ typedef struct
   unsigned long int ti_offset;
 } tls_index;
 
-/* The thread pointer points 0x7000 past the first static TLS block.  */
-#define TLS_TP_OFFSET		0x7000
+/* The thread pointer points to the first static TLS block.  */
+#define TLS_TP_OFFSET		0
 
 /* Dynamic thread vector pointers point 0x8000 past the start of each
    TLS block.  */
-#define TLS_DTV_OFFSET		0x8000
+#define TLS_DTV_OFFSET		0x800
 
 /* Compute the value for a GOTTPREL reloc.  */
 #define TLS_TPREL_VALUE(sym_map, sym) \
