@@ -24,22 +24,17 @@
 int
 fesetround (int round)
 {
-  fpu_control_t cw;
-
-  if ((round & ~0x3) != 0)
-    /* ROUND is no valid rounding mode.  */
-    return 1;
-
-  /* Get current state.  */
-  _FPU_GETCW (cw);
-
-  /* Set rounding bits.  */
-  cw &= ~0x3;
-  cw |= round;
-  /* Set new state.  */
-  _FPU_SETCW (cw);
-
-  return 0;
+  switch (round)
+  {
+    case FE_TONEAREST:
+    case FE_UPWARD:
+    case FE_DOWNWARD:
+    case FE_TOWARDZERO:
+      _FPU_SETROUND (round);
+      return 0;
+    default:
+      return -1;
+  }
 }
 
 libm_hidden_def (fesetround)

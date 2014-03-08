@@ -24,10 +24,7 @@
 int
 fegetround (void)
 {
-  int cw;
-
-  /* Get control word.  */
-  _FPU_GETCW (cw);
-
-  return cw & 0x3;
+  int round;
+  _FPU_GETROUND (round);
+  return round;
 }

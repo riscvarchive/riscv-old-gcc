@@ -24,20 +24,8 @@
 int
 fesetexceptflag (const fexcept_t *flagp, int excepts)
 {
-  fpu_control_t temp;
+  asm volatile ("csrc fflags, %0" : : "r"(excepts));
+  asm volatile ("csrs fflags, %0" : : "r"(*flagp));
 
-  /* Get the current exceptions.  */
-  _FPU_GETCW (temp);
-
-  /* Make sure the flags we want restored are legal.  */
-  excepts &= FE_ALL_EXCEPT;
-
-  /* Now clear the bits called for, and copy them in from flagp. Note that
-     we ignore all non-flag bits from *flagp, so they don't matter.  */
-  temp = (temp & ~excepts) | (*flagp & excepts);
-
-  _FPU_SETCW (temp);
-
-  /* Success.  */
   return 0;
 }

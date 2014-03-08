@@ -19,29 +19,11 @@
    02111-1307 USA.  */
 
 #include <fenv.h>
-#include <fenv_libc.h>
 #include <fpu_control.h>
 
 int
 feclearexcept (int excepts)
 {
-  int cw;
-
-  /* Mask out unsupported bits/exceptions.  */
-  excepts &= FE_ALL_EXCEPT;
-
-  /* Read the complete control word.  */
-  _FPU_GETCW (cw);
-
-  /* Clear exception flag bits and cause bits. If the cause bit is not
-     cleared, the next CTC instruction (just below) will re-generate the
-     exception.  */
-
-  cw &= ~(excepts | (excepts << CAUSE_SHIFT));
-
-  /* Put the new data in effect.  */
-  _FPU_SETCW (cw);
-
-  /* Success.  */
+  asm volatile ("csrc fflags, %0" : : "r"(excepts));
   return 0;
 }

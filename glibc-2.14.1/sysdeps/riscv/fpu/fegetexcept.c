@@ -19,16 +19,11 @@
    02111-1307 USA.  */
 
 #include <fenv.h>
-#include <fenv_libc.h>
 #include <fpu_control.h>
 
 int
 fegetexcept (void)
 {
-  unsigned int exc;
-
-  /* Get the current control word.  */
-  _FPU_GETCW (exc);
-
-  return (exc & ENABLE_MASK) >> ENABLE_SHIFT;
+  /* FP exceptions never generate traps. */
+  return 0;
 }

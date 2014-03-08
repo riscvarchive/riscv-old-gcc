@@ -45,7 +45,7 @@
 
 #define _FP_DECL_EX		fpu_control_t _fcw
 
-#define FP_ROUNDMODE		(_fcw & 0x3)
+#define FP_ROUNDMODE		(_fcw >> 5)
 
 #define FP_RND_NEAREST		FE_TONEAREST
 #define FP_RND_ZERO		FE_TOWARDZERO
@@ -67,8 +67,8 @@ do {						\
 #define FP_HANDLE_EXCEPTIONS			\
 do {						\
   if (__builtin_expect (_fex, 0))		\
-    _FPU_SETCW (_fcw | _fex | (_fex << 10));	\
+    _FPU_SETCW (_fcw | _fex);			\
 } while (0)
 #else
-#define FP_INIT_ROUNDMODE	_fcw = FP_RND_NEAREST
+#define FP_INIT_ROUNDMODE	_fcw = 0 /* no exceptions; FP_RND_NEAREST */
 #endif

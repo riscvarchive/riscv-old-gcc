@@ -24,15 +24,8 @@
 int
 fesetenv (const fenv_t *envp)
 {
-  fpu_control_t cw;
-
-  /* Read first current state to flush fpu pipeline.  */
-  _FPU_GETCW (cw);
-
   if (envp == FE_DFL_ENV)
-    _FPU_SETCW (_FPU_DEFAULT);
-  else if (envp == FE_NOMASK_ENV)
-    _FPU_SETCW (_FPU_IEEE);
+    _FPU_SETCW (0);
   else
     _FPU_SETCW (envp->__fp_control_register);
 

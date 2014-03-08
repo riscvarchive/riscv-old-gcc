@@ -26,9 +26,8 @@ fetestexcept (int excepts)
 {
   int cw;
 
-  /* Get current control word.  */
-  _FPU_GETCW (cw);
+  _FPU_GETFLAGS (cw);
 
-  return cw & excepts & FE_ALL_EXCEPT;
+  return cw & excepts;
 }
 libm_hidden_def (fetestexcept)

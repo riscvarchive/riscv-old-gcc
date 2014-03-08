@@ -24,16 +24,8 @@
 int
 feholdexcept (fenv_t *envp)
 {
-  fpu_control_t cw;
-
-  /* Save the current state.  */
-  _FPU_GETCW (cw);
-  envp->__fp_control_register = cw;
-
-  /* Clear all exception enable bits and flags.  */
-  cw &= ~(_FPU_MASK_V|_FPU_MASK_Z|_FPU_MASK_O|_FPU_MASK_U|_FPU_MASK_I|FE_ALL_EXCEPT);
-  _FPU_SETCW (cw);
-
+  _FPU_GETCW (*envp);
+  _FPU_SETFLAGS (0);
   return 0;
 }
 

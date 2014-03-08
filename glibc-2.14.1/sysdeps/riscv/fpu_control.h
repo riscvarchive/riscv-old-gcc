@@ -70,42 +70,57 @@ extern fpu_control_t __fpu_control;
 
 #else /* __mips_soft_float */
 
-/* masking of interrupts */
-#define _FPU_MASK_V     0x0800  /* Invalid operation */
-#define _FPU_MASK_Z     0x0400  /* Division by zero  */
-#define _FPU_MASK_O     0x0200  /* Overflow          */
-#define _FPU_MASK_U     0x0100  /* Underflow         */
-#define _FPU_MASK_I     0x0080  /* Inexact operation */
-
-/* flush denormalized numbers to zero */
-#define _FPU_FLUSH_TZ   0x1000000
-
 /* rounding control */
-#define _FPU_RC_NEAREST 0x0     /* RECOMMENDED */
+#define _FPU_RC_NEAREST 0x0
 #define _FPU_RC_ZERO    0x1
-#define _FPU_RC_UP      0x2
-#define _FPU_RC_DOWN    0x3
+#define _FPU_RC_DOWN    0x2
+#define _FPU_RC_UP      0x3
 
-#define _FPU_RESERVED 0xfe3c0000  /* Reserved bits in cw */
-
+#define _FPU_RESERVED   0    /* No reserved bits in FSR */
 
 /* The fdlibm code requires strict IEEE double precision arithmetic,
    and no interrupts for exceptions, rounding to nearest.  */
 
-#define _FPU_DEFAULT  0x00000000
+#define _FPU_DEFAULT  0
 
-/* IEEE:  same as above, but exceptions */
-#define _FPU_IEEE     0x00000F80
+/* IEEE:  same as above */
+#define _FPU_IEEE     _FPU_DEFAULT
 
 /* Type of the control word.  */
 typedef unsigned int fpu_control_t __attribute__ ((__mode__ (__SI__)));
 
 /* Macros for accessing the hardware control word.  */
 #define _FPU_GETCW(cw) __asm__ volatile ("frsr %0" : "=r" (cw))
-#define _FPU_SETCW(cw) __asm__ volatile ("fssr %0" : : "r" (cw))
+#define _FPU_GETROUND(cw) __asm__ volatile ("frrm %0" : "=r" (cw))
+#define _FPU_GETFLAGS(cw) __asm__ volatile ("frflags %0" : "=r" (cw))
+#define _FPU_SETCW(cw) __asm__ volatile ("fssr %z0" : : "dJ" (cw))
+#define _FPU_SETROUND(cw) __asm__ volatile ("fsrm %z0" : : "dJ" (cw))
+#define _FPU_SETFLAGS(cw) __asm__ volatile ("fsflags %z0" : : "dJ" (cw))
 
 /* Default control word set at startup.  */
 extern fpu_control_t __fpu_control;
+
+#define _FCLASS(x) ({ int res; \
+  if (sizeof(x) == 4) asm ("fclass.s %0, %1" : "=r"(res) : "f"(x)); \
+  else if (sizeof(x) == 8) asm ("fclass.d %0, %1" : "=r"(res) : "f"(x)); \
+  else abort(); \
+  res; })
+
+#define _FCLASS_MINF     (1<<0)
+#define _FCLASS_MNORM    (1<<1)
+#define _FCLASS_MSUBNORM (1<<2)
+#define _FCLASS_MZERO    (1<<3)
+#define _FCLASS_PZERO    (1<<4)
+#define _FCLASS_PSUBNORM (1<<5)
+#define _FCLASS_PNORM    (1<<6)
+#define _FCLASS_PINF     (1<<7)
+#define _FCLASS_SNAN     (1<<8)
+#define _FCLASS_QNAN     (1<<9)
+#define _FCLASS_ZERO     (_FCLASS_MZERO | _FCLASS_PZERO)
+#define _FCLASS_SUBNORM  (_FCLASS_MSUBNORM | _FCLASS_PSUBNORM)
+#define _FCLASS_NORM     (_FCLASS_MNORM | _FCLASS_PNORM)
+#define _FCLASS_INF      (_FCLASS_MINF | _FCLASS_PINF)
+#define _FCLASS_NAN      (_FCLASS_SNAN | _FCLASS_QNAN)
 
 #endif /* __mips_soft_float */
 

@@ -26,19 +26,9 @@ feupdateenv (const fenv_t *envp)
 {
   int temp;
 
-  /* Save current exceptions.  */
-  _FPU_GETCW (temp);
-  temp &= FE_ALL_EXCEPT;
+  _FPU_GETFLAGS (temp);
+  _FPU_SETCW (envp->__fp_control_register | temp);
 
-  /* Install new environment.  */
-  fesetenv (envp);
-
-  /* Raise the safed exception.  Incidently for us the implementation
-     defined format of the values in objects of type fexcept_t is the
-     same as the ones specified using the FE_* constants.  */
-  feraiseexcept (temp);
-
-  /* Success.  */
   return 0;
 }
 libm_hidden_def (feupdateenv)

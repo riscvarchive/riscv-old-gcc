@@ -49,10 +49,10 @@ enum
 #define FE_TONEAREST	FE_TONEAREST
     FE_TOWARDZERO = 0x1,
 #define FE_TOWARDZERO	FE_TOWARDZERO
-    FE_UPWARD = 0x2,
-#define FE_UPWARD	FE_UPWARD
-    FE_DOWNWARD = 0x3
+    FE_DOWNWARD = 0x2,
 #define FE_DOWNWARD	FE_DOWNWARD
+    FE_UPWARD = 0x3
+#define FE_UPWARD	FE_UPWARD
   };
 
 
@@ -70,8 +70,3 @@ fenv_t;
 
 /* If the default argument is used we use this value.  */
 #define FE_DFL_ENV	((__const fenv_t *) -1)
-
-#ifdef __USE_GNU
-/* Floating-point environment where none of the exception is masked.  */
-# define FE_NOMASK_ENV  ((__const fenv_t *) -2)
-#endif
