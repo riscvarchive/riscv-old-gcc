@@ -24,10 +24,11 @@
 int
 feupdateenv (const fenv_t *envp)
 {
-  int temp;
+  fenv_t env = *envp;
 
-  _FPU_GETFLAGS (temp);
-  _FPU_SETCW (envp->__fp_control_register | temp);
+  /* rm = 0; rm |= fenv.rm; flags |= fenv.flags */
+  _FPU_SETROUND (0);
+  asm volatile ("csrs fcsr, %0" : : "r"(env));
 
   return 0;
 }

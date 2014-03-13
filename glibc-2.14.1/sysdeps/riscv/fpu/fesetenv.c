@@ -24,12 +24,7 @@
 int
 fesetenv (const fenv_t *envp)
 {
-  if (envp == FE_DFL_ENV)
-    _FPU_SETCW (0);
-  else
-    _FPU_SETCW (envp->__fp_control_register);
-
-  /* Success.  */
+  _FPU_SETCW (envp == FE_DFL_ENV ? 0 : *envp);
   return 0;
 }
 

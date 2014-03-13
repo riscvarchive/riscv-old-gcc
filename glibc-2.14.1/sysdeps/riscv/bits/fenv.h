@@ -20,29 +20,23 @@
 # error "Never use <bits/fenv.h> directly; include <fenv.h> instead."
 #endif
 
-
-/* Define bits representing the exception.  We use the bit positions
-   of the appropriate bits in the FPU control word.  */
 enum
   {
-    FE_INEXACT = 0x04,
+    FE_INEXACT = 0x01,
 #define FE_INEXACT	FE_INEXACT
-    FE_UNDERFLOW = 0x08,
+    FE_UNDERFLOW = 0x02,
 #define FE_UNDERFLOW	FE_UNDERFLOW
-    FE_OVERFLOW = 0x10,
+    FE_OVERFLOW = 0x04,
 #define FE_OVERFLOW	FE_OVERFLOW
-    FE_DIVBYZERO = 0x20,
+    FE_DIVBYZERO = 0x08,
 #define FE_DIVBYZERO	FE_DIVBYZERO
-    FE_INVALID = 0x40,
+    FE_INVALID = 0x10,
 #define FE_INVALID	FE_INVALID
   };
 
 #define FE_ALL_EXCEPT \
 	(FE_INEXACT | FE_DIVBYZERO | FE_UNDERFLOW | FE_OVERFLOW | FE_INVALID)
 
-/* The MIPS FPU supports all of the four defined rounding modes.  We
-   use again the bit positions in the FPU control word as the values
-   for the appropriate macros.  */
 enum
   {
     FE_TONEAREST = 0x0,
@@ -56,17 +50,8 @@ enum
   };
 
 
-/* Type representing exception flags.  */
-typedef unsigned short int fexcept_t;
-
-
-/* Type representing floating-point environment.  This function corresponds
-   to the layout of the block written by the `fstenv'.  */
-typedef struct
-  {
-    unsigned int __fp_control_register;
-  }
-fenv_t;
+typedef unsigned int fexcept_t;
+typedef unsigned int fenv_t;
 
 /* If the default argument is used we use this value.  */
 #define FE_DFL_ENV	((__const fenv_t *) -1)

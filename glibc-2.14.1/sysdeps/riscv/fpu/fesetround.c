@@ -24,17 +24,11 @@
 int
 fesetround (int round)
 {
-  switch (round)
-  {
-    case FE_TONEAREST:
-    case FE_UPWARD:
-    case FE_DOWNWARD:
-    case FE_TOWARDZERO:
-      _FPU_SETROUND (round);
-      return 0;
-    default:
-      return -1;
-  }
+  int fail = round != FE_TONEAREST && round != FE_TOWARDZERO
+	     && round != FE_DOWNWARD && round != FE_UPWARD;
+  if (!fail)
+    _FPU_SETROUND (round);
+  return fail;
 }
 
 libm_hidden_def (fesetround)

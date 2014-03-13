@@ -22,41 +22,6 @@
 #ifndef _FPU_CONTROL_H
 #define _FPU_CONTROL_H
 
-/* MIPS FPU floating point control register bits.
- *
- * 31-25  -> floating point conditions code bits 7-1.  These bits are only
- *           available in MIPS IV.
- * 24     -> flush denormalized results to zero instead of
- *           causing unimplemented operation exception.  This bit is only
- *           available for MIPS III and newer.
- * 23     -> Condition bit
- * 22-18  -> reserved (read as 0, write with 0)
- * 17     -> cause bit for unimplemented operation
- * 16     -> cause bit for invalid exception
- * 15     -> cause bit for division by zero exception
- * 14     -> cause bit for overflow exception
- * 13     -> cause bit for underflow exception
- * 12     -> cause bit for inexact exception
- * 11     -> enable exception for invalid exception
- * 10     -> enable exception for division by zero exception
- *  9     -> enable exception for overflow exception
- *  8     -> enable exception for underflow exception
- *  7     -> enable exception for inexact exception
- *  6     -> flag invalid exception
- *  5     -> flag division by zero exception
- *  4     -> flag overflow exception
- *  3     -> flag underflow exception
- *  2     -> flag inexact exception
- *  1-0   -> rounding control
- *
- *
- * Rounding Control:
- * 00 - rounding to nearest (RN)
- * 01 - rounding toward zero (RZ)
- * 10 - rounding (up) toward plus infinity (RP)
- * 11 - rounding (down)toward minus infinity (RM)
- */
-
 #include <features.h>
 
 #ifdef __mips_soft_float
