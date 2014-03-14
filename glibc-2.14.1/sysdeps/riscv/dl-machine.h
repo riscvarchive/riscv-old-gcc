@@ -152,12 +152,6 @@ do {									\
     }									\
 } while(0)
 
-
-/* Mask identifying addresses reserved for the user program,
-   where the dynamic linker should not map anything.  */
-#define ELF_MACHINE_USER_ADDRESS_MASK	0x80000000UL
-
-
 /* Initial entry point code for the dynamic linker.
    The C function `_dl_start' is the real entry point;
    its return value is the user program's entry point. */
@@ -219,23 +213,12 @@ do {									\
 #  define ARCH_LA_PLTEXIT mips_n32_gnu_pltexit
 # endif
 
-/* For a non-writable PLT, rewrite the .got.plt entry at RELOC_ADDR to
-   point at the symbol with address VALUE.  For a writable PLT, rewrite
-   the corresponding PLT entry instead.  */
-static inline ElfW(Addr)
-elf_machine_fixup_plt (struct link_map *map, lookup_t t,
-		       const ElfW(Rel) *reloc,
-		       ElfW(Addr) *reloc_addr, ElfW(Addr) value)
-{
-  return *reloc_addr = value;
-}
-
-static inline ElfW(Addr)
-elf_machine_plt_value (struct link_map *map, const ElfW(Rel) *reloc,
-		       ElfW(Addr) value)
-{
-  return value;
-}
+/* Bias .got.plt entry by the offset requested by the PLT header. */
+#define ELF_MACHINE_RUNTIME_FIXUP_ARGS ElfW(Addr) gotplt_bias
+#define elf_machine_plt_value(map, reloc, value) (value)
+#define elf_machine_fixup_plt(map, t, reloc, reloc_addr, value) ({ \
+    *(ElfW(Addr) *)(reloc_addr) = (value) + gotplt_bias; \
+    (value); })
 
 #endif /* !dl_machine_h */
 

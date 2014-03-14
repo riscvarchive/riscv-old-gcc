@@ -2,7 +2,7 @@
 #include <sys/asm.h>
 
 /* Assembler veneer called from the PLT header code for lazy loading.
-   The PLT header places the 2 args to _dl_fixup into t0 and t1. */
+   The PLT header passes its own args in t0-t2. */
 
 ENTRY(_dl_runtime_resolve)
   # Save arguments to stack.
@@ -18,8 +18,9 @@ ENTRY(_dl_runtime_resolve)
   REG_S a7, 8*SZREG(sp)
 
   # Update .got.plt and obtain runtime address of callee.
-  mv a0, t0
-  mv a1, t1
+  mv a0, t0       # .got.plt bias
+  mv a1, t1       # link map
+  slli a2, t2, 1  # reloc offset (== twice the .got.plt offset)
   jal _dl_fixup
 
   # Restore arguments from stack.
