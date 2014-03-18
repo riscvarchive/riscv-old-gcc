@@ -115,10 +115,11 @@ static int
 riscv_subset_supports(const char* feature)
 {
   struct riscv_subset* s;
+  bfd_boolean rv64_insn;
 
-  if (strncmp(feature, "64", 2) == 0)
+  if ((rv64_insn = !strncmp(feature, "64", 2)) || !strncmp(feature, "32", 2))
     {
-      if (!rv64)
+      if (rv64 != rv64_insn)
         return 0;
       feature += 2;
     }
