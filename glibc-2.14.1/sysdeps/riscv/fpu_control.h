@@ -24,7 +24,7 @@
 
 #include <features.h>
 
-#ifdef __mips_soft_float
+#ifdef __riscv_soft_float
 
 #define _FPU_RESERVED 0xffffffff
 #define _FPU_DEFAULT  0x00000000

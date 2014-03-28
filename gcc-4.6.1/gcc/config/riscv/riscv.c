@@ -4949,9 +4949,12 @@ mips_conditional_register_usage (void)
        regno <= CALLEE_SAVED_GP_REG_LAST; regno++)
     call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
 
-  for (regno = CALLEE_SAVED_FP_REG_FIRST;
-       regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
-    call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
+  if (TARGET_HARD_FLOAT)
+    {
+      for (regno = CALLEE_SAVED_FP_REG_FIRST;
+           regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
+        call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
+    }
 
   call_used_regs[RETURN_ADDR_REGNUM] =
     call_really_used_regs[RETURN_ADDR_REGNUM] = riscv_in_utfunc;
