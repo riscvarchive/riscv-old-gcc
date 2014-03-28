@@ -34,24 +34,11 @@
 (define_register_constraint "f" "TARGET_HARD_FLOAT ? FP_REGS : NO_REGS"
   "A floating-point register (if available).")
 
-(define_register_constraint "h" "NO_REGS"
-  "Formerly the @code{hi} register.  This constraint is no longer supported.")
-
 (define_register_constraint "b" "ALL_REGS"
   "@internal")
 
 (define_register_constraint "j" "T_REGS"
   "@internal")
-
-(define_register_constraint "z" "GR_REGS"
-  "A floating-point condition code register.")
-
-;; This is a normal rather than a register constraint because we can
-;; never use the stack pointer as a reload register.
-(define_constraint "ks"
-  "@internal"
-  (and (match_code "reg")
-       (match_test "REGNO (op) == STACK_POINTER_REGNUM")))
 
 ;; Integer constraints
 

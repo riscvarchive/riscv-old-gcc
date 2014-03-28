@@ -424,7 +424,7 @@
 
 ;; This attribute gives the best constraint to use for registers of
 ;; a given mode.
-(define_mode_attr reg [(SI "d") (DI "d") (CC "z")])
+(define_mode_attr reg [(SI "d") (DI "d") (CC "d")])
 
 ;; This attribute gives the format suffix for floating-point operations.
 (define_mode_attr fmt [(SF "s") (DF "d") (V2SF "ps")])
@@ -1850,12 +1850,12 @@
 ;; in FP registers (off by default, use -mdebugh to enable).
 
 (define_insn "*mov<mode>_internal"
-  [(set (match_operand:IMOVE32 0 "nonimmediate_operand" "=d,d,d,m,*f,*f,*d,*m,*d,*z")
-	(match_operand:IMOVE32 1 "move_operand" "d,T,m,dJ,*d*J,*m,*f,*f,*z,*d"))]
+  [(set (match_operand:IMOVE32 0 "nonimmediate_operand" "=d,d,d,m,*f,*f,*d,*m")
+	(match_operand:IMOVE32 1 "move_operand" "d,T,m,dJ,*d*J,*m,*f,*f"))]
   "(register_operand (operands[0], <MODE>mode)
     || reg_or_0_operand (operands[1], <MODE>mode))"
   { return mips_output_move (operands[0], operands[1]); }
-  [(set_attr "move_type" "move,const,load,store,mtc,fpload,mfc,fpstore,mfc,mtc")
+  [(set_attr "move_type" "move,const,load,store,mtc,fpload,mfc,fpstore")
    (set_attr "mode" "SI")])
 
 ;; 16-bit Integer moves
