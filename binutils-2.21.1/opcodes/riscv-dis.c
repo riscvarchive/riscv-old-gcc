@@ -253,10 +253,7 @@ maybe_print_address (struct riscv_private_data *pd, int base_reg, int offset)
 /* Print insn arguments for 32/64-bit code.  */
 
 static void
-print_insn_args (const char *d,
-		 register unsigned long int l,
-		 bfd_vma pc,
-		 struct disassemble_info *info)
+print_insn_args (const char *d, insn_t l, bfd_vma pc, disassemble_info *info)
 {
   struct riscv_private_data *pd = info->private_data;
   int rs1 = (l >> OP_SH_RS1) & OP_MASK_RS1;
@@ -614,9 +611,7 @@ riscv_rvc_uncompress(unsigned long rvc_insn)
    this is little-endian code.  */
 
 static int
-print_insn_mips (bfd_vma memaddr,
-		 unsigned long int word,
-		 struct disassemble_info *info)
+print_insn_mips (bfd_vma memaddr, insn_t word, disassemble_info *info)
 {
   const struct riscv_opcode *op;
   static bfd_boolean init = 0;
@@ -667,7 +662,8 @@ print_insn_mips (bfd_vma memaddr,
     word = riscv_rvc_uncompress(word);
 #endif
 
-  info->bytes_per_chunk = insnlen;
+  info->bytes_per_chunk = insnlen % 4 == 0 ? 4 : 2;
+  info->bytes_per_line = 8;
   info->display_endian = info->endian;
   info->insn_info_valid = 1;
   info->branch_delay_insns = 0;
@@ -701,7 +697,7 @@ print_insn_mips (bfd_vma memaddr,
 
   /* Handle undefined instructions.  */
   info->insn_type = dis_noninsn;
-  (*info->fprintf_func) (info->stream, "0x%lx", word);
+  (*info->fprintf_func) (info->stream, "0x%llx", (unsigned long long)word);
   return insnlen;
 }
 
@@ -716,31 +712,29 @@ _print_insn_mips (bfd_vma memaddr,
 		  struct disassemble_info *info,
 		  enum bfd_endian endianness)
 {
-  bfd_byte buffer[sizeof(bfd_vma)];
-  bfd_vma insn = 0, part, n;
-  int status = 0;
+  uint16_t i2;
+  insn_t insn = 0;
+  bfd_vma n;
+  int status;
 
   set_default_mips_dis_options (info);
   parse_mips_dis_options (info->disassembler_options);
 
   /* Instructions are stored as a sequence of 2-byte packets in little-endian
      order.  (Within a packet, the byte order is the target endianness). */
-  for (n = 0; n < sizeof(buffer) && n < riscv_insn_length (insn); n += 2)
+  for (n = 0; n < sizeof(insn) && n < riscv_insn_length (insn); n += 2)
     {
-      status = (*info->read_memory_func) (memaddr + n, buffer, 2, info);
+      status = (*info->read_memory_func) (memaddr + n, (bfd_byte*)&i2, 2, info);
       if (status != 0)
-        break;
+	{
+	  if (n > 0) /* Don't fail just because we fell off the end. */
+	    break;
+	  (*info->memory_error_func) (status, memaddr, info);
+	  return status;
+	}
 
-      part = endianness == BFD_ENDIAN_BIG ? bfd_getb16 (buffer)
-                                          : bfd_getl16 (buffer);
-      insn |= part << (8*n);
-    }
-
-  /* Don't fail if we've merely fallen off the end of a section. */
-  if (status != 0 && (*info->read_memory_func) (memaddr, buffer, 1, info) != 0)
-    {
-      (*info->memory_error_func) (status, memaddr, info);
-      return status;
+      i2 = endianness == BFD_ENDIAN_BIG ? bfd_getb16 (&i2) : bfd_getl16 (&i2);
+      insn |= (insn_t)i2 << (8*n);
     }
 
   return print_insn_mips (memaddr, insn, info);

@@ -22,6 +22,10 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 #ifndef _RISCV_H_
 #define _RISCV_H_
 
+#include "riscv-opc.h"
+#include <stdlib.h>
+#include <stdint.h>
+
 /* RVC fields */
 
 #define OP_MASK_COP		0x1f
@@ -52,10 +56,20 @@ static const char rvc_rs1_regmap[8] = { 20, 21, 2, 3, 4, 5, 6, 7 };
 #define rvc_rs2b_regmap rvc_rs1_regmap
 static const char rvc_rs2_regmap[8] = { 20, 21, 2, 3, 4, 5, 6, 0 };
 
-static inline unsigned int riscv_insn_length (unsigned int insn)
+typedef uint64_t insn_t;
+
+static inline unsigned int riscv_insn_length (insn_t insn)
 {
-  /* RVC instructions have insn[1:0] != 3 */
-  return (insn & 0x3) != 0x3 ? 2 : 4;
+  if ((insn & 0x3) != 3) /* RVC */
+    return 2;
+  if ((insn & 0x1f) != 0x1f) /* base ISA and extensions in 32-bit space */
+    return 4;
+  if ((insn & 0x3f) == 0x1f) /* 48-bit extensions */
+    return 6;
+  if ((insn & 0x7f) == 0x3f) /* 64-bit extensions */
+    return 8;
+  /* longer instructions not supported at the moment */
+  abort();
 }
 
 static const char * const riscv_rm[8] = {
@@ -202,8 +216,6 @@ static const char* const riscv_pred_succ[16] = {
 #define RISCV_BRANCH_ALIGN (1 << RISCV_BRANCH_ALIGN_BITS)
 #define RISCV_BRANCH_REACH (RISCV_IMM_REACH*RISCV_BRANCH_ALIGN)
 
-#include "riscv-opc.h"
-
 /* This structure holds information for a particular instruction.  */
 
 struct riscv_opcode
@@ -217,16 +229,16 @@ struct riscv_opcode
   /* The basic opcode for the instruction.  When assembling, this
      opcode is modified by the arguments to produce the actual opcode
      that is used.  If pinfo is INSN_MACRO, then this is 0.  */
-  unsigned long match;
+  insn_t match;
   /* If pinfo is not INSN_MACRO, then this is a bit mask for the
      relevant portions of the opcode when disassembling.  If the
      actual opcode anded with the match field equals the opcode field,
      then we have found the correct instruction.  If pinfo is
      INSN_MACRO, then this field is the macro identifier.  */
-  unsigned long mask;
+  insn_t mask;
   /* A function to determine if a word corresponds to this instruction.
      Usually, this computes ((word & mask) == match). */
-  int (*match_func)(const struct riscv_opcode *op, unsigned long word);
+  int (*match_func)(const struct riscv_opcode *op, insn_t word);
   /* For a macro, this is INSN_MACRO.  Otherwise, it is a collection
      of bits describing the instruction, notably any relevant hazard
      information.  */

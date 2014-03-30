@@ -82,7 +82,7 @@ struct mips_cl_insn
 
   /* The 16-bit or 32-bit bitstring of the instruction itself.  This is
      a copy of INSN_MO->match with the operands filled in.  */
-  unsigned long insn_opcode;
+  insn_t insn_opcode;
 
   /* The frag that contains the instruction.  */
   struct frag *frag;
@@ -500,8 +500,6 @@ mips_target_format (void)
 static inline unsigned int
 insn_length (const struct mips_cl_insn *insn)
 {
-  if (!mips_opts.rvc)
-    return 4;
   return riscv_insn_length (insn->insn_opcode);
 }
 
@@ -1731,7 +1729,7 @@ validate_mips_insn (const struct riscv_opcode *opc)
 {
   const char *p = opc->args;
   char c;
-  unsigned long used_bits = opc->mask;
+  insn_t required_bits, used_bits = opc->mask;
 
   if ((used_bits & opc->match) != opc->match)
     {
@@ -1739,7 +1737,9 @@ validate_mips_insn (const struct riscv_opcode *opc)
 	      opc->name, opc->args);
       return 0;
     }
-#define USE_BITS(mask,shift)	(used_bits |= ((mask) << (shift)))
+  required_bits = ((insn_t)1 << (8 * riscv_insn_length (opc->match))) - 1;
+
+#define USE_BITS(mask,shift)	(used_bits |= ((insn_t)(mask) << (shift)))
   while (*p)
     switch (c = *p++)
       {
@@ -1810,10 +1810,10 @@ validate_mips_insn (const struct riscv_opcode *opc)
 	return 0;
       }
 #undef USE_BITS
-  if ((used_bits & 0xffffffff) != 0xffffffff)
+  if (used_bits != required_bits)
     {
       as_bad (_("internal: bad mips opcode (bits 0x%lx undefined): %s %s"),
-	      ~used_bits & 0xffffffff, opc->name, opc->args);
+	      ~(long)(used_bits & required_bits), opc->name, opc->args);
       return 0;
     }
   return 1;
@@ -3050,7 +3050,7 @@ md_convert_frag_branch (bfd *abfd ATTRIBUTE_UNUSED, segT asec ATTRIBUTE_UNUSED,
                  fragS *fragp)
 {
   bfd_byte *buf;
-  unsigned long insn;
+  insn_t insn;
   expressionS exp;
   fixS *fixp;
   bfd_reloc_code_real_type reloc_type = BFD_RELOC_12_PCREL;

@@ -60,18 +60,18 @@
 #define MASK_RL (OP_MASK_RL << OP_SH_RL)
 #define MASK_AQRL (MASK_AQ | MASK_RL)
 
-static int match_opcode(const struct riscv_opcode *op, unsigned long insn)
+static int match_opcode(const struct riscv_opcode *op, insn_t insn)
 {
   return (insn & op->mask) == op->match;
 }
 
 static int match_never(const struct riscv_opcode *op ATTRIBUTE_UNUSED,
-		       unsigned long insn ATTRIBUTE_UNUSED)
+		       insn_t insn ATTRIBUTE_UNUSED)
 {
   return 0;
 }
 
-static int match_rs1_eq_rs2(const struct riscv_opcode *op, unsigned long insn)
+static int match_rs1_eq_rs2(const struct riscv_opcode *op, insn_t insn)
 {
   return match_opcode(op, insn) &&
     ((insn & MASK_RS1) >> OP_SH_RS1) == ((insn & MASK_RS2) >> OP_SH_RS2);
@@ -83,7 +83,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
    them first.  The assemblers uses a hash table based on the
    instruction name anyhow.  */
 /* name,      isa,   operands, match, mask, pinfo */
-{"unimp",     "I",   "",         0, 0xffffffff,  match_opcode, 0 },
+{"unimp",     "I",   "",         0, 0xffff,  match_opcode, 0 },
 {"nop",       "I",   "",         MATCH_ADDI, MASK_ADDI | MASK_RD | MASK_RS1 | MASK_IMM, match_opcode,  INSN_ALIAS },
 {"li",        "I",   "d,j",      MATCH_ADDI, MASK_ADDI | MASK_RS1, match_opcode,  INSN_ALIAS|WR_xd }, /* addi */
 {"li",        "I",   "d,I",  0,    (int) M_LI,  match_never, INSN_MACRO },
