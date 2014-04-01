@@ -24,5 +24,5 @@ esac
 
 if test -z "$arch_minimum_kernel"; then
   arch_minimum_kernel=2.4.1
-  libc_cv_gcc_unwind_find_fde=yes
+  libc_cv_gcc_unwind_find_fde=no
 fi

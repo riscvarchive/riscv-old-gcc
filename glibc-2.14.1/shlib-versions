@@ -31,6 +31,7 @@ cris-.*-linux.*		DEFAULT			GLIBC_2.2
 x86_64-.*-linux.*       DEFAULT			GLIBC_2.2.5
 powerpc64-.*-linux.*	DEFAULT			GLIBC_2.3
 .*-.*-gnu-gnu.*		DEFAULT			GLIBC_2.2.6
+riscv-.*-linux.*	DEFAULT			GLIBC_2.14
 
 # Configuration		WORDSIZE[32|64]		Alternate configuration
 # -------------		----------		-----------------------
