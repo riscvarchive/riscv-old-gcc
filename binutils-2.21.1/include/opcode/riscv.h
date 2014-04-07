@@ -69,7 +69,7 @@ static inline unsigned int riscv_insn_length (insn_t insn)
   if ((insn & 0x7f) == 0x3f) /* 64-bit extensions */
     return 8;
   /* longer instructions not supported at the moment */
-  abort();
+  return 2;
 }
 
 static const char * const riscv_rm[8] = {
