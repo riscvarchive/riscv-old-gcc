@@ -397,10 +397,10 @@ static const struct mips_cpu_info mips_cpu_info_table[] = {
                       COSTS_N_INSNS (8),  /* fp_mult_df */   \
                       COSTS_N_INSNS (20), /* fp_div_sf */    \
                       COSTS_N_INSNS (20), /* fp_div_df */    \
-                      COSTS_N_INSNS (8),  /* int_mult_si */  \
-                      COSTS_N_INSNS (8),  /* int_mult_di */  \
-                      COSTS_N_INSNS (10), /* int_div_si */   \
-                      COSTS_N_INSNS (10), /* int_div_di */   \
+                      COSTS_N_INSNS (4),  /* int_mult_si */  \
+                      COSTS_N_INSNS (4),  /* int_mult_di */  \
+                      COSTS_N_INSNS (6),  /* int_div_si */   \
+                      COSTS_N_INSNS (6),  /* int_div_di */   \
                                        2, /* branch_cost */  \
                                        7  /* memory_latency */
 
