@@ -567,19 +567,26 @@ riscv_build_integer (struct mips_integer_op *codes, HOST_WIDE_INT value)
 }
 
 static int
-riscv_integer_cost (HOST_WIDE_INT val)
+riscv_split_integer_cost (HOST_WIDE_INT val)
 {
   int cost;
-  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
   int32_t loval = val, hival = (val - (int32_t)val) >> 32;
+  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
 
-  cost = riscv_build_integer(codes, loval);
-  if (hival == 0)
-    return cost;
-
+  cost = 2 + riscv_build_integer(codes, loval);
   if (loval != hival)
     cost += riscv_build_integer(codes, hival);
-  return cost + 2;
+
+  return cost;
+}
+
+static int
+riscv_integer_cost (HOST_WIDE_INT val)
+{
+  int cost, split_cost;
+  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
+
+  return MIN (riscv_build_integer (codes, val), riscv_split_integer_cost (val));
 }
 
 /* Try to split a 64b integer into 32b parts, then reassemble. */
@@ -1391,7 +1398,7 @@ mips_move_integer (rtx temp, rtx dest, HOST_WIDE_INT value)
   num_ops = riscv_build_integer (codes, value);
 
   if (can_create_pseudo_p () && num_ops > 2 /* not a simple constant */
-      && num_ops >= riscv_integer_cost (value))
+      && num_ops >= riscv_split_integer_cost (value))
     x = riscv_split_integer (value, mode);
   else
     {
