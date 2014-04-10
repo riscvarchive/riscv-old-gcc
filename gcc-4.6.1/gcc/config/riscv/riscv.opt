@@ -50,6 +50,10 @@ msoft-float
 Target Report RejectNegative Mask(SOFT_FLOAT_ABI)
 Prevent the use of all hardware floating-point instructions
 
+mfdiv
+Target Report RejectNegative Mask(FDIV)
+Use hardware floating-point divide and square root instructions
+
 mtune=
 Target RejectNegative Joined Var(mips_tune_string)
 -mtune=PROCESSOR	Optimize the output for PROCESSOR

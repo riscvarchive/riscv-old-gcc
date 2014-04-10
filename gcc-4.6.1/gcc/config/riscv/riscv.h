@@ -94,9 +94,13 @@ struct mips_cpu_info {
 									\
       /* These defines reflect the ABI in use, not whether the  	\
 	 FPU is directly accessible.  */				\
-      if (TARGET_HARD_FLOAT_ABI)					\
+      if (TARGET_HARD_FLOAT_ABI) {					\
 	builtin_define ("__riscv_hard_float");				\
-      else								\
+	if (TARGET_FDIV) {						\
+	  builtin_define ("__riscv_fdiv");				\
+	  builtin_define ("__riscv_fsqrt");				\
+	}								\
+      } else								\
 	builtin_define ("__riscv_soft_float");				\
 									\
       /* The base RISC-V ISA is always little-endian. */		\

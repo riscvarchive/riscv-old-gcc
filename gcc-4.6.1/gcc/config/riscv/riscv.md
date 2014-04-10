@@ -1143,7 +1143,7 @@
   [(set (match_operand:ANYF 0 "register_operand" "=f")
 	(div:ANYF (match_operand:ANYF 1 "register_operand" "f")
 		  (match_operand:ANYF 2 "register_operand" "f")))]
-  ""
+  "TARGET_HARD_FLOAT && TARGET_FDIV"
   "fdiv.<fmt>\t%0,%1,%2"
   [(set_attr "type" "fdiv")
    (set_attr "mode" "<UNITMODE>")])
@@ -1158,13 +1158,12 @@
 (define_insn "sqrt<mode>2"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
 	(sqrt:ANYF (match_operand:ANYF 1 "register_operand" "f")))]
-  ""
+  "TARGET_HARD_FLOAT && TARGET_FDIV"
 {
     return "fsqrt.<fmt>\t%0,%1";
 }
   [(set_attr "type" "fsqrt")
-   (set_attr "mode" "<UNITMODE>")
-   (set (attr "length") (const_int 4))])
+   (set_attr "mode" "<UNITMODE>")])
 
 ;; Floating point multiply accumulate instructions.
 
