@@ -5429,15 +5429,16 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 	{
 	  /* A local symbol.  */
 	  Elf_Internal_Sym *isym = isymbuf + ELF_R_SYM (abfd, irel->r_info);
-	  asection *isec = sec;
 
-	  if (isym->st_shndx != SHN_UNDEF)
+	  if (isym->st_shndx == SHN_UNDEF)
+	    symval = sec_addr(sec) + irel->r_offset;
+	  else
 	    {
+	      asection *isec;
 	      BFD_ASSERT (isym->st_shndx < elf_numsections (abfd));
 	      isec = elf_elfsections (abfd)[isym->st_shndx]->bfd_section;
+	      symval = sec_addr(isec) + isym->st_value;
 	    }
-
-	  symval = sec_addr(isec) + isym->st_value;
 	}
       else
 	{
