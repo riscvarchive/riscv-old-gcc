@@ -555,6 +555,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 /* floads */
 {"vfld",      "Xhwacha", "#D,s", MATCH_VFLD, MASK_VFLD, match_opcode, 0},
 {"vflw",      "Xhwacha", "#D,s", MATCH_VFLW, MASK_VFLW, match_opcode, 0},
+{"vflh",      "Xhwacha", "#D,s", MATCH_VFLH, MASK_VFLH, match_opcode, 0},
 
 /* stride */
 /* xloads */
@@ -568,6 +569,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 /* floads */
 {"vflstd",    "Xhwacha", "#D,s,t", MATCH_VFLSTD, MASK_VFLSTD, match_opcode, 0},
 {"vflstw",    "Xhwacha", "#D,s,t", MATCH_VFLSTW, MASK_VFLSTW, match_opcode, 0},
+{"vflsth",    "Xhwacha", "#D,s,t", MATCH_VFLSTH, MASK_VFLSTH, match_opcode, 0},
 
 /* segment */
 /* xloads */
@@ -581,6 +583,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 /* floads */
 {"vflsegd",   "Xhwacha", "#D,s,#n", MATCH_VFLSEGD, MASK_VFLSEGD, match_opcode, 0},
 {"vflsegw",   "Xhwacha", "#D,s,#n", MATCH_VFLSEGW, MASK_VFLSEGW, match_opcode, 0},
+{"vflsegh",   "Xhwacha", "#D,s,#n", MATCH_VFLSEGH, MASK_VFLSEGH, match_opcode, 0},
 
 /* stride segment */
 /* xloads */
@@ -594,6 +597,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 /* floads */
 {"vflsegstd", "Xhwacha", "#D,s,t,#n", MATCH_VFLSEGSTD, MASK_VFLSEGSTD, match_opcode, 0},
 {"vflsegstw", "Xhwacha", "#D,s,t,#n", MATCH_VFLSEGSTW, MASK_VFLSEGSTW, match_opcode, 0},
+{"vflsegsth", "Xhwacha", "#D,s,t,#n", MATCH_VFLSEGSTH, MASK_VFLSEGSTH, match_opcode, 0},
 
 /* unit stride */
 /* xstores */
@@ -604,6 +608,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 /* fstores */
 {"vfsd",      "Xhwacha", "#D,s", MATCH_VFSD, MASK_VFSD, match_opcode, 0},
 {"vfsw",      "Xhwacha", "#D,s", MATCH_VFSW, MASK_VFSW, match_opcode, 0},
+{"vfsh",      "Xhwacha", "#D,s", MATCH_VFSH, MASK_VFSH, match_opcode, 0},
 
 /* stride */
 /* xstores */
@@ -614,6 +619,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 /* fstores */
 {"vfsstd",    "Xhwacha", "#D,s,t", MATCH_VFSSTD, MASK_VFSSTD, match_opcode, 0},
 {"vfsstw",    "Xhwacha", "#D,s,t", MATCH_VFSSTW, MASK_VFSSTW, match_opcode, 0},
+{"vfssth",    "Xhwacha", "#D,s,t", MATCH_VFSSTH, MASK_VFSSTH, match_opcode, 0},
 
 /* segment */
 /* xstores */
@@ -624,6 +630,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 /* fstores */
 {"vfssegd",   "Xhwacha", "#D,s,#n", MATCH_VFSSEGD, MASK_VFSSEGD, match_opcode, 0},
 {"vfssegw",   "Xhwacha", "#D,s,#n", MATCH_VFSSEGW, MASK_VFSSEGW, match_opcode, 0},
+{"vfssegh",   "Xhwacha", "#D,s,#n", MATCH_VFSSEGH, MASK_VFSSEGH, match_opcode, 0},
 
 /* stride segment */
 /* xsegstores */
@@ -634,6 +641,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 /* fsegstores */
 {"vfssegstd", "Xhwacha", "#D,s,t,#n", MATCH_VFSSEGSTD, MASK_VFSSEGSTD, match_opcode, 0},
 {"vfssegstw", "Xhwacha", "#D,s,t,#n", MATCH_VFSSEGSTW, MASK_VFSSEGSTW, match_opcode, 0},
+{"vfssegsth", "Xhwacha", "#D,s,t,#n", MATCH_VFSSEGSTH, MASK_VFSSEGSTH, match_opcode, 0},
 
 {"vsetcfg",   "Xhwacha", "s", MATCH_VSETCFG, MASK_VSETCFG | MASK_IMM, match_opcode, 0},
 {"vsetcfg",   "Xhwacha", "#g,#f", MATCH_VSETCFG, MASK_VSETCFG | MASK_RS1, match_opcode, 0},
