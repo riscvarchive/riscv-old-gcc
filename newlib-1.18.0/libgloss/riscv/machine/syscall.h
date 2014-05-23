@@ -8,15 +8,21 @@
 #define SYS_read 63
 #define SYS_write 64
 #define SYS_open 1024
+#define SYS_openat 56
 #define SYS_close 57
 #define SYS_lseek 62
 #define SYS_brk 214
 #define SYS_link 1025
 #define SYS_unlink 1026
+#define SYS_mkdir 1030
 #define SYS_chdir 49
+#define SYS_getcwd 17
 #define SYS_stat 1038
 #define SYS_fstat 80
 #define SYS_lstat 1039
+#define SYS_fstatat 79
+#define SYS_access 1033
+#define SYS_faccessat 48
 #define SYS_pread 67
 #define SYS_pwrite 68
 #define SYS_uname 160
@@ -33,6 +39,9 @@
 #define SYS_writev 66
 #define SYS_gettimeofday 169
 #define SYS_times 153
+#define SYS_fcntl 25
+#define SYS_getdents 61
+#define SYS_dup 23
 
 static inline long
 __internal_syscall(long n, long _a0, long _a1, long _a2, long _a3)

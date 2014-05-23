@@ -104,6 +104,15 @@ int open(const char* name, int flags, int mode)
 }
 
 //------------------------------------------------------------------------
+// openat                                                                
+//------------------------------------------------------------------------
+// Open file relative to given directory
+int openat(int dirfd, const char* name, int flags, int mode)
+{
+  return syscall_errno(SYS_openat, dirfd, name, flags, mode);
+}
+
+//------------------------------------------------------------------------
 // lseek                                                                
 //------------------------------------------------------------------------
 // Set position in a file.
@@ -162,6 +171,36 @@ int stat(const char* file, struct stat* st)
 int lstat(const char* file, struct stat* st)
 {
   return syscall_errno(SYS_lstat, file, st, 0, 0);
+}
+
+//------------------------------------------------------------------------
+// fstatat                                                                 
+//------------------------------------------------------------------------
+// Status of a file (by name) in a given directory.
+
+int fstatat(int dirfd, const char* file, struct stat* st, int flags)
+{
+  return syscall_errno(SYS_fstatat, dirfd, file, st, flags);
+}
+
+//------------------------------------------------------------------------
+// access                                                                 
+//------------------------------------------------------------------------
+// Permissions of a file (by name).
+
+int access(const char* file, int mode)
+{
+  return syscall_errno(SYS_access, file, mode, 0, 0);
+}
+
+//------------------------------------------------------------------------
+// faccessat                                                                 
+//------------------------------------------------------------------------
+// Permissions of a file (by name) in a given directory.
+
+int faccessat(int dirfd, const char* file, int mode, int flags)
+{
+  return syscall_errno(SYS_faccessat, dirfd, file, mode, flags);
 }
 
 //------------------------------------------------------------------------
