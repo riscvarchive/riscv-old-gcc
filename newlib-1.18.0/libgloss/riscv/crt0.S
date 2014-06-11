@@ -19,7 +19,7 @@
 # We assume that the application server or proxy kernel has put
 # the command line arguments on the stack and initialized the stack
 # pointer appropriately as illustrated below.
-#  
+#
 #  address = MEMORY_SIZE - ARGS_SIZE
 #  -------------------------------------------
 #  argc         : argument count                <--- stack pointer
@@ -62,13 +62,13 @@
 #  heap                                          | heap grows down
 #  ...                                           v
 #  -------------------------------------------
-#  stack space for thread 1                      ^               
+#  stack space for thread 1                      ^
 #  ...                                           | stack grows up
-#  ------------------------------------------- <--- thread 1 sp  
-#  stack space for thread 0                      ^               
+#  ------------------------------------------- <--- thread 1 sp
+#  stack space for thread 0                      ^
 #  ...                                           | stack grows up
-#  ------------------------------------------- <--- thread 0 sp  
-#  argument count and argument pointers        
+#  ------------------------------------------- <--- thread 0 sp
+#  argument count and argument pointers
 #  ...
 #  -------------------------------------------
 #  argument strings
@@ -88,7 +88,7 @@
         .global atexit          # Register exit functions
         .global main            # User program
         .global exit            # Exit function
-        
+
 #-------------------------------------------------------------------------
 # _start
 #-------------------------------------------------------------------------
@@ -98,6 +98,14 @@
 _start:
         la      gp, _gp                 # Initialize global pointer
 
+# clear the bss segment
+	la	t0, _fbss
+	la	t1, _end
+1:
+	sd	zero,0(t0)
+	addi	t0, t0, 8
+	bltu	t0, t1, 1b
+
         call    _init                   # Run global initialization functions
 
         la      a0, _fini               # Register global termination functions
@@ -106,6 +114,6 @@ _start:
         lw      a0, 0(sp)               # a0 = argc
         addi    a1, sp, _RISCV_SZPTR/8  # a1 = argv
         call    main
-        
+
         move    a0, v0                  # Call exit function with return value
         jump    exit                    #  from main as exit code
