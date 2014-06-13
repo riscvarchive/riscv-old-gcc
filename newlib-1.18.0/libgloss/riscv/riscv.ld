@@ -210,7 +210,7 @@ SECTIONS
   /*--------------------------------------------------------------------*/
 
   /* Start of uninitialized data segment */
-  . = .;
+  . = ALIGN(8);
   _fbss = .;
 
   /* Writable uninitialized small data segment */
@@ -234,5 +234,5 @@ SECTIONS
 
   /* End of uninitialized data segment (used by syscalls.c for heap) */
   PROVIDE( end = . );
-  _end = .;
+  _end = ALIGN(8);
 }

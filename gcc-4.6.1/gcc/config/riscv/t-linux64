@@ -16,8 +16,9 @@
 # along with GCC; see the file COPYING3.  If not see
 # <http://www.gnu.org/licenses/>.
 
-MULTILIB_OPTIONS = m64/m32 msoft-float
-MULTILIB_DIRNAMES = 64 32 soft-float
+MULTILIB_OPTIONS = m64/m32 msoft-float mfdiv
+MULTILIB_DIRNAMES = 64 32 soft-float fdiv
+MULTILIB_EXCEPTIONS = *msoft-float*/*mfdiv*
 MULTILIB_OSDIRNAMES = ../lib ../lib32
 
 EXTRA_MULTILIB_PARTS=crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o
