@@ -52,6 +52,7 @@
   ;; Symbolic accesses.
   UNSPEC_LOAD_CALL
   UNSPEC_LOAD_GOT
+  UNSPEC_TLS_ADD_TP
   UNSPEC_TLS_GD
   UNSPEC_TLS_IE
 
@@ -1737,6 +1738,18 @@
   ""
   "<load>\t%0,%R2(%1)"
   [(set_attr "got" "load")
+   (set_attr "mode" "<MODE>")])
+
+(define_insn "tls_add_tp<mode>"
+  [(set (match_operand:P 0 "register_operand" "=d")
+	(unspec:P [(match_operand:P 1 "register_operand" "d")
+		   (match_operand:P 2 "register_operand" "d")
+		   (match_operand:P 3 "symbolic_operand" "")
+		   ]
+		  UNSPEC_TLS_ADD_TP))]
+  ""
+  "add\t%0,%1,%2,%%tprel_add(%3)"
+  [(set_attr "type" "arith")
    (set_attr "mode" "<MODE>")])
 
 (define_insn "got_load_tls_gd<mode>"

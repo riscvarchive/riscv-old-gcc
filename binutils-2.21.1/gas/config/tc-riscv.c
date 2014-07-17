@@ -1848,6 +1848,7 @@ static const struct percent_op_match percent_op_stype[] =
 
 static const struct percent_op_match percent_op_rtype[] =
 {
+  {"%tprel_add", BFD_RELOC_RISCV_TPREL_ADD},
   {0, 0}
 };
 
@@ -2317,12 +2318,10 @@ load_store:
 	      /* Check whether there is only a single bracketed expression
 	         left.  If so, it must be the base register and the
 	         constant must be zero.  */
+	      offset_expr.X_op = O_constant;
+	      offset_expr.X_add_number = 0;
 	      if (*s == '(' && strchr (s + 1, '(') == 0)
-	        {
-	          offset_expr.X_op = O_constant;
-	          offset_expr.X_add_number = 0;
-	          continue;
-	        }
+		continue;
 alu_op:
 	      /* If this value won't fit into a 16 bit offset, then go
 	         find a macro that will generate the 32 bit offset
@@ -2523,10 +2522,14 @@ void
 md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
   bfd_byte *buf = (bfd_byte *) (fixP->fx_frag->fr_literal + fixP->fx_where);
+  bfd_reloc_code_real_type pcrel_r_type;
 
   /* We ignore generic BFD relocations we don't know about.  */
   if (! bfd_reloc_type_lookup (stdoutput, fixP->fx_r_type))
     return;
+
+  /* Remember value for tc_gen_reloc.  */
+  fixP->fx_addnumber = *valP;
 
   switch (fixP->fx_r_type)
     {
@@ -2536,6 +2539,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_RISCV_TPREL_HI20:
     case BFD_RELOC_RISCV_TPREL_LO12_I:
     case BFD_RELOC_RISCV_TPREL_LO12_S:
+    case BFD_RELOC_RISCV_TPREL_ADD:
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
       /* fall through */
 
@@ -2552,7 +2556,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_RISCV_SUB64:
       gas_assert (fixP->fx_addsy != NULL);
       /* Nothing needed to do.  The value comes from the reloc entry.  */
-      break;
+      return;
 
     case BFD_RELOC_64:
     case BFD_RELOC_32:
@@ -2583,54 +2587,58 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  md_number_to_chars ((char *) buf, *valP, fixP->fx_size);
 	  fixP->fx_done = 1;
 	}
-      break;
+      return;
 
     case BFD_RELOC_RISCV_TLS_GOT_LO12:
     case BFD_RELOC_RISCV_TLS_GD_LO12:
+      gas_assert (fixP->fx_addsy != NULL);
       S_SET_THREAD_LOCAL (fixP->fx_addsy);
-      /* fall through */
-
-    case BFD_RELOC_RISCV_GOT_LO12:
-    case BFD_RELOC_RISCV_PCREL_LO12_S:
-    case BFD_RELOC_RISCV_PCREL_LO12_I:
-      gas_assert (fixP->fx_subsy == NULL);
-      if (fixP->fx_addsy != NULL)
-	{
-	  /* Record the distance between the high and low parts.
-	     For now, we assume AUIPC is immediately before us, and so
-	     this distance is -4. */
-	  fixP->fx_next = xmemdup (fixP, sizeof (*fixP), sizeof (*fixP));
-	  fixP->fx_next->fx_addsy = NULL;
-	  fixP->fx_next->fx_offset = -4;
-
-	  switch (fixP->fx_r_type)
-	    {
-	    case BFD_RELOC_RISCV_PCREL_LO12_S:
-	      fixP->fx_r_type = BFD_RELOC_RISCV_LO12_S;
-	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_PCREL_LO12_S;
-	      break;
-
-	    case BFD_RELOC_RISCV_PCREL_LO12_I:
-	      fixP->fx_r_type = BFD_RELOC_RISCV_LO12_I;
-	    default:
-	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_PCREL_LO12_I;
-	      break;
-	    }
-	}
+      pcrel_r_type = BFD_RELOC_RISCV_TLS_PCREL_LO12;
       break;
 
+    case BFD_RELOC_RISCV_GOT_LO12:
+      gas_assert (fixP->fx_addsy != NULL);
+      pcrel_r_type = BFD_RELOC_RISCV_PCREL_LO12_I;
+      break;
+
+    case BFD_RELOC_RISCV_PCREL_LO12_S:
+      if (fixP->fx_addsy != NULL)
+	{
+	  fixP->fx_r_type = BFD_RELOC_RISCV_LO12_S;
+	  pcrel_r_type = BFD_RELOC_RISCV_PCREL_LO12_S;
+	  break;
+	}
+      return;
+
+    case BFD_RELOC_RISCV_PCREL_LO12_I:
+      if (fixP->fx_addsy != NULL)
+	{
+	  fixP->fx_r_type = BFD_RELOC_RISCV_LO12_I;
+	  pcrel_r_type = BFD_RELOC_RISCV_PCREL_LO12_I;
+	  break;
+	}
+      return;
+
+    case BFD_RELOC_RISCV_TLS_PCREL_LO12:
     case BFD_RELOC_RISCV_CALL:
     case BFD_RELOC_RISCV_CALL_PLT:
     case BFD_RELOC_MIPS_JMP:
     case BFD_RELOC_12_PCREL:
-      break;
+      return;
 
     default:
       internalError ();
     }
 
-  /* Remember value for tc_gen_reloc.  */
-  fixP->fx_addnumber = *valP;
+  /* We only get here for the low part of split PC-relative relocs.
+     Record the distance between the high and low parts.  For now,
+     we assume the high part (AUIPC) is immediately before us, and
+     so this distance is -4. */
+  gas_assert (fixP->fx_subsy == NULL);
+  fixP->fx_next = xmemdup (fixP, sizeof (*fixP), sizeof (*fixP));
+  fixP->fx_next->fx_addsy = NULL;
+  fixP->fx_next->fx_offset = -4;
+  fixP->fx_next->fx_r_type = pcrel_r_type;
 }
 
 /* Align the current frag to a given power of two.  If a particular

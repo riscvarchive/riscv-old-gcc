@@ -119,7 +119,7 @@
     case SYMBOL_REF:
     case LABEL_REF:
       return (mips_symbolic_constant_p (op, &symbol_type)
-	      && !mips_split_p[symbol_type]);
+	      && !mips_hi_relocs[symbol_type]);
 
     case HIGH:
       op = XEXP (op, 0);

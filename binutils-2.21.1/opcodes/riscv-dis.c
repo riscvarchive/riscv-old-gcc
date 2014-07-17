@@ -248,6 +248,8 @@ maybe_print_address (struct riscv_private_data *pd, int base_reg, int offset)
     }
   else if (base_reg == GP_REG && pd->gp != (bfd_vma)-1)
     pd->print_addr = pd->gp + offset;
+  else if (base_reg == TP_REG)
+    pd->print_addr = offset;
 }
 
 /* Print insn arguments for 32/64-bit code.  */

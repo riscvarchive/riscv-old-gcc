@@ -1418,7 +1418,7 @@ while (0)
 
 extern const enum reg_class mips_regno_to_class[];
 extern bool mips_hard_regno_mode_ok[][FIRST_PSEUDO_REGISTER];
-extern bool mips_split_p[];
+extern const char* mips_hi_relocs[];
 extern enum processor mips_tune;        /* which cpu to schedule for */
 #endif
 

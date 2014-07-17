@@ -318,17 +318,13 @@ static const struct mips_rtx_cost_data *mips_cost;
 /* Index [M][R] is true if register R is allowed to hold a value of mode M.  */
 bool mips_hard_regno_mode_ok[(int) MAX_MACHINE_MODE][FIRST_PSEUDO_REGISTER];
 
-/* mips_split_p[X] is true if symbols of type X can be split by
-   mips_split_symbol.  */
-bool mips_split_p[NUM_SYMBOL_TYPES];
-
 /* mips_lo_relocs[X] is the relocation to use when a symbol of type X
    appears in a LO_SUM.  It can be null if such LO_SUMs aren't valid or
    if they are matched by a special .md file pattern.  */
-static const char *mips_lo_relocs[NUM_SYMBOL_TYPES];
+const char *mips_lo_relocs[NUM_SYMBOL_TYPES];
 
 /* Likewise for HIGHs.  */
-static const char *mips_hi_relocs[NUM_SYMBOL_TYPES];
+const char *mips_hi_relocs[NUM_SYMBOL_TYPES];
 
 /* Index R is the smallest register class that contains register R.  */
 const enum reg_class mips_regno_to_class[FIRST_PSEUDO_REGISTER] = {
@@ -583,9 +579,7 @@ riscv_split_integer_cost (HOST_WIDE_INT val)
 static int
 riscv_integer_cost (HOST_WIDE_INT val)
 {
-  int cost, split_cost;
   struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
-
   return MIN (riscv_build_integer (codes, val), riscv_split_integer_cost (val));
 }
 
@@ -915,7 +909,7 @@ mips_classify_address (struct mips_address_info *info, rtx x,
     case SYMBOL_REF:
       if (mips_symbolic_constant_p (x, &info->symbol_type)
 	  && riscv_symbol_insns (info->symbol_type) > 0
-	  && !mips_split_p[info->symbol_type]
+	  && !mips_hi_relocs[info->symbol_type]
 	  && mips_lo_relocs[info->symbol_type])
 	{
 	  info->type = ADDRESS_LO_SUM;
@@ -978,7 +972,7 @@ mips_const_insns (rtx x)
     {
     case HIGH:
       if (!mips_symbolic_constant_p (XEXP (x, 0), &symbol_type)
-	  || !mips_split_p[symbol_type])
+	  || !mips_hi_relocs[symbol_type])
 	return 0;
 
       /* This is simply an LUI. */
@@ -1171,18 +1165,10 @@ mips_strip_unspec_address (rtx op)
    The returned expression can be used as the first operand to a LO_SUM.  */
 
 static rtx
-mips_unspec_offset_high (rtx temp, rtx base, rtx addr,
-			 enum mips_symbol_type symbol_type)
+mips_unspec_offset_high (rtx temp, rtx addr, enum mips_symbol_type symbol_type)
 {
-  if (mips_split_p[symbol_type])
-    {
-      addr = gen_rtx_HIGH (Pmode, mips_unspec_address (addr, symbol_type));
-      addr = mips_force_temporary (temp, addr);
-      if (base)
-	addr = mips_force_temporary (temp, gen_rtx_PLUS (Pmode, addr, base));
-      return addr;
-    }
-  return base;
+  addr = gen_rtx_HIGH (Pmode, mips_unspec_address (addr, symbol_type));
+  return mips_force_temporary (temp, addr);
 }
 
 /* Load an entry from the GOT. */
@@ -1194,6 +1180,12 @@ static rtx riscv_got_load_tls_gd(rtx dest, rtx sym)
 static rtx riscv_got_load_tls_ie(rtx dest, rtx sym)
 {
   return (Pmode == DImode ? gen_got_load_tls_iedi(dest, sym) : gen_got_load_tls_iesi(dest, sym));
+}
+
+static rtx riscv_tls_add_tp(rtx dest, rtx sym)
+{
+  rtx tp = gen_rtx_REG (Pmode, THREAD_POINTER_REGNUM);
+  return (Pmode == DImode ? gen_tls_add_tpdi(dest, dest, tp, sym) : gen_tls_add_tpsi(dest, dest, tp, sym));
 }
 
 /* If MODE is MAX_MACHINE_MODE, ADDR appears as a move operand, otherwise
@@ -1218,7 +1210,7 @@ mips_split_symbol (rtx temp, rtx addr, enum machine_mode mode, rtx *low_out)
   if ((GET_CODE (addr) == HIGH && mode == MAX_MACHINE_MODE)
       || !mips_symbolic_constant_p (addr, &symbol_type)
       || riscv_symbol_insns (symbol_type) == 0
-      || !mips_split_p[symbol_type])
+      || !mips_hi_relocs[symbol_type])
     return false;
 
   if (low_out)
@@ -1322,8 +1314,8 @@ mips_legitimize_tls_address (rtx loc)
       break;
 
     case TLS_MODEL_LOCAL_EXEC:
-      tp = gen_rtx_REG (Pmode, THREAD_POINTER_REGNUM);
-      tmp1 = mips_unspec_offset_high (NULL, tp, loc, SYMBOL_TPREL);
+      tmp1 = mips_unspec_offset_high (NULL, loc, SYMBOL_TPREL);
+      emit_insn (riscv_tls_add_tp (tmp1, loc));
       dest = gen_rtx_LO_SUM (Pmode, tmp1,
 			     mips_unspec_address (loc, SYMBOL_TPREL));
       break;
@@ -3068,22 +3060,19 @@ mips_expand_block_move (rtx dest, rtx src, rtx length)
   return false;
 }
 
-/* (Re-)Initialize mips_split_p, mips_lo_relocs and mips_hi_relocs.  */
+/* (Re-)Initialize mips_lo_relocs and mips_hi_relocs.  */
 
 static void
 mips_init_relocs (void)
 {
-  memset (mips_split_p, '\0', sizeof (mips_split_p));
   memset (mips_hi_relocs, '\0', sizeof (mips_hi_relocs));
   memset (mips_lo_relocs, '\0', sizeof (mips_lo_relocs));
 
   if (!flag_pic)
     {
-      mips_split_p[SYMBOL_ABSOLUTE] = true;
       mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
       mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
 
-      mips_split_p[SYMBOL_TPREL] = true;
       mips_hi_relocs[SYMBOL_TPREL] = "%tprel_hi(";
       mips_lo_relocs[SYMBOL_TPREL] = "%tprel_lo(";
     }

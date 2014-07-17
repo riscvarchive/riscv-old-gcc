@@ -111,6 +111,7 @@ const struct riscv_opcode riscv_builtin_opcodes[] =
 {"bne",       "I",   "s,t,p",  MATCH_BNE, MASK_BNE, match_opcode,   RD_xs1|RD_xs2 },
 {"addi",      "I",   "d,s,j",  MATCH_ADDI, MASK_ADDI, match_opcode,  WR_xd|RD_xs1 },
 {"add",       "I",   "d,s,t",  MATCH_ADD, MASK_ADD, match_opcode,  WR_xd|RD_xs1|RD_xs2 },
+{"add",       "I",   "d,s,t,0",MATCH_ADD, MASK_ADD, match_opcode,  WR_xd|RD_xs1|RD_xs2 },
 {"add",       "I",   "d,s,j",  MATCH_ADDI, MASK_ADDI, match_opcode,  INSN_ALIAS|WR_xd|RD_xs1 },
 {"la",        "I",   "d,A",  0,    (int) M_LA,  match_never, INSN_MACRO },
 {"lla",       "I",   "d,A",  0,    (int) M_LLA,  match_never, INSN_MACRO },
