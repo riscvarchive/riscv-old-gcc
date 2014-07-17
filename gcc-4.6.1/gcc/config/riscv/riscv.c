@@ -1300,14 +1300,8 @@ static rtx
 mips_legitimize_tls_address (rtx loc)
 {
   rtx dest, insn, v0, tp, tmp1;
-  enum tls_model model;
 
-  model = SYMBOL_REF_TLS_MODEL (loc);
-  /* Local Exec suffices when we're statically-linked. */
-  if (!TARGET_USE_GOT)
-    model = TLS_MODEL_LOCAL_EXEC;
-
-  switch (model)
+  switch (SYMBOL_REF_TLS_MODEL (loc))
     {
     case TLS_MODEL_LOCAL_DYNAMIC:
       /* Rely on section anchors for the optimization that LDM TLS

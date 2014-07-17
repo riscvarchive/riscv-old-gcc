@@ -1752,7 +1752,7 @@
   [(set (match_operand:P 0 "register_operand" "=d")
        (unspec:P [(match_operand:P 1 "symbolic_operand" "")]
                  UNSPEC_TLS_IE))]
-  "TARGET_USE_GOT"
+  ""
   "la.tls.ie\t%0,%1"
   [(set_attr "got" "load")
    (set_attr "mode" "<MODE>")])
