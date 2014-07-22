@@ -5253,7 +5253,7 @@ _bfd_riscv_elf_common_definition (Elf_Internal_Sym *sym)
 /* Delete some bytes from a section while relaxing.  */
 
 static bfd_boolean
-riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
+riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, size_t count)
 {
   Elf_Internal_Shdr * symtab_hdr;
   unsigned int        sec_shndx;
@@ -5289,7 +5289,7 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
 
   if (alignment_rel)
     {
-      int i;
+      size_t i;
       BFD_ASSERT (count % 4 == 0);
       for (i = 0; i < count; i += 4)
 	bfd_put_32 (abfd, RISCV_NOP, contents + toaddr - count + i);
@@ -5301,19 +5301,18 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
   /* Adjust all the relocs.  */
   for (irel = elf_section_data (sec)->relocs; irel < irelend; irel++)
     {
-      /* Only relocations not aganist symbols need be adjusted. */
-      if (ELF_R_SYM (abfd, irel->r_info) == 0)
+      if (irel->r_offset <= addr)
 	{
-	  /* Adjust branches and jumps that cross the deleted bytes. */
-	  if (irel->r_offset < addr && irel->r_offset + irel->r_addend > addr)
-	    irel->r_addend -= count;
-	  if (irel->r_offset > addr && irel->r_offset + irel->r_addend <= addr)
-	    irel->r_addend += count;
+	  if (irel->r_offset + irel->r_addend > addr)
+	    irel->r_addend -= ELF_R_SYM (abfd, irel->r_info) ? 0 : count;
 	}
-
-      /* Get the new reloc address.  */
-      if (irel->r_offset > addr && irel->r_offset < toaddr)
-	irel->r_offset -= count;
+      else
+	{
+	  if (irel->r_offset + irel->r_addend <= addr)
+	    irel->r_addend += ELF_R_SYM (abfd, irel->r_info) ? 0 : count;
+	  if (irel->r_offset < toaddr)
+	    irel->r_offset -= count;
+	}
     }
 
   /* Adjust the local symbols defined in this section.  */
@@ -5330,8 +5329,8 @@ riscv_relax_delete_bytes (bfd *abfd, asection *sec, bfd_vma addr, int count)
 	  && isym->st_value <= toaddr)
 	isym->st_value -= count;
 
-      /* If the symbol *spans* the bytes we just deleted (i.e. it's
-	 *end* is in the moved bytes but it's *start* isn't), then we
+      /* If the symbol *spans* the bytes we just deleted (i.e. its
+	 *end* is in the moved bytes but its *start* isn't), then we
 	 must adjust its size.  */
       if (isym->st_shndx == sec_shndx
 	  && isym->st_value < addr
