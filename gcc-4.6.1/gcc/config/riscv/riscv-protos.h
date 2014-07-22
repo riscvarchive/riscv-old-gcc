@@ -26,28 +26,14 @@ along with GCC; see the file COPYING3.  If not see
 #ifndef GCC_MIPS_PROTOS_H
 #define GCC_MIPS_PROTOS_H
 
-/* Classifies a SYMBOL_REF, LABEL_REF or UNSPEC address.
-
-   SYMBOL_ABSOLUTE
-       The symbol's value will be calculated using absolute relocations,
-       such as %hi and %lo.
-
-   SYMBOL_TLS
-       A thread-local symbol.
-
-   SYMBOL_TPREL
-       UNSPEC wrappers around SYMBOL_TLS, corresponding to the
-       thread-local storage relocation operators.
-
-   SYMBOL_32_HIGH
-       For a 32-bit symbolic address X, this is the value of %hi(X). */
 enum mips_symbol_type {
   SYMBOL_ABSOLUTE,
   SYMBOL_GOT_DISP,
   SYMBOL_TLS,
-  SYMBOL_TPREL
+  SYMBOL_TLS_LE,
+  SYMBOL_TLS_IE
 };
-#define NUM_SYMBOL_TYPES (SYMBOL_TPREL + 1)
+#define NUM_SYMBOL_TYPES (SYMBOL_TLS_IE + 1)
 
 extern bool mips_symbolic_constant_p (rtx, enum mips_symbol_type *);
 extern int mips_regno_mode_ok_for_base_p (int, enum machine_mode, bool);

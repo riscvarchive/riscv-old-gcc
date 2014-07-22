@@ -295,29 +295,32 @@ struct mips_htab_traverse_info
 };
 
 #define TLS_RELOC_P(r_type) \
-  (r_type == R_RISCV_TLS_DTPMOD32		\
-   || r_type == R_RISCV_TLS_DTPMOD64		\
-   || r_type == R_RISCV_TLS_DTPREL32		\
-   || r_type == R_RISCV_TLS_DTPREL64		\
+  ((r_type) == R_RISCV_TLS_DTPMOD32		\
+   || (r_type) == R_RISCV_TLS_DTPMOD64		\
+   || (r_type) == R_RISCV_TLS_DTPREL32		\
+   || (r_type) == R_RISCV_TLS_DTPREL64		\
+   || (r_type) == R_RISCV_TLS_DTPREL_HI16	\
+   || (r_type) == R_RISCV_TLS_DTPREL_LO16	\
+   || (r_type) == R_RISCV_TLS_TPREL32		\
+   || (r_type) == R_RISCV_TLS_TPREL64		\
+   || (r_type) == R_RISCV_TPREL_HI20		\
+   || (r_type) == R_RISCV_TPREL_LO12_I		\
+   || (r_type) == R_RISCV_TPREL_LO12_S		\
+   || (r_type) == R_RISCV_TPREL_ADD		\
    || TLS_GD_RELOC_P(r_type)			\
-   || r_type == R_RISCV_TLS_DTPREL_HI16		\
-   || r_type == R_RISCV_TLS_DTPREL_LO16		\
-   || TLS_GOTTPREL_RELOC_P(r_type)		\
-   || r_type == R_RISCV_TLS_TPREL32		\
-   || r_type == R_RISCV_TLS_TPREL64		\
-   || r_type == R_RISCV_TPREL_HI20		\
-   || r_type == R_RISCV_TPREL_LO12_I		\
-   || r_type == R_RISCV_TPREL_LO12_S		\
-   || r_type == R_RISCV_TPREL_ADD)
+   || TLS_GOTTPREL_RELOC_P(r_type))
 
 #define TLS_GOTTPREL_RELOC_P(r_type) \
-  ((r_type) == R_RISCV_TLS_GOTTPREL		\
+  ((r_type) == R_RISCV_TLS_IE_HI20		\
+   || (r_type) == R_RISCV_TLS_IE_LO12		\
+   || (r_type) == R_RISCV_TLS_IE_ADD		\
+   || (r_type) == R_RISCV_TLS_IE_LO12_I		\
+   || (r_type) == R_RISCV_TLS_IE_LO12_S		\
    || (r_type) == R_RISCV_TLS_GOT_HI20		\
    || (r_type) == R_RISCV_TLS_GOT_LO12)
 
 #define TLS_GD_RELOC_P(r_type) \
-  ((r_type) == R_RISCV_TLS_GD			\
-   || (r_type) == R_RISCV_TLS_GD_HI20		\
+  ((r_type) == R_RISCV_TLS_GD_HI20		\
    || (r_type) == R_RISCV_TLS_GD_LO12)
 
 /* The structure of the runtime procedure descriptor created by the
@@ -727,9 +730,83 @@ static reloc_howto_type howto_table[] =
   EMPTY_HOWTO (26),
   EMPTY_HOWTO (27),
   EMPTY_HOWTO (28),
-  EMPTY_HOWTO (29),
 
-  /* TLS thread pointer offset.  */
+  /* TLS IE GOT access in non-PIC code.  */
+  HOWTO (R_RISCV_TLS_IE_HI20,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_signed, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 "R_RISCV_TLS_IE_HI20",	/* name */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* TLS IE GOT access in non-PIC code.  */
+  HOWTO (R_RISCV_TLS_IE_LO12,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_signed, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 "R_RISCV_TLS_IE_LO12_I",/* name */
+	 FALSE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* TLS IE thread pointer usage.  */
+  HOWTO (R_RISCV_TLS_IE_ADD,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 32,			/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_dont,/* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 "R_RISCV_TLS_IE_ADD",	/* name */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0,			/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* TLS IE low-part relocation for relaxation.  */
+  HOWTO (R_RISCV_TLS_IE_LO12_I,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_signed, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 "R_RISCV_TLS_IE_LO12_I",/* name */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0,			/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* TLS IE low-part relocation for relaxation.  */
+  HOWTO (R_RISCV_TLS_IE_LO12_S,	/* type */
+	 0,			/* rightshift */
+	 2,			/* size (0 = byte, 1 = short, 2 = long) */
+	 RISCV_IMM_BITS,	/* bitsize */
+	 FALSE,			/* pc_relative */
+	 0,			/* bitpos */
+	 complain_overflow_signed, /* complain_on_overflow */
+	 _bfd_riscv_elf_generic_reloc, /* special_function */
+	 "R_RISCV_TLS_IE_LO12_S",/* name */
+	 TRUE,			/* partial_inplace */
+	 0,			/* src_mask */
+	 0,			/* dst_mask */
+	 FALSE),		/* pcrel_offset */
+
+  /* TLS LE thread pointer offset.  */
   HOWTO (R_RISCV_TPREL_HI20,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
@@ -744,7 +821,7 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* TLS thread pointer offset.  */
+  /* TLS LE thread pointer offset.  */
   HOWTO (R_RISCV_TPREL_LO12_I,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
@@ -759,6 +836,7 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_ITYPE_IMM(-1U) | (OP_MASK_RS1 << OP_SH_RS1),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
+  /* TLS LE thread pointer offset.  */
   HOWTO (R_RISCV_TPREL_LO12_S,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
@@ -773,6 +851,7 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_STYPE_IMM(-1U) | (OP_MASK_RS1 << OP_SH_RS1),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
+  /* TLS LE thread pointer usage.  */
   HOWTO (R_RISCV_TPREL_ADD,	/* type */
 	 0,			/* rightshift */
 	 2,			/* size (0 = byte, 1 = short, 2 = long) */
@@ -786,11 +865,6 @@ static reloc_howto_type howto_table[] =
 	 0,			/* src_mask */
 	 0,			/* dst_mask */
 	 FALSE),		/* pcrel_offset */
-
-  EMPTY_HOWTO (34),
-  EMPTY_HOWTO (35),
-  EMPTY_HOWTO (36),
-  EMPTY_HOWTO (37),
 
   /* TLS relocations.  */
   HOWTO (R_RISCV_TLS_DTPMOD32,	/* type */
@@ -849,21 +923,7 @@ static reloc_howto_type howto_table[] =
 	 MINUS_ONE,		/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* TLS general dynamic variable reference.  */
-  HOWTO (R_RISCV_TLS_GD,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,	/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_TLS_GD",	/* name */
-	 TRUE,			/* partial_inplace */
-	 ENCODE_ITYPE_IMM(-1U),	/* src_mask */
-	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (42),
   EMPTY_HOWTO (43),
 
   /* TLS local dynamic offset.  */
@@ -896,20 +956,7 @@ static reloc_howto_type howto_table[] =
 	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
 	 FALSE),		/* pcrel_offset */
 
-  /* TLS thread pointer offset.  */
-  HOWTO (R_RISCV_TLS_GOTTPREL,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,	/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_TLS_GOTTPREL",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
+  EMPTY_HOWTO (46),
 
   HOWTO (R_RISCV_TLS_TPREL32,	/* type */
 	 0,			/* rightshift */
@@ -1128,13 +1175,17 @@ static const struct elf_reloc_map riscv_reloc_map[] =
   { BFD_RELOC_MIPS_TLS_DTPREL32, R_RISCV_TLS_DTPREL32 },
   { BFD_RELOC_MIPS_TLS_DTPMOD64, R_RISCV_TLS_DTPMOD64 },
   { BFD_RELOC_MIPS_TLS_DTPREL64, R_RISCV_TLS_DTPREL64 },
-  { BFD_RELOC_MIPS_TLS_GD, R_RISCV_TLS_GD },
   { BFD_RELOC_MIPS_TLS_TPREL32, R_RISCV_TLS_TPREL32 },
   { BFD_RELOC_MIPS_TLS_TPREL64, R_RISCV_TLS_TPREL64 },
   { BFD_RELOC_RISCV_TPREL_HI20, R_RISCV_TPREL_HI20 },
   { BFD_RELOC_RISCV_TPREL_ADD, R_RISCV_TPREL_ADD },
   { BFD_RELOC_RISCV_TPREL_LO12_S, R_RISCV_TPREL_LO12_S },
   { BFD_RELOC_RISCV_TPREL_LO12_I, R_RISCV_TPREL_LO12_I },
+  { BFD_RELOC_RISCV_TLS_IE_HI20, R_RISCV_TLS_IE_HI20 },
+  { BFD_RELOC_RISCV_TLS_IE_LO12, R_RISCV_TLS_IE_LO12 },
+  { BFD_RELOC_RISCV_TLS_IE_ADD, R_RISCV_TLS_IE_ADD },
+  { BFD_RELOC_RISCV_TLS_IE_LO12_S, R_RISCV_TLS_IE_LO12_S },
+  { BFD_RELOC_RISCV_TLS_IE_LO12_I, R_RISCV_TLS_IE_LO12_I },
   { BFD_RELOC_RISCV_TLS_GOT_HI20, R_RISCV_TLS_GOT_HI20 },
   { BFD_RELOC_RISCV_TLS_GOT_LO12, R_RISCV_TLS_GOT_LO12 },
   { BFD_RELOC_RISCV_TLS_GD_HI20, R_RISCV_TLS_GD_HI20 },
@@ -2772,12 +2823,12 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
     {
     case R_RISCV_GOT_HI20:
     case R_RISCV_GOT_LO12:
-    case R_RISCV_TLS_GD:
     case R_RISCV_TLS_GD_HI20:
     case R_RISCV_TLS_GD_LO12:
-    case R_RISCV_TLS_GOTTPREL:
     case R_RISCV_TLS_GOT_HI20:
     case R_RISCV_TLS_GOT_LO12:
+    case R_RISCV_TLS_IE_HI20:
+    case R_RISCV_TLS_IE_LO12:
       if (!local_p)
 	{
 	      BFD_ASSERT (addend == 0);
@@ -2930,6 +2981,9 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       break;
 
     case R_RISCV_TPREL_ADD:
+    case R_RISCV_TLS_IE_ADD:
+    case R_RISCV_TLS_IE_LO12_I:
+    case R_RISCV_TLS_IE_LO12_S:
       value = 0;
       break;
 
@@ -2953,6 +3007,14 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 
     case R_RISCV_PCREL_HI20:
       value = ENCODE_UTYPE_IMM (RISCV_PCREL_HIGH_PART (addend + symbol, p));
+      break;
+
+    case R_RISCV_TLS_IE_HI20:
+      value = ENCODE_UTYPE_IMM (RISCV_LUI_HIGH_PART (g));
+      break;
+
+    case R_RISCV_TLS_IE_LO12:
+      value = ENCODE_ITYPE_IMM (g);
       break;
 
     case R_RISCV_HI20:
@@ -2997,12 +3059,7 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 	else
 	  value = ENCODE_STYPE_IMM (value);
 	value |= rs1 << OP_SH_RS1;
-	break;
       }
-    case R_RISCV_TLS_GD:
-    case R_RISCV_TLS_GOTTPREL:
-      value = ENCODE_ITYPE_IMM (g);
-      overflowed_p = !VALID_ITYPE_IMM (value);
       break;
 
     case R_RISCV_TLS_GOT_HI20:
@@ -3509,10 +3566,8 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	{
 	case R_RISCV_GOT_HI20:
 	case R_RISCV_GOT_LO12:
-	case R_RISCV_TLS_GOTTPREL:
 	case R_RISCV_TLS_GOT_HI20:
 	case R_RISCV_TLS_GOT_LO12:
-	case R_RISCV_TLS_GD:
 	case R_RISCV_TLS_GD_HI20:
 	case R_RISCV_TLS_GD_LO12:
 	  if (dynobj == NULL)
@@ -3593,14 +3648,14 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	    return FALSE;
 	  break;
 
-	case R_RISCV_TLS_GOTTPREL:
 	case R_RISCV_TLS_GOT_HI20:
 	case R_RISCV_TLS_GOT_LO12:
+	case R_RISCV_TLS_IE_HI20:
+	case R_RISCV_TLS_IE_LO12:
 	  if (info->shared)
 	    info->flags |= DF_STATIC_TLS;
 	  /* Fall through */
 
-	case R_RISCV_TLS_GD:
 	case R_RISCV_TLS_GD_HI20:
 	case R_RISCV_TLS_GD_LO12:
 	  /* This symbol requires a global offset table entry, or two
@@ -5403,13 +5458,13 @@ _bfd_riscv_relax_lui (bfd *abfd, asection *sec,
 }
 
 static bfd_boolean
-_bfd_riscv_relax_tprel (bfd *abfd, asection *sec,
-			struct bfd_link_info *link_info, bfd_byte *contents,
-			Elf_Internal_Shdr *symtab_hdr,
-			Elf_Internal_Sym *isymbuf,
-			Elf_Internal_Rela *internal_relocs,
-			Elf_Internal_Rela *irel, bfd_vma symval,
-			bfd_boolean *again)
+_bfd_riscv_relax_tls_le (bfd *abfd, asection *sec,
+			 struct bfd_link_info *link_info, bfd_byte *contents,
+			 Elf_Internal_Shdr *symtab_hdr,
+			 Elf_Internal_Sym *isymbuf,
+			 Elf_Internal_Rela *internal_relocs,
+			 Elf_Internal_Rela *irel, bfd_vma symval,
+			 bfd_boolean *again)
 {
   /* See if this symbol is in range of tp. */
   if (RISCV_CONST_HIGH_PART (symval - tprel_base (link_info)) != 0)
@@ -5425,6 +5480,64 @@ _bfd_riscv_relax_tprel (bfd *abfd, asection *sec,
   irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_NONE);
   if (! riscv_relax_delete_bytes (abfd, sec, irel->r_offset, 4))
     return FALSE;
+
+  *again = TRUE;
+  return TRUE;
+}
+
+/* Relax TLS IE to TLS LE. */
+static bfd_boolean
+_bfd_riscv_relax_tls_ie (bfd *abfd, asection *sec,
+			 bfd_byte *contents,
+			 Elf_Internal_Shdr *symtab_hdr,
+			 Elf_Internal_Sym *isymbuf,
+			 Elf_Internal_Rela *internal_relocs,
+			 Elf_Internal_Rela *irel,
+			 bfd_boolean *again)
+{
+  bfd_vma insn;
+
+  elf_section_data (sec)->relocs = internal_relocs;
+  elf_section_data (sec)->this_hdr.contents = contents;
+  symtab_hdr->contents = (unsigned char *) isymbuf;
+
+  switch (ELF_R_TYPE (abfd, irel->r_info))
+    {
+    case R_RISCV_TLS_IE_HI20:
+      /* Replace with R_RISCV_TPREL_HI20. */
+      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_TPREL_HI20);
+      /* Overwrite AUIPC with LUI. */
+      BFD_ASSERT (irel->r_offset + 4 <= sec->size);
+      insn = bfd_get_32 (abfd, contents + irel->r_offset);
+      insn = (insn & ~MASK_LUI) | MATCH_LUI;
+      bfd_put_32 (abfd, insn, contents + irel->r_offset);
+      break;
+
+    case R_RISCV_TLS_IE_LO12:
+      /* Just delete the reloc. */
+      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_NONE);
+      if (! riscv_relax_delete_bytes (abfd, sec, irel->r_offset, 4))
+        return FALSE;
+      break;
+
+    case R_RISCV_TLS_IE_ADD:
+      /* Replace with R_RISCV_TPREL_ADD. */
+      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_TPREL_ADD);
+      break;
+
+    case R_RISCV_TLS_IE_LO12_I:
+      /* Replace with R_RISCV_TPREL_LO12_I. */
+      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_TPREL_LO12_I);
+      break;
+
+    case R_RISCV_TLS_IE_LO12_S:
+      /* Replace with R_RISCV_TPREL_LO12_S. */
+      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_TPREL_LO12_S);
+      break;
+
+    default:
+      abort();
+    }
 
   *again = TRUE;
   return TRUE;
@@ -5467,10 +5580,11 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
       bfd_vma symval;
       int type = ELF_R_TYPE (abfd, irel->r_info);
       bfd_boolean call = type == R_RISCV_CALL || type == R_RISCV_CALL_PLT;
-      bfd_boolean lui = type == R_RISCV_HI20 || type == R_RISCV_HI20;
-      bfd_boolean tprel = type == R_RISCV_TPREL_HI20 || type == R_RISCV_TPREL_ADD;
+      bfd_boolean lui = type == R_RISCV_HI20 || type == R_RISCV_PCREL_HI20;
+      bfd_boolean tls_le = type == R_RISCV_TPREL_HI20 || type == R_RISCV_TPREL_ADD;
+      bfd_boolean tls_ie = type == R_RISCV_TLS_IE_HI20 || type == R_RISCV_TLS_IE_LO12 || type == R_RISCV_TLS_IE_ADD || type == R_RISCV_TLS_IE_LO12_I || type == R_RISCV_TLS_IE_LO12_S;
 
-      if (!(call || lui || tprel))
+      if (!(call || lui || tls_le || tls_ie))
 	continue;
 
       /* Get the section contents.  */
@@ -5527,8 +5641,9 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 
 	  if (h->plt.offset != MINUS_ONE)
 	    symval = sec_addr(htab->splt) + h->plt.offset;
-	  else if (h->root.type != bfd_link_hash_defined
-		   && h->root.type != bfd_link_hash_defweak)
+	  else if (h->root.u.def.section->output_section == NULL
+		   || (h->root.type != bfd_link_hash_defined
+		       && h->root.type != bfd_link_hash_defweak))
 	    continue;
 	  else
 	    symval = sec_addr(h->root.u.def.section) + h->root.u.def.value;
@@ -5544,9 +5659,13 @@ _bfd_riscv_relax_section (bfd *abfd, asection *sec,
 					symtab_hdr, isymbuf, internal_relocs,
 					irel, symval, again))
 	goto error_return;
-      if (tprel && !_bfd_riscv_relax_tprel (abfd, sec, link_info, contents,
-					    symtab_hdr, isymbuf, internal_relocs,
-					    irel, symval, again))
+      if (tls_le && !_bfd_riscv_relax_tls_le (abfd, sec, link_info, contents,
+					      symtab_hdr, isymbuf, internal_relocs,
+					      irel, symval, again))
+	goto error_return;
+      if (tls_ie && !_bfd_riscv_relax_tls_ie (abfd, sec, contents, symtab_hdr,
+					      isymbuf, internal_relocs, irel,
+					      again))
 	goto error_return;
     }
 

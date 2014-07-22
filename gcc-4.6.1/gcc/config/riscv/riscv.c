@@ -655,18 +655,6 @@ mips_classify_symbolic_expression (rtx x)
   return mips_classify_symbol (x);
 }
 
-/* Return true if OFFSET is within the range [0, ALIGN), where ALIGN
-   is the alignment in bytes of SYMBOL_REF X.  */
-
-static bool
-mips_offset_within_alignment_p (rtx x, HOST_WIDE_INT offset)
-{
-  HOST_WIDE_INT align;
-
-  align = SYMBOL_REF_DECL (x) ? DECL_ALIGN_UNIT (SYMBOL_REF_DECL (x)) : 1;
-  return IN_RANGE (offset, 0, align - 1);
-}
-
 /* Return true if X is a symbolic constant that can be used in context
    CONTEXT.  If it is, store the type of the symbol in *SYMBOL_TYPE.  */
 
@@ -694,18 +682,11 @@ mips_symbolic_constant_p (rtx x, enum mips_symbol_type *symbol_type)
   switch (*symbol_type)
     {
     case SYMBOL_ABSOLUTE:
-      /* If the target has 64-bit pointers and the object file only
-	 supports 32-bit symbols, the values of those symbols will be
-	 sign-extended.  In this case we can't allow an arbitrary offset
-	 in case the 32-bit value X + OFFSET has a different sign from X.  */
-      return Pmode == SImode || offset_within_block_p (x, INTVAL (offset));
-
-    case SYMBOL_TPREL:
-      /* There is no carry between the HI and LO REL relocations, so the
-	 offset is only valid if we know it won't lead to such a carry.  */
-      return mips_offset_within_alignment_p (x, INTVAL (offset));
+      return true;
 
     case SYMBOL_TLS:
+    case SYMBOL_TLS_LE:
+    case SYMBOL_TLS_IE:
     case SYMBOL_GOT_DISP:
       return false;
     }
@@ -720,7 +701,8 @@ static int riscv_symbol_insns (enum mips_symbol_type type)
   {
     case SYMBOL_TLS: return 0; /* Depends on the TLS model. */
     case SYMBOL_ABSOLUTE: return 2; /* LUI + the reference itself */
-    case SYMBOL_TPREL: return 3; /* LUI + ADD TP + the reference itself */
+    case SYMBOL_TLS_LE: return 3; /* LUI + ADD TP + the reference itself */
+    case SYMBOL_TLS_IE: return 4; /* LUI + LD + ADD TP + the reference itself */
     case SYMBOL_GOT_DISP: return 3; /* AUIPC + LD GOT + the reference itself */
     default: gcc_unreachable();
   }
@@ -1182,10 +1164,26 @@ static rtx riscv_got_load_tls_ie(rtx dest, rtx sym)
   return (Pmode == DImode ? gen_got_load_tls_iedi(dest, sym) : gen_got_load_tls_iesi(dest, sym));
 }
 
-static rtx riscv_tls_add_tp(rtx dest, rtx sym)
+static rtx riscv_got_load_tls_ie_hi(rtx dest, rtx sym)
+{
+  return (Pmode == DImode ? gen_got_load_tls_ie_hidi(dest, sym) : gen_got_load_tls_ie_hisi(dest, sym));
+}
+
+static rtx riscv_got_load_tls_ie_lo(rtx dest, rtx base, rtx sym)
+{
+  return (Pmode == DImode ? gen_got_load_tls_ie_lodi(dest, base, sym) : gen_got_load_tls_ie_losi(dest, base, sym));
+}
+
+static rtx riscv_tls_add_tp_ie(rtx dest, rtx base, rtx sym)
 {
   rtx tp = gen_rtx_REG (Pmode, THREAD_POINTER_REGNUM);
-  return (Pmode == DImode ? gen_tls_add_tpdi(dest, dest, tp, sym) : gen_tls_add_tpsi(dest, dest, tp, sym));
+  return (Pmode == DImode ? gen_tls_add_tp_iedi(dest, base, tp, sym) : gen_tls_add_tp_iesi(dest, base, tp, sym));
+}
+
+static rtx riscv_tls_add_tp_le(rtx dest, rtx base, rtx sym)
+{
+  rtx tp = gen_rtx_REG (Pmode, THREAD_POINTER_REGNUM);
+  return (Pmode == DImode ? gen_tls_add_tp_ledi(dest, base, tp, sym) : gen_tls_add_tp_lesi(dest, base, tp, sym));
 }
 
 /* If MODE is MAX_MACHINE_MODE, ADDR appears as a move operand, otherwise
@@ -1306,18 +1304,35 @@ mips_legitimize_tls_address (rtx loc)
       break;
 
     case TLS_MODEL_INITIAL_EXEC:
-      tp = gen_rtx_REG (Pmode, THREAD_POINTER_REGNUM);
-      tmp1 = gen_reg_rtx (Pmode);
-      emit_insn (riscv_got_load_tls_ie(tmp1, loc));
-      dest = gen_reg_rtx (Pmode);
-      emit_insn (gen_add3_insn (dest, tmp1, tp));
+      if (flag_pic)
+	{
+	  /* la.tls.ie; tp-relative add */
+	  tp = gen_rtx_REG (Pmode, THREAD_POINTER_REGNUM);
+	  tmp1 = gen_reg_rtx (Pmode);
+	  emit_insn (riscv_got_load_tls_ie (tmp1, loc));
+	  dest = gen_reg_rtx (Pmode);
+	  emit_insn (gen_add3_insn (dest, tmp1, tp));
+	}
+      else
+	{
+	  /* lui %tls_ie_hi; ld %tls_le_lo; tp-relative add */
+	  tmp1 = gen_reg_rtx (Pmode);
+	  emit_insn (riscv_got_load_tls_ie_hi (tmp1, loc));
+	  dest = gen_reg_rtx (Pmode);
+	  emit_insn (riscv_got_load_tls_ie_lo (dest, tmp1, loc));
+	  tmp1 = gen_reg_rtx (Pmode);
+	  emit_insn (riscv_tls_add_tp_ie (tmp1, dest, loc));
+	  dest = gen_rtx_LO_SUM (Pmode, tmp1,
+				 mips_unspec_address (loc, SYMBOL_TLS_IE));
+	}
       break;
 
     case TLS_MODEL_LOCAL_EXEC:
-      tmp1 = mips_unspec_offset_high (NULL, loc, SYMBOL_TPREL);
-      emit_insn (riscv_tls_add_tp (tmp1, loc));
-      dest = gen_rtx_LO_SUM (Pmode, tmp1,
-			     mips_unspec_address (loc, SYMBOL_TPREL));
+      tmp1 = mips_unspec_offset_high (NULL, loc, SYMBOL_TLS_LE);
+      dest = gen_reg_rtx (Pmode);
+      emit_insn (riscv_tls_add_tp_le (dest, tmp1, loc));
+      dest = gen_rtx_LO_SUM (Pmode, dest,
+			     mips_unspec_address (loc, SYMBOL_TLS_LE));
       break;
 
     default:
@@ -3073,8 +3088,10 @@ mips_init_relocs (void)
       mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
       mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
 
-      mips_hi_relocs[SYMBOL_TPREL] = "%tprel_hi(";
-      mips_lo_relocs[SYMBOL_TPREL] = "%tprel_lo(";
+      mips_hi_relocs[SYMBOL_TLS_LE] = "%tprel_hi(";
+      mips_lo_relocs[SYMBOL_TLS_LE] = "%tprel_lo(";
+
+      mips_lo_relocs[SYMBOL_TLS_IE] = "%tls_ie_off(";
     }
 }
 
