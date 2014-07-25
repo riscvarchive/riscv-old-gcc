@@ -3849,10 +3849,6 @@ _bfd_riscv_elf_adjust_dynamic_symbol (struct bfd_link_info *info,
 	   && !(ELF_ST_VISIBILITY (h->other) != STV_DEFAULT
 		&& h->root.type == bfd_link_hash_undefweak))
     {
-      /* All relocations against this symbol that could have been made
-	 dynamic will now refer to the PLT entry instead.  */
-      hmips->possibly_dynamic_relocs = 0;
-
       /* We'll turn this into an actual address once we know the PLT size. */
       h->plt.offset = htab->nplt++;
 
