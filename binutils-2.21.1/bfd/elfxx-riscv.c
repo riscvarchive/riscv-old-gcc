@@ -3511,13 +3511,9 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
   const Elf_Internal_Rela *rel_end;
   asection *sreloc;
   const struct elf_backend_data *bed;
-  struct mips_elf_link_hash_table *htab;
 
   if (info->relocatable)
     return TRUE;
-
-  htab = mips_elf_hash_table (info);
-  BFD_ASSERT (htab != NULL);
 
   dynobj = elf_hash_table (info)->dynobj;
   symtab_hdr = &elf_tdata (abfd)->symtab_hdr;
