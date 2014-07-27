@@ -4244,6 +4244,10 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	  if (! _bfd_elf_add_dynamic_entry (info, DT_RISCV_PLTGOT, 0))
 	    return FALSE;
 	}
+
+      if (!info->shared)
+	if (! _bfd_elf_add_dynamic_entry (info, DT_RISCV_GP_VALUE, 0))
+	  return FALSE;
     }
 
   return TRUE;
@@ -4596,6 +4600,10 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 
 	    case DT_RISCV_PLTGOT:
 	      dyn.d_un.d_ptr = sec_addr(htab->sgotplt);
+	      break;
+
+	    case DT_RISCV_GP_VALUE:
+	      dyn.d_un.d_val = elf_gp (output_bfd);
 	      break;
 
 	    case DT_RISCV_LOCAL_GOTNO:

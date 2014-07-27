@@ -537,6 +537,13 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
   /* Relocate global offset table.  */
   elf_machine_got_rel (l, lazy);
 
+  /* Load the global pointer. */
+  if (l->l_info[DT_RISCV (GP_VALUE)])
+    {
+      register long gp asm("gp") = l->l_info[DT_RISCV (GP_VALUE)]->d_un.d_val;
+      asm volatile ("" : "+r"(gp));
+    }
+
   /* If using PLTs, fill in the first two entries of .got.plt.  */
   if (l->l_info[DT_JMPREL])
     {
