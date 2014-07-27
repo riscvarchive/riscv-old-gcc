@@ -17,6 +17,20 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-/* Number of extra dynamic section entries for this architecture.  By
-   default there are none.  */
-#define DT_THISPROCNUM	DT_MIPS_NUM
+/* Number of local global offset table entries.  */
+#define DT_RISCV_LOCAL_GOTNO	0x70000000
+
+/* Number of entries in the .dynsym section.  */
+#define DT_RISCV_SYMTABNO	0x70000001
+
+/* Index of first dynamic symbol in global offset table.  */
+#define DT_RISCV_GOTSYM		0x70000002
+
+/* Address of the base of the PLTGOT.  */
+#define DT_RISCV_PLTGOT         0x70000003
+
+/* Value of GP register. */
+#define DT_RISCV_GP_VALUE	0x70000004
+
+/* Number of extra dynamic section entries for this architecture. */
+#define DT_THISPROCNUM	5

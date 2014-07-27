@@ -62,7 +62,7 @@
 
 /* Translate a processor specific dynamic tag to the index
    in l_info array.  */
-#define DT_MIPS(x) (DT_MIPS_##x - DT_LOPROC + DT_NUM)
+#define DT_RISCV(x) (DT_RISCV_##x - DT_LOPROC + DT_NUM)
 
 #define ELF_MACHINE_DEBUG_SETUP(l,r)
 
@@ -119,7 +119,7 @@ do {									\
     break;								\
 									\
   i = 2; /* got[0] and got[1] are reserved. */				\
-  n = map->l_info[DT_MIPS (LOCAL_GOTNO)]->d_un.d_val;			\
+  n = map->l_info[DT_RISCV (LOCAL_GOTNO)]->d_un.d_val;			\
 									\
   /* Add the run-time displacement to all local got entries. */		\
   while (i < n)								\
@@ -128,9 +128,9 @@ do {									\
   /* Handle global got entries. */					\
   got += n;								\
   sym = (ElfW(Sym) *) D_PTR(map, l_info[DT_SYMTAB])			\
-       + map->l_info[DT_MIPS (GOTSYM)]->d_un.d_val;			\
-  i = (map->l_info[DT_MIPS (SYMTABNO)]->d_un.d_val			\
-       - map->l_info[DT_MIPS (GOTSYM)]->d_un.d_val);			\
+       + map->l_info[DT_RISCV (GOTSYM)]->d_un.d_val;			\
+  i = (map->l_info[DT_RISCV (SYMTABNO)]->d_un.d_val			\
+       - map->l_info[DT_RISCV (GOTSYM)]->d_un.d_val);			\
 									\
   while (i--)								\
     {									\
@@ -165,11 +165,6 @@ do {									\
 	" STRINGXP(REG_S) " a1, 0(a0)\n\
 	move a0, sp\n\
 	jal _dl_start\n\
-	# Fall through to _dl_start_user \
-	" _RTLD_EPILOGUE(ENTRY_POINT) "\
-	\n\
-	\n\
-	" _RTLD_PROLOGUE(_dl_start_user) "\
 	# Stash user entry point in s0.\n\
 	move s0, v0\n\
 	# See if we were run as a command with the executable file\n\
@@ -199,9 +194,9 @@ do {									\
 	# Pass our finalizer function to the user in v0 as per ELF ABI.\n\
 	la v0, _dl_fini\n\
 	# Jump to the user entry point.\n\
-	jr s0\n\t"\
-	_RTLD_EPILOGUE(_dl_start_user)\
-	".previous"\
+	jr s0\n\
+	" _RTLD_EPILOGUE(ENTRY_POINT) "\
+	.previous" \
 );
 
 /* Names of the architecture-specific auditing callback functions.  */
@@ -298,7 +293,7 @@ elf_machine_rel (struct link_map *map, const ElfW(Rel) *reloc,
 	if (symidx)
 	  {
 	    const ElfW(Word) gotsym
-	      = (const ElfW(Word)) map->l_info[DT_MIPS (GOTSYM)]->d_un.d_val;
+	      = (const ElfW(Word)) map->l_info[DT_RISCV (GOTSYM)]->d_un.d_val;
 
 	    if ((ElfW(Word))symidx < gotsym)
 	      {
@@ -330,7 +325,7 @@ elf_machine_rel (struct link_map *map, const ElfW(Rel) *reloc,
 		  = (const ElfW(Addr) *) D_PTR (map, l_info[DT_PLTGOT]);
 		const ElfW(Word) local_gotno
 		  = (const ElfW(Word))
-		    map->l_info[DT_MIPS (LOCAL_GOTNO)]->d_un.d_val;
+		    map->l_info[DT_RISCV (LOCAL_GOTNO)]->d_un.d_val;
 
 		*addr_field += got[symidx + local_gotno - gotsym];
 #endif
@@ -349,7 +344,7 @@ elf_machine_rel (struct link_map *map, const ElfW(Rel) *reloc,
       {
 	int symidx = ELFW(R_SYM) (r_info);
 	const ElfW(Word) gotsym
-	  = (const ElfW(Word)) map->l_info[DT_MIPS (GOTSYM)]->d_un.d_val;
+	  = (const ElfW(Word)) map->l_info[DT_RISCV (GOTSYM)]->d_un.d_val;
 
 	if (__builtin_expect ((ElfW(Word)) symidx >= gotsym, 1))
 	  {
@@ -357,7 +352,7 @@ elf_machine_rel (struct link_map *map, const ElfW(Rel) *reloc,
 	      = (const ElfW(Addr) *) D_PTR (map, l_info[DT_PLTGOT]);
 	    const ElfW(Word) local_gotno
 	      = ((const ElfW(Word))
-		 map->l_info[DT_MIPS (LOCAL_GOTNO)]->d_un.d_val);
+		 map->l_info[DT_RISCV (LOCAL_GOTNO)]->d_un.d_val);
 
 	    ElfW(Addr) reloc_value = got[symidx + local_gotno - gotsym];
 	    __builtin_memcpy (reloc_addr, &reloc_value, sizeof (reloc_value));
@@ -475,7 +470,7 @@ elf_machine_got_rel (struct link_map *map, int lazy)
 
   got = (ElfW(Addr) *) D_PTR (map, l_info[DT_PLTGOT]);
 
-  n = map->l_info[DT_MIPS (LOCAL_GOTNO)]->d_un.d_val;
+  n = map->l_info[DT_RISCV (LOCAL_GOTNO)]->d_un.d_val;
   /* The dynamic linker's local got entries have already been relocated.  */
   if (map != &GL(dl_rtld_map))
     {
@@ -494,10 +489,10 @@ elf_machine_got_rel (struct link_map *map, int lazy)
   /* Handle global got entries. */
   got += n;
   /* Keep track of the symbol index.  */
-  symidx = map->l_info[DT_MIPS (GOTSYM)]->d_un.d_val;
+  symidx = map->l_info[DT_RISCV (GOTSYM)]->d_un.d_val;
   sym = (ElfW(Sym) *) D_PTR (map, l_info[DT_SYMTAB]) + symidx;
-  i = (map->l_info[DT_MIPS (SYMTABNO)]->d_un.d_val
-       - map->l_info[DT_MIPS (GOTSYM)]->d_un.d_val);
+  i = (map->l_info[DT_RISCV (SYMTABNO)]->d_un.d_val
+       - map->l_info[DT_RISCV (GOTSYM)]->d_un.d_val);
 
   /* This loop doesn't handle Quickstart.  */
   while (i--)
@@ -546,7 +541,7 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
   if (l->l_info[DT_JMPREL])
     {
       extern void _dl_runtime_resolve (void);
-      ElfW(Addr) *gotplt = (ElfW(Addr) *) D_PTR (l, l_info[DT_MIPS (PLTGOT)]);
+      ElfW(Addr) *gotplt = (ElfW(Addr) *) D_PTR (l, l_info[DT_RISCV (PLTGOT)]);
       /* If a library is prelinked but we have to relocate anyway,
 	 we have to be able to undo the prelinking of .got.plt.
 	 The prelinker saved the address of .plt for us here.  */

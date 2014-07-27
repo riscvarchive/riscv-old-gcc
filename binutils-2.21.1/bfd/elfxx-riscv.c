@@ -3796,7 +3796,7 @@ allocate_dynrelocs (struct elf_link_hash_entry *h, void *inf)
 	{
 	  /* Even though we don't directly need a GOT entry for this symbol,
 	     the SVR4 psABI requires it to have a dynamic symbol table
-	     index greater that DT_MIPS_GOTSYM if there are dynamic
+	     index greater that DT_RISCV_GOTSYM if there are dynamic
 	     relocations against it. */
 	  if (hmips->global_got_area > GGA_RELOC_ONLY)
 	    hmips->global_got_area = GGA_RELOC_ONLY;
@@ -4221,13 +4221,13 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 		return FALSE;
 	    }
 
-	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_LOCAL_GOTNO, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_RISCV_LOCAL_GOTNO, 0))
 	    return FALSE;
 
-	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_SYMTABNO, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_RISCV_SYMTABNO, 0))
 	    return FALSE;
 
-	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_GOTSYM, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_RISCV_GOTSYM, 0))
 	    return FALSE;
 	}
       if (htab->splt->size > 0)
@@ -4241,7 +4241,7 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	  if (! _bfd_elf_add_dynamic_entry (info, DT_PLTRELSZ, 0))
 	    return FALSE;
 
-	  if (! _bfd_elf_add_dynamic_entry (info, DT_MIPS_PLTGOT, 0))
+	  if (! _bfd_elf_add_dynamic_entry (info, DT_RISCV_PLTGOT, 0))
 	    return FALSE;
 	}
     }
@@ -4594,25 +4594,25 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 	      dyn.d_un.d_ptr = sec_addr(htab->sgot);
 	      break;
 
-	    case DT_MIPS_PLTGOT:
+	    case DT_RISCV_PLTGOT:
 	      dyn.d_un.d_ptr = sec_addr(htab->sgotplt);
 	      break;
 
-	    case DT_MIPS_LOCAL_GOTNO:
+	    case DT_RISCV_LOCAL_GOTNO:
 	      dyn.d_un.d_val = g->local_gotno;
 	      break;
 
-	    case DT_MIPS_GOTSYM:
+	    case DT_RISCV_GOTSYM:
 	      if (gg->global_gotsym)
 		{
 		  dyn.d_un.d_val = gg->global_gotsym->dynindx;
 		  break;
 		}
 	      /* In case if we don't have global got symbols we default
-		 to setting DT_MIPS_GOTSYM to the same value as
-		 DT_MIPS_SYMTABNO, so we just fall through.  */
+		 to setting DT_RISCV_GOTSYM to the same value as
+		 DT_RISCV_SYMTABNO, so we just fall through.  */
 
-	    case DT_MIPS_SYMTABNO:
+	    case DT_RISCV_SYMTABNO:
 	      name = ".dynsym";
 	      elemsize = MIPS_ELF_SYM_SIZE (output_bfd);
 	      s = bfd_get_section_by_name (output_bfd, name);
@@ -5174,14 +5174,14 @@ _bfd_riscv_elf_get_target_dtag (bfd_vma dtag)
 {
   switch (dtag)
     {
-    case DT_MIPS_LOCAL_GOTNO:
+    case DT_RISCV_LOCAL_GOTNO:
       return "MIPS_LOCAL_GOTNO";
-    case DT_MIPS_SYMTABNO:
+    case DT_RISCV_SYMTABNO:
       return "MIPS_SYMTABNO";
-    case DT_MIPS_GOTSYM:
+    case DT_RISCV_GOTSYM:
       return "MIPS_GOTSYM";
-    case DT_MIPS_PLTGOT:
-      return "DT_MIPS_PLTGOT";
+    case DT_RISCV_PLTGOT:
+      return "DT_RISCV_PLTGOT";
     default:
       return "";
     }

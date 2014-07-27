@@ -168,15 +168,18 @@ static inline unsigned int riscv_elf_name_to_flag(const char* name)
 #include "mips.h"
 
 /* Number of local global offset table entries.  */
-#define DT_RISCV_LOCAL_GOTNO	0x7000000a
+#define DT_RISCV_LOCAL_GOTNO	0x70000000
 
 /* Number of entries in the .dynsym section.  */
-#define DT_RISCV_SYMTABNO	0x70000011
+#define DT_RISCV_SYMTABNO	0x70000001
 
 /* Index of first dynamic symbol in global offset table.  */
-#define DT_RISCV_GOTSYM		0x70000013
+#define DT_RISCV_GOTSYM		0x70000002
 
 /* Address of the base of the PLTGOT.  */
-#define DT_RISCV_PLTGOT         0x70000032
+#define DT_RISCV_PLTGOT         0x70000003
+
+/* Value of GP register. */
+#define DT_RISCV_GP_VALUE	0x70000004
 
 #endif /* _ELF_RISCV_H */
