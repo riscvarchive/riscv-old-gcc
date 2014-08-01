@@ -302,6 +302,7 @@ enum
   M_JUMP,
   M_J,
   M_LI,
+  M_VF,
   M_NUM_MACROS
 };
 

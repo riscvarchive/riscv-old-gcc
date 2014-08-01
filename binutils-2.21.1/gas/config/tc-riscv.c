@@ -1507,6 +1507,15 @@ pcrel_store (int srcreg, int tempreg, expressionS *ep, const char* lo_insn,
   pcrel_access (srcreg, tempreg, ep, lo_insn, "t,s,q", hi_reloc, lo_reloc);
 }
 
+static void
+pcrel_vf (int tempreg, expressionS *ep, 
+             bfd_reloc_code_real_type hi_reloc,
+	     bfd_reloc_code_real_type lo_reloc)
+{
+  macro_build (ep, "auipc", "d,u", tempreg, hi_reloc);
+  macro_build (ep, "vf", "s,q", tempreg, lo_reloc);
+}
+
 /* PC-relative function call using AUIPC/JALR, relaxed to JAL. */
 static void
 riscv_call (int destreg, int tempreg, expressionS *ep,
@@ -1703,6 +1712,11 @@ macro (struct mips_cl_insn *ip)
     case M_FSD:
       pcrel_store (rs2, rs1, &offset_expr, "fsd",
 		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
+      break;
+
+    case M_VF:
+      pcrel_vf (rs1, &offset_expr,
+                   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
       break;
 
     case M_JUMP:
