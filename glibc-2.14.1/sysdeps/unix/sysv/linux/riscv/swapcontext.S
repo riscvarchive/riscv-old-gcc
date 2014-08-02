@@ -26,9 +26,9 @@
 /* int swapcontext (ucontext_t *oucp, const ucontext_t *ucp) */
 
 LEAF (__swapcontext)
-	/* Store a magic flag.	*/
 	li	v1, 1
-	REG_S	v1, ( 0 * SZREG + MCONTEXT_GREGS)(a0)	/* zero */
+	mv	t0, a1					/* t0 <- ucp */
+	REG_S	v1, ( 0 * SZREG + MCONTEXT_GREGS)(a0)	/* flag <- 1 */
 
 	REG_S	ra, MCONTEXT_PC(a0)
 	REG_S	ra, ( 1 * SZREG + MCONTEXT_GREGS)(a0)
@@ -48,7 +48,7 @@ LEAF (__swapcontext)
 	REG_S	tp, (15 * SZREG + MCONTEXT_GREGS)(a0)
 
 #ifdef __riscv_hard_float
-  frsr v1
+	frsr v1
 
 	fsd	fs0, ( 0 * 8 + MCONTEXT_FPREGS)(a0)
 	fsd	fs1, ( 1 * 8 + MCONTEXT_FPREGS)(a0)
@@ -70,9 +70,6 @@ LEAF (__swapcontext)
 	sw	v1, MCONTEXT_FSR(a0)
 #endif /* __mips_hard_float */
 
-	addi    sp, sp, -SZREG
-	REG_S	a1, 0(sp)
-
 /* rt_sigprocmask (SIG_SETMASK, &ucp->uc_sigmask, NULL, _NSIG8) */
 	li	a3, _NSIG8
 	add	a2, a0, UCONTEXT_SIGMASK
@@ -82,8 +79,6 @@ LEAF (__swapcontext)
 	li	v0, SYS_ify (rt_sigprocmask)
 	scall
 
-	REG_L   t0, 0(sp)
-	addi    sp, sp, SZREG
 	bltz	v0, 99f
 
 #ifdef __riscv_hard_float
@@ -111,6 +106,7 @@ LEAF (__swapcontext)
 
 	/* Note the contents of argument registers will be random
 	   unless makecontext() has been called.  */
+	REG_L	v1, MCONTEXT_PC(t0)
 	REG_L	ra, ( 1 * SZREG + MCONTEXT_GREGS)(t0)
 	REG_L	s0, ( 2 * SZREG + MCONTEXT_GREGS)(t0)
 	REG_L	s1, ( 3 * SZREG + MCONTEXT_GREGS)(t0)
@@ -134,8 +130,6 @@ LEAF (__swapcontext)
 	REG_L	a5, (23 * SZREG + MCONTEXT_GREGS)(t0)
 	REG_L	a6, (24 * SZREG + MCONTEXT_GREGS)(t0)
 	REG_L	a7, (25 * SZREG + MCONTEXT_GREGS)(t0)
-	REG_L	v1, MCONTEXT_PC(t0)
-	addi    sp, sp, SZREG
 
 	jr	v1
 

@@ -28,13 +28,9 @@
 	.text
 LEAF (__setcontext)
 
-	addi    sp, sp, -SZREG
-	REG_S	a0, 0(sp)
-
-	/* Check for the magic flag.  */
-	li	v0, 1
-	REG_L	v1, (0 * SZREG + MCONTEXT_GREGS)(a0)	/* zero */
-	bne	v0, v1, 98f
+	REG_L	v1, (0 * SZREG + MCONTEXT_GREGS)(a0)	/* v1 <- flag */
+	mv	t0, a0					/* t0 <- ucp */
+	li	t1, 1
 
 /* rt_sigprocmask (SIG_SETMASK, &ucp->uc_sigmask, NULL, _NSIG8) */
 	li	a3, _NSIG8
@@ -42,11 +38,11 @@ LEAF (__setcontext)
 	add     a1, a0, UCONTEXT_SIGMASK
 	li	a0, SIG_SETMASK
 
-	li	t0, SYS_ify (rt_sigprocmask)
+	bne	t1, v1, 98f	/* if flag != 1, go to rt_sigreturn path */
+
+	li	v0, SYS_ify (rt_sigprocmask)
 	scall
 
-	REG_L   t0, 0(sp)
-	addi    sp, sp, SZREG
 	bltz	v0, 99f
 
 #ifdef __riscv_hard_float
@@ -74,6 +70,7 @@ LEAF (__setcontext)
 
 	/* Note the contents of argument registers will be random
 	   unless makecontext() has been called.  */
+	REG_L	v1, MCONTEXT_PC(t0)
 	REG_L	ra, ( 1 * SZREG + MCONTEXT_GREGS)(t0)
 	REG_L	s0, ( 2 * SZREG + MCONTEXT_GREGS)(t0)
 	REG_L	s1, ( 3 * SZREG + MCONTEXT_GREGS)(t0)
@@ -97,8 +94,6 @@ LEAF (__setcontext)
 	REG_L	a5, (23 * SZREG + MCONTEXT_GREGS)(t0)
 	REG_L	a6, (24 * SZREG + MCONTEXT_GREGS)(t0)
 	REG_L	a7, (25 * SZREG + MCONTEXT_GREGS)(t0)
-	REG_L	v1, MCONTEXT_PC(t0)
-	addi    sp, sp, SZREG
 
 	jr	v1
 

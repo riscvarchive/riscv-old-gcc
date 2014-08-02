@@ -27,11 +27,9 @@
 
 	.text
 LEAF (__getcontext)
-	/* Store a magic flag.	*/
 	li	v1, 1
-	REG_S	v1, ( 0 * SZREG + MCONTEXT_GREGS)(a0)	/* zero */
-
 	REG_S	ra, MCONTEXT_PC(a0)
+	REG_S	v1, ( 0 * SZREG + MCONTEXT_GREGS)(a0)	/* flag <- 1 */
 	REG_S	ra, ( 1 * SZREG + MCONTEXT_GREGS)(a0)
 	REG_S	s0, ( 2 * SZREG + MCONTEXT_GREGS)(a0)
 	REG_S	s1, ( 3 * SZREG + MCONTEXT_GREGS)(a0)
@@ -49,7 +47,7 @@ LEAF (__getcontext)
 	REG_S	tp, (15 * SZREG + MCONTEXT_GREGS)(a0)
 
 #ifdef __riscv_hard_float
-  frsr v1
+	frsr v1
 
 	fsd	fs0, ( 0 * 8 + MCONTEXT_FPREGS)(a0)
 	fsd	fs1, ( 1 * 8 + MCONTEXT_FPREGS)(a0)

@@ -37,6 +37,13 @@ __extension__ typedef unsigned long long int greg_t;
 #define NGREG	32
 #define NFPREG	32
 
+#define REG_RA 1
+#define REG_S0 2
+#define REG_A0 18
+#define REG_NARGS 8
+#define REG_SP 14
+#define REG_TP 15
+
 /* Container for all general registers.  */
 typedef greg_t gregset_t[NGREG];
 
