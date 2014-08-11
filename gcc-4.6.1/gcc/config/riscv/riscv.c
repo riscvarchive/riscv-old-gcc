@@ -189,7 +189,7 @@ enum mips_builtin_type {
 };
 
 /* Information about a function's frame layout.  */
-struct GTY(())  mips_frame_info {
+struct GTY(())  riscv_frame_info {
   /* The size of the frame in bytes.  */
   HOST_WIDE_INT total_size;
 
@@ -218,8 +218,8 @@ struct GTY(())  machine_function {
      This area is allocated by the callee at the very top of the frame.  */
   int varargs_size;
 
-  /* The current frame information, calculated by mips_compute_frame_info.  */
-  struct mips_frame_info frame;
+  /* The current frame information, calculated by riscv_compute_frame_info.  */
+  struct riscv_frame_info frame;
 };
 
 /* Information about a single argument.  */
@@ -3359,9 +3359,9 @@ mips_save_reg_p (unsigned int regno)
 	 || (regno == RETURN_ADDR_REGNUM && crtl->calls_eh_return);
 }
 
-/* Populate the current function's mips_frame_info structure.
+/* Populate the current function's riscv_frame_info structure.
 
-   MIPS stack frames look like:
+   RISC-V stack frames grown downward.  High addresses are at the top.
 
 	+-------------------------------+
 	|                               |
@@ -3414,9 +3414,9 @@ mips_save_reg_p (unsigned int regno)
    hard_frame_pointer_rtx unchanged.  */
 
 static void
-mips_compute_frame_info (void)
+riscv_compute_frame_info (void)
 {
-  struct mips_frame_info *frame;
+  struct riscv_frame_info *frame;
   HOST_WIDE_INT offset;
   unsigned int regno, i;
 
@@ -3490,7 +3490,7 @@ mips_initial_elimination_offset (int from, int to)
 {
   HOST_WIDE_INT src, dest;
 
-  mips_compute_frame_info ();
+  riscv_compute_frame_info ();
 
   if (to == HARD_FRAME_POINTER_REGNUM)
     dest = cfun->machine->frame.hard_frame_pointer_offset;
@@ -3575,7 +3575,7 @@ mips_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset,
       }
 
   /* This loop must iterate over the same space as its companion in
-     mips_compute_frame_info.  */
+     riscv_compute_frame_info.  */
   offset = cfun->machine->frame.fp_sp_offset - sp_offset;
   for (regno = FP_REG_FIRST; regno <= FP_REG_LAST; regno++)
     if (BITSET_P (cfun->machine->frame.fmask, regno - FP_REG_FIRST))
@@ -3643,7 +3643,7 @@ mips_save_reg (rtx reg, rtx mem)
 void
 mips_expand_prologue (void)
 {
-  const struct mips_frame_info *frame;
+  const struct riscv_frame_info *frame;
   HOST_WIDE_INT size;
   rtx insn;
 
@@ -3715,7 +3715,7 @@ static bool riscv_in_utfunc = false;
 void
 mips_expand_epilogue (bool sibcall_p)
 {
-  const struct mips_frame_info *frame;
+  const struct riscv_frame_info *frame;
   HOST_WIDE_INT step1, step2;
 
   if (!sibcall_p && mips_can_use_return_insn ())
