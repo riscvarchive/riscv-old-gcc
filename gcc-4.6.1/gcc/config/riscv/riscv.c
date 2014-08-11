@@ -2329,18 +2329,15 @@ mips_emit_compare (enum rtx_code *code, rtx *op0, rtx *op1)
     {
       if (*op1 == const0_rtx)
 	;
-      else if (*code == EQ || *code == NE)
-	*op1 = force_reg (GET_MODE (cmp_op0), cmp_op1);
-      else
+      else if ((*code == EQ || *code == NE) && CONST_INT_P (cmp_op1)
+	       && SMALL_OPERAND (-INTVAL (cmp_op1)))
 	{
-	  /* The comparison needs a separate scc instruction.  Store the
-	     result of the scc in *OP0 and compare it against zero.  */
-	  bool invert = false;
 	  *op0 = gen_reg_rtx (GET_MODE (cmp_op0));
-	  mips_emit_int_order_test (*code, &invert, *op0, cmp_op0, cmp_op1);
-	  *code = (invert ? EQ : NE);
+	  mips_emit_binary (PLUS, *op0, cmp_op0, GEN_INT (-INTVAL (cmp_op1)));
 	  *op1 = const0_rtx;
 	}
+      else if (*op1 != const0_rtx)
+	*op1 = force_reg (GET_MODE (cmp_op0), cmp_op1);
     }
   else
     {
