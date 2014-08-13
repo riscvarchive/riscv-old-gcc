@@ -38,6 +38,8 @@ typedef uintptr_t uatomicptr_t;
 typedef intmax_t atomic_max_t;
 typedef uintmax_t uatomic_max_t;
 
+#ifdef __riscv_atomic
+
 #define asm_amo(which, ordering, mem, value) ({ 		\
   typeof(*mem) __tmp; 						\
   if (sizeof(__tmp) == 4)					\
@@ -143,5 +145,7 @@ success:							\
 #define catomic_exchange_and_add(mem, value)		\
   atomic_exchange_and_add(mem, value)
 #define catomic_max(mem, value) atomic_max(mem, value)
+
+#endif /* __riscv_atomic */
 
 #endif /* bits/atomic.h */
