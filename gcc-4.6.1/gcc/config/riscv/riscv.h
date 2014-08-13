@@ -92,6 +92,10 @@ struct mips_cpu_info {
       builtin_define_with_int_value ("_RISCV_SZPTR", POINTER_SIZE);	\
       builtin_define_with_int_value ("_RISCV_FPSET", 32);		\
 									\
+      if (TARGET_ATOMIC) {                                              \
+        builtin_define ("__riscv_atomic");                              \
+      }                                                                 \
+                                                                        \
       /* These defines reflect the ABI in use, not whether the  	\
 	 FPU is directly accessible.  */				\
       if (TARGET_HARD_FLOAT_ABI) {					\

@@ -65,3 +65,7 @@ Target Joined Separate UInteger Var(g_switch_value) Init(8)
 mmemory-latency=
 Target Joined Separate UInteger Var(riscv_memory_latency)
 -mmemory-latency=<number>	Expect that loads take <number> cycles.
+
+matomic
+Target Report Mask(ATOMIC)
+Use hardware atomic memory instructions.  Enabled by default, use -mno-atomic to disable

@@ -24,6 +24,10 @@
 int
 pthread_spin_unlock (pthread_spinlock_t *lock)
 {
+#ifdef __riscv_atomic
   asm volatile ("amoswap.w.rl x0, x0, 0(%0)" : : "r"(lock));
   return 0;
+#else
+  return pthread_mutex_unlock(lock);
+#endif
 }
