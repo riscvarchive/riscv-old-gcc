@@ -4914,6 +4914,10 @@ mips_option_override (void)
   if (optimize_size && (target_flags_explicit & MASK_MEMCPY) == 0)
     target_flags |= MASK_MEMCPY;
 
+  /* Use atomic instructions, if user did not specify a preference */
+  if ((target_flags_explicit & MASK_ATOMIC) == 0)
+    target_flags |= MASK_ATOMIC;
+
 #ifdef MIPS_TFMODE_FORMAT
   REAL_MODE_FORMAT (TFmode) = &MIPS_TFMODE_FORMAT;
 #endif

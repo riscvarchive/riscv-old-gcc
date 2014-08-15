@@ -1,8 +1,3 @@
-#ifndef __SOUND_EMU10K1_H
-#define __SOUND_EMU10K1_H
-
-#include <linux/types.h>
-
 /*
  *  Copyright (c) by Jaroslav Kysela <perex@perex.cz>,
  *		     Creative Labs, Inc.
@@ -24,6 +19,11 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
+#ifndef __SOUND_EMU10K1_H
+#define __SOUND_EMU10K1_H
+
+#include <linux/types.h>
+
 
 
 /*
@@ -368,4 +368,4 @@ typedef struct snd_emu10k1_fx8010_code emu10k1_fx8010_code_t;
 typedef struct snd_emu10k1_fx8010_tram emu10k1_fx8010_tram_t;
 typedef struct snd_emu10k1_fx8010_pcm_rec emu10k1_fx8010_pcm_t;
 
-#endif	/* __SOUND_EMU10K1_H */
+#endif /* __SOUND_EMU10K1_H */

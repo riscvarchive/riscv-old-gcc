@@ -49,4 +49,4 @@
 #define AT_EMPTY_PATH		0x1000	/* Allow empty relative pathname */
 
 
-#endif
+#endif /* _LINUX_FCNTL_H */

@@ -152,5 +152,4 @@ typedef struct mdu_param_s
 	int			max_fault;	/* unused for now */
 } mdu_param_t;
 
-#endif 
-
+#endif /* _MD_U_H */

@@ -16,6 +16,7 @@
 #define _MD_P_H
 
 #include <linux/types.h>
+#include <asm/byteorder.h>
 
 /*
  * RAID superblock.
@@ -145,16 +146,18 @@ typedef struct mdp_superblock_s {
 	__u32 failed_disks;	/*  4 Number of failed disks		      */
 	__u32 spare_disks;	/*  5 Number of spare disks		      */
 	__u32 sb_csum;		/*  6 checksum of the whole superblock        */
-#ifdef __BIG_ENDIAN
+#if defined(__BYTE_ORDER) ? __BYTE_ORDER == __BIG_ENDIAN : defined(__BIG_ENDIAN)
 	__u32 events_hi;	/*  7 high-order of superblock update count   */
 	__u32 events_lo;	/*  8 low-order of superblock update count    */
 	__u32 cp_events_hi;	/*  9 high-order of checkpoint update count   */
 	__u32 cp_events_lo;	/* 10 low-order of checkpoint update count    */
-#else
+#elif defined(__BYTE_ORDER) ? __BYTE_ORDER == __LITTLE_ENDIAN : defined(__LITTLE_ENDIAN)
 	__u32 events_lo;	/*  7 low-order of superblock update count    */
 	__u32 events_hi;	/*  8 high-order of superblock update count   */
 	__u32 cp_events_lo;	/*  9 low-order of checkpoint update count    */
 	__u32 cp_events_hi;	/* 10 high-order of checkpoint update count   */
+#else
+#error unspecified endianness
 #endif
 	__u32 recovery_cp;	/* 11 recovery checkpoint sector count	      */
 	/* There are only valid for minor_version > 90 */
@@ -233,7 +236,10 @@ struct mdp_superblock_1 {
 	__le32	delta_disks;	/* change in number of raid_disks		*/
 	__le32	new_layout;	/* new layout					*/
 	__le32	new_chunk;	/* new chunk size (512byte sectors)		*/
-	__u8	pad1[128-124];	/* set to 0 when written */
+	__le32  new_offset;	/* signed number to add to data_offset in new
+				 * layout.  0 == no-change.  This can be
+				 * different on each device in the array.
+				 */
 
 	/* constant this-device information - 64 bytes */
 	__le64	data_offset;	/* sector start of data, often 0 */
@@ -281,10 +287,22 @@ struct mdp_superblock_1 {
 					    * active device with same 'role'.
 					    * 'recovery_offset' is also set.
 					    */
+#define	MD_FEATURE_RESHAPE_BACKWARDS	32 /* Reshape doesn't change number
+					    * of devices, but is going
+					    * backwards anyway.
+					    */
+#define	MD_FEATURE_NEW_OFFSET		64 /* new_offset must be honoured */
+#define	MD_FEATURE_RECOVERY_BITMAP	128 /* recovery that is happening
+					     * is guided by bitmap.
+					     */
 #define	MD_FEATURE_ALL			(MD_FEATURE_BITMAP_OFFSET	\
 					|MD_FEATURE_RECOVERY_OFFSET	\
 					|MD_FEATURE_RESHAPE_ACTIVE	\
 					|MD_FEATURE_BAD_BLOCKS		\
-					|MD_FEATURE_REPLACEMENT)
+					|MD_FEATURE_REPLACEMENT		\
+					|MD_FEATURE_RESHAPE_BACKWARDS	\
+					|MD_FEATURE_NEW_OFFSET		\
+					|MD_FEATURE_RECOVERY_BITMAP	\
+					)
 
-#endif 
+#endif

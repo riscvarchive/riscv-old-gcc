@@ -84,6 +84,14 @@
 #define O_PATH		010000000
 #endif
 
+#ifndef __O_TMPFILE
+#define __O_TMPFILE	020000000
+#endif
+
+/* a horrid kludge trying to make sure that this will fail on old kernels */
+#define O_TMPFILE (__O_TMPFILE | O_DIRECTORY)
+#define O_TMPFILE_MASK (__O_TMPFILE | O_DIRECTORY | O_CREAT)      
+
 #ifndef O_NDELAY
 #define O_NDELAY	O_NONBLOCK
 #endif
@@ -118,6 +126,10 @@
 #ifndef F_SETOWN_EX
 #define F_SETOWN_EX	15
 #define F_GETOWN_EX	16
+#endif
+
+#ifndef F_GETOWNER_UIDS
+#define F_GETOWNER_UIDS	17
 #endif
 
 #define F_OWNER_TID	0

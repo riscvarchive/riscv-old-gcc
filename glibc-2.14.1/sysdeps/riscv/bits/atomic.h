@@ -38,6 +38,8 @@ typedef uintptr_t uatomicptr_t;
 typedef intmax_t atomic_max_t;
 typedef uintmax_t uatomic_max_t;
 
+#ifdef __riscv_atomic
+
 #define asm_amo(which, ordering, mem, value) ({ 		\
   typeof(*mem) __tmp; 						\
   if (sizeof(__tmp) == 4)					\
@@ -143,5 +145,58 @@ success:							\
 #define catomic_exchange_and_add(mem, value)		\
   atomic_exchange_and_add(mem, value)
 #define catomic_max(mem, value) atomic_max(mem, value)
+
+#else /* !__riscv_atomic */
+
+#include <sys/syscall.h>
+
+#define __arch_compare_and_exchange_val_8_acq(mem, newval, oldval) \
+  (abort (), (__typeof (*mem)) 0)
+
+#define __arch_compare_and_exchange_val_16_acq(mem, newval, oldval) \
+  (abort (), (__typeof (*mem)) 0)
+
+/* The only basic operation needed is compare and exchange.  */
+#define __arch_compare_and_exchange_val_32_acq(mem, newval, oldval) \
+({ 									\
+	long _sys_result;						\
+									\
+	{								\
+	register long __v0 asm("v0") = __NR_sysriscv;			\
+	register long __a0 asm("a0") = (long) (RISCV_ATOMIC_CMPXCHG);	\
+	register long __a1 asm("a1") = (long) (mem); 			\
+	register long __a2 asm("a2") = (long) (oldval);			\
+	register long __a3 asm("a3") = (long) (newval);   		\
+	__asm__ volatile ( 						\
+	"scall\n\t" 							\
+	: "+r" (__v0)							\
+	: "r" (__v0), "r"(__a0), "r"(__a1), "r"(__a2), "r"(__a3)	\
+	: "v1", "memory"); 						\
+	_sys_result = __v0;						\
+	}								\
+	_sys_result;							\
+})
+
+#define __arch_compare_and_exchange_val_64_acq(mem, newval, oldval) \
+({ 									\
+	long _sys_result;						\
+									\
+	{								\
+	register long __v0 asm("v0") = __NR_sysriscv;			\
+	register long __a0 asm("a0") = (long) (RISCV_ATOMIC_CMPXCHG64);	\
+	register long __a1 asm("a1") = (long) (mem); 			\
+	register long __a2 asm("a2") = (long) (oldval);			\
+	register long __a3 asm("a3") = (long) (newval);   		\
+	__asm__ volatile ( 						\
+	"scall\n\t" 							\
+	: "+r" (__v0)							\
+	: "r" (__v0), "r"(__a0), "r"(__a1), "r"(__a2), "r"(__a3)	\
+	: "v1", "memory"); 						\
+	_sys_result = __v0;						\
+	}								\
+	_sys_result;							\
+})
+
+#endif /* __riscv_atomic */
 
 #endif /* bits/atomic.h */

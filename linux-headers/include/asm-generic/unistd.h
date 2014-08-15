@@ -1,6 +1,3 @@
-#if !defined(_ASM_GENERIC_UNISTD_H) || defined(__SYSCALL)
-#define _ASM_GENERIC_UNISTD_H
-
 #include <asm/bitsperlong.h>
 
 /*
@@ -364,7 +361,7 @@ __SYSCALL(__NR_syslog, sys_syslog)
 #define __NR_ptrace 117
 __SYSCALL(__NR_ptrace, sys_ptrace)
 
-/* kernel/sched.c */
+/* kernel/sched/core.c */
 #define __NR_sched_setparam 118
 __SYSCALL(__NR_sched_setparam, sys_sched_setparam)
 #define __NR_sched_setscheduler 119
@@ -405,9 +402,9 @@ __SC_COMP(__NR_rt_sigsuspend, sys_rt_sigsuspend, compat_sys_rt_sigsuspend)
 #define __NR_rt_sigaction 134
 __SC_COMP(__NR_rt_sigaction, sys_rt_sigaction, compat_sys_rt_sigaction)
 #define __NR_rt_sigprocmask 135
-__SYSCALL(__NR_rt_sigprocmask, sys_rt_sigprocmask)
+__SC_COMP(__NR_rt_sigprocmask, sys_rt_sigprocmask, compat_sys_rt_sigprocmask)
 #define __NR_rt_sigpending 136
-__SYSCALL(__NR_rt_sigpending, sys_rt_sigpending)
+__SC_COMP(__NR_rt_sigpending, sys_rt_sigpending, compat_sys_rt_sigpending)
 #define __NR_rt_sigtimedwait 137
 __SC_COMP(__NR_rt_sigtimedwait, sys_rt_sigtimedwait, \
 	  compat_sys_rt_sigtimedwait)
@@ -691,9 +688,17 @@ __SC_COMP(__NR_process_vm_readv, sys_process_vm_readv, \
 #define __NR_process_vm_writev 271
 __SC_COMP(__NR_process_vm_writev, sys_process_vm_writev, \
           compat_sys_process_vm_writev)
+#define __NR_kcmp 272
+__SYSCALL(__NR_kcmp, sys_kcmp)
+#define __NR_finit_module 273
+__SYSCALL(__NR_finit_module, sys_finit_module)
+#define __NR_sched_setattr 274
+__SYSCALL(__NR_sched_setattr, sys_sched_setattr)
+#define __NR_sched_getattr 275
+__SYSCALL(__NR_sched_getattr, sys_sched_getattr)
 
 #undef __NR_syscalls
-#define __NR_syscalls 272
+#define __NR_syscalls 276
 
 /*
  * All syscalls below here should go away really,
@@ -901,5 +906,3 @@ __SYSCALL(__NR_fork, sys_ni_syscall)
 #define __NR_lstat64 __NR3264_lstat
 #endif
 #endif
-
-#endif /* _ASM_GENERIC_UNISTD_H */
