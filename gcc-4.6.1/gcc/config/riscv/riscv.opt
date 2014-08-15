@@ -61,7 +61,3 @@ Target RejectNegative Joined Var(mips_tune_string)
 msmall-data-limit=
 Target Joined Separate UInteger Var(g_switch_value) Init(8)
 -msmall-data-limit=<number>	Put global and static data smaller than <number> bytes into a special section (on some targets)
-
-mmemory-latency=
-Target Joined Separate UInteger Var(riscv_memory_latency)
--mmemory-latency=<number>	Expect that loads take <number> cycles.

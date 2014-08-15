@@ -551,11 +551,6 @@ struct mips_cpu_info {
 /* Define if loading short immediate values into registers sign extends.  */
 #define SHORT_IMMEDIATES_SIGN_EXTEND
 
-/* The [d]clz instructions have the natural values at 0.  */
-
-#define CLZ_DEFINED_VALUE_AT_ZERO(MODE, VALUE) \
-  ((VALUE) = GET_MODE_BITSIZE (MODE), 2)
-
 /* Standard register usage.  */
 
 /* Number of hardware registers.  We have:
