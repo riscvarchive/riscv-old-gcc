@@ -33,7 +33,7 @@
 #ifndef __RADEON_DRM_H__
 #define __RADEON_DRM_H__
 
-#include "drm.h"
+#include <drm/drm.h>
 
 /* WARNING: If you change any of these defines, make sure to change the
  * defines in the X server file (radeon_sarea.h)
@@ -913,9 +913,12 @@ struct drm_radeon_gem_va {
 /* The first dword of RADEON_CHUNK_ID_FLAGS is a uint32 of these flags: */
 #define RADEON_CS_KEEP_TILING_FLAGS 0x01
 #define RADEON_CS_USE_VM            0x02
+#define RADEON_CS_END_OF_FRAME      0x04 /* a hint from userspace which CS is the last one */
 /* The second dword of RADEON_CHUNK_ID_FLAGS is a uint32 that sets the ring type */
 #define RADEON_CS_RING_GFX          0
 #define RADEON_CS_RING_COMPUTE      1
+#define RADEON_CS_RING_DMA          2
+#define RADEON_CS_RING_UVD          3
 /* The third dword of RADEON_CHUNK_ID_FLAGS is a sint32 that sets the priority */
 /* 0 = normal, + = higher priority, - = lower priority */
 
@@ -926,7 +929,6 @@ struct drm_radeon_cs_chunk {
 };
 
 /* drm_radeon_cs_reloc.flags */
-#define RADEON_RELOC_DONT_SYNC		0x01
 
 struct drm_radeon_cs_reloc {
 	uint32_t		handle;
@@ -965,11 +967,52 @@ struct drm_radeon_cs {
 #define RADEON_INFO_IB_VM_MAX_SIZE	0x0f
 /* max pipes - needed for compute shaders */
 #define RADEON_INFO_MAX_PIPES		0x10
+/* timestamp for GL_ARB_timer_query (OpenGL), returns the current GPU clock */
+#define RADEON_INFO_TIMESTAMP		0x11
+/* max shader engines (SE) - needed for geometry shaders, etc. */
+#define RADEON_INFO_MAX_SE		0x12
+/* max SH per SE */
+#define RADEON_INFO_MAX_SH_PER_SE	0x13
+/* fast fb access is enabled */
+#define RADEON_INFO_FASTFB_WORKING	0x14
+/* query if a RADEON_CS_RING_* submission is supported */
+#define RADEON_INFO_RING_WORKING	0x15
+/* SI tile mode array */
+#define RADEON_INFO_SI_TILE_MODE_ARRAY	0x16
+/* query if CP DMA is supported on the compute ring */
+#define RADEON_INFO_SI_CP_DMA_COMPUTE	0x17
+/* CIK macrotile mode array */
+#define RADEON_INFO_CIK_MACROTILE_MODE_ARRAY	0x18
+/* query the number of render backends */
+#define RADEON_INFO_SI_BACKEND_ENABLED_MASK	0x19
+/* max engine clock - needed for OpenCL */
+#define RADEON_INFO_MAX_SCLK		0x1a
+
 
 struct drm_radeon_info {
 	uint32_t		request;
 	uint32_t		pad;
 	uint64_t		value;
 };
+
+/* Those correspond to the tile index to use, this is to explicitly state
+ * the API that is implicitly defined by the tile mode array.
+ */
+#define SI_TILE_MODE_COLOR_LINEAR_ALIGNED	8
+#define SI_TILE_MODE_COLOR_1D			13
+#define SI_TILE_MODE_COLOR_1D_SCANOUT		9
+#define SI_TILE_MODE_COLOR_2D_8BPP		14
+#define SI_TILE_MODE_COLOR_2D_16BPP		15
+#define SI_TILE_MODE_COLOR_2D_32BPP		16
+#define SI_TILE_MODE_COLOR_2D_64BPP		17
+#define SI_TILE_MODE_COLOR_2D_SCANOUT_16BPP	11
+#define SI_TILE_MODE_COLOR_2D_SCANOUT_32BPP	12
+#define SI_TILE_MODE_DEPTH_STENCIL_1D		4
+#define SI_TILE_MODE_DEPTH_STENCIL_2D		0
+#define SI_TILE_MODE_DEPTH_STENCIL_2D_2AA	3
+#define SI_TILE_MODE_DEPTH_STENCIL_2D_4AA	3
+#define SI_TILE_MODE_DEPTH_STENCIL_2D_8AA	2
+
+#define CIK_TILE_MODE_DEPTH_STENCIL_1D		5
 
 #endif

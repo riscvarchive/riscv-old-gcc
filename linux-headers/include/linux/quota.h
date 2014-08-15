@@ -168,4 +168,4 @@ enum {
 #define QUOTA_NL_A_MAX (__QUOTA_NL_A_MAX - 1)
 
 
-#endif /* _QUOTA_ */
+#endif /* _LINUX_QUOTA_ */

@@ -36,4 +36,4 @@ struct udphdr {
 #define UDP_ENCAP_L2TPINUDP	3 /* rfc2661 */
 
 
-#endif	/* _LINUX_UDP_H */
+#endif /* _LINUX_UDP_H */
