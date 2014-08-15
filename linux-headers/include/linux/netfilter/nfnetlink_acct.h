@@ -24,4 +24,4 @@ enum nfnl_acct_type {
 #define NFACCT_MAX (__NFACCT_MAX - 1)
 
 
-#endif /* _NFNL_ACCT_H */
+#endif /* _NFNL_ACCT_H_ */

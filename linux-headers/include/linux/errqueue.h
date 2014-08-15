@@ -1,5 +1,5 @@
 #ifndef _LINUX_ERRQUEUE_H
-#define _LINUX_ERRQUEUE_H 1
+#define _LINUX_ERRQUEUE_H
 
 #include <linux/types.h>
 
@@ -23,4 +23,4 @@ struct sock_extended_err {
 #define SO_EE_OFFENDER(ee)	((struct sockaddr*)((ee)+1))
 
 
-#endif
+#endif /* _LINUX_ERRQUEUE_H */
