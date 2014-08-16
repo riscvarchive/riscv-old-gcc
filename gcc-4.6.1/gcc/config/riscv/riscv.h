@@ -531,11 +531,9 @@ struct mips_cpu_info {
 
 #define PROMOTE_MODE(MODE, UNSIGNEDP, TYPE)	\
   if (GET_MODE_CLASS (MODE) == MODE_INT		\
-      && GET_MODE_SIZE (MODE) < UNITS_PER_WORD) \
-    {                                           \
-      if ((MODE) == SImode)                     \
-        (UNSIGNEDP) = 0;                        \
-      (MODE) = Pmode;                           \
+      && GET_MODE_SIZE (MODE) < 4)		\
+    {						\
+      (MODE) = Pmode;				\
     }
 
 /* Pmode is always the same as ptr_mode, but not always the same as word_mode.
