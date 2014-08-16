@@ -1304,7 +1304,7 @@
   [(set (match_operand:GPR 0 "register_operand" "=d")
 	(not:GPR (match_operand:GPR 1 "register_operand" "d")))]
   ""
-  "xor\t%0,%1,-1"
+  "not\t%0,%1"
   [(set_attr "type" "logical")
    (set_attr "mode" "<MODE>")])
 
