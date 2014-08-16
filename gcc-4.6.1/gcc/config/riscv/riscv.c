@@ -2292,24 +2292,28 @@ mips_zero_if_equal (rtx cmp0, rtx cmp1)
 		       cmp0, cmp1, 0, 0, OPTAB_DIRECT);
 }
 
-/* Convert *CODE into a code that can be used in a floating-point
-   scc instruction (C.cond.fmt).  Return true if the values of
-   the condition code registers will be inverted, with 0 indicating
-   that the condition holds.  */
+/* Return false if we can easily emit code for the FP comparison specified
+   by *CODE.  If not, set *CODE to its inverse and return true. */
 
 static bool
-mips_reversed_fp_cond (enum rtx_code *code)
+riscv_reversed_fp_cond (enum rtx_code *code)
 {
   switch (*code)
     {
-    case NE:
+    case EQ:
+    case LT:
+    case LE:
+    case GT:
+    case GE:
     case LTGT:
     case ORDERED:
-      *code = reverse_condition_maybe_unordered (*code);
-      return true;
+      /* We know how to emit code for these cases... */
+      return false;
 
     default:
-      return false;
+      /* ...but we must invert these and rely on the others. */
+      *code = reverse_condition_maybe_unordered (*code);
+      return true;
     }
 }
 
@@ -2341,22 +2345,54 @@ mips_emit_compare (enum rtx_code *code, rtx *op0, rtx *op1)
     }
   else
     {
-      enum rtx_code cmp_code;
+      /* For FP comparisons, set an integer register with the result of the
+	 comparison, then branch on it. */
+      rtx tmp0, tmp1, final_op;
+      enum rtx_code fp_code = *code;
+      *code = riscv_reversed_fp_cond (&fp_code) ? EQ : NE;
 
-      /* Floating-point tests use a separate C.cond.fmt comparison to
-	 set a condition code register.  The branch or conditional move
-	 will then compare that register against zero.
+      switch (fp_code)
+	{
+	case ORDERED:
+	  /* a == a && b == b */
+	  tmp0 = gen_reg_rtx (SImode);
+	  mips_emit_binary (EQ, tmp0, cmp_op0, cmp_op0);
+	  tmp1 = gen_reg_rtx (SImode);
+	  mips_emit_binary (EQ, tmp1, cmp_op1, cmp_op1);
+	  final_op = gen_reg_rtx (SImode);
+	  mips_emit_binary (AND, final_op, tmp0, tmp1);
+	  break;
 
-	 Set CMP_CODE to the code of the comparison instruction and
-	 *CODE to the code that the branch or move should use.  */
-      cmp_code = *code;
-      *code = mips_reversed_fp_cond (&cmp_code) ? EQ : NE;
-      *op0 = gen_reg_rtx (SImode);
+	case LTGT:
+	  /* a < b || a > b */
+	  tmp0 = gen_reg_rtx (SImode);
+	  mips_emit_binary (LT, tmp0, cmp_op0, cmp_op1);
+	  tmp1 = gen_reg_rtx (SImode);
+	  mips_emit_binary (GT, tmp1, cmp_op0, cmp_op1);
+	  final_op = gen_reg_rtx (SImode);
+	  mips_emit_binary (IOR, final_op, tmp0, tmp1);
+	  break;
+
+	case EQ:
+	case LE:
+	case LT:
+	case GE:
+	case GT:
+	  /* We have instructions for these cases. */
+	  final_op = gen_reg_rtx (SImode);
+	  mips_emit_binary (fp_code, final_op, cmp_op0, cmp_op1);
+	  break;
+
+	default:
+	  gcc_unreachable ();
+	}
+
+      /* Compare the binary result against 0. */
+      *op0 = final_op;
       *op1 = const0_rtx;
-      mips_emit_binary (cmp_code, *op0, cmp_op0, cmp_op1);
     }
 }
-
+
 /* Try performing the comparison in OPERANDS[1], whose arms are OPERANDS[2]
    and OPERAND[3].  Store the result in OPERANDS[0].
 
@@ -3118,7 +3154,6 @@ mips_print_operand_reloc (FILE *file, rtx op, const char **relocs)
    'R'	Print the low-part relocation associated with OP.
    'C'	Print the integer branch condition for comparison OP.
    'N'	Print the inverse of the integer branch condition for comparison OP.
-   'S'	Print the swapped integer branch condition for comparison OP.
    'z'	Print $0 if OP is zero, otherwise print OP normally.  */
 
 static void
@@ -3148,10 +3183,6 @@ mips_print_operand (FILE *file, rtx op, int letter)
 
     case 'N':
       fputs (GET_RTX_NAME (reverse_condition (code)), file);
-      break;
-
-    case 'S':
-      fputs (GET_RTX_NAME (swap_condition (code)), file);
       break;
 
     default:

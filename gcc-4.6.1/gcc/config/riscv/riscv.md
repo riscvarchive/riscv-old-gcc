@@ -2321,28 +2321,7 @@
 	      [(match_operand:SCALARF 2 "register_operand" "f")
 	       (match_operand:SCALARF 3 "register_operand" "f")]))]
   "TARGET_HARD_FLOAT"
-{
-  if (GET_CODE (operands[1]) == GT || GET_CODE (operands[1]) == GE)
-    return "f%S1.<fmt>\t%0,%3,%2";
-  else
-    return "f%C1.<fmt>\t%0,%2,%3";
-}
-  [(set_attr "type" "fcmp")
-   (set_attr "mode" "<UNITMODE>")])
-
-; super ghetto
-(define_insn "cstore<mode>4_ord"
-   [(set (match_operand:SI 0 "register_operand" "=d")
-        (match_operator:SI 1 "fp_unorder_operator"
-	      [(match_operand:SCALARF 2 "register_operand" "f")
-	       (match_dup 2)]))]
-  "TARGET_HARD_FLOAT"
-{
-  if (GET_CODE (operands[1]) == ORDERED)
-    return "feq.<fmt>\t%0,%2,%2";
-  else /* UNORDERED */
-    return "feq.<fmt>\t%0,%2,%2; seqz\t%0,%0";
-}
+  "f%C1.<fmt>\t%0,%2,%3"
   [(set_attr "type" "fcmp")
    (set_attr "mode" "<UNITMODE>")])
 
