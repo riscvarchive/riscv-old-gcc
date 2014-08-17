@@ -54,29 +54,28 @@ extern void mips_split_doubleword_move (rtx, rtx);
 extern const char *mips_output_move (rtx, rtx);
 extern const char *mips_riscv_output_vector_move (enum machine_mode, rtx, rtx);
 #ifdef RTX_CODE
-extern void mips_expand_scc (rtx *);
-extern void mips_expand_conditional_branch (rtx *);
+extern void riscv_expand_scc (rtx *);
+extern void riscv_expand_conditional_branch (rtx *);
 #endif
-extern rtx mips_expand_call (bool, rtx, rtx, rtx);
-extern void mips_expand_fcc_reload (rtx, rtx, rtx);
+extern rtx riscv_expand_call (bool, rtx, rtx, rtx);
+extern void riscv_expand_fcc_reload (rtx, rtx, rtx);
 extern void mips_set_return_address (rtx, rtx);
-extern bool mips_expand_block_move (rtx, rtx, rtx);
-extern void mips_expand_synci_loop (rtx, rtx);
+extern bool riscv_expand_block_move (rtx, rtx, rtx);
+extern void riscv_expand_synci_loop (rtx, rtx);
 
 extern void mips_init_cumulative_args (CUMULATIVE_ARGS *, tree);
 
-extern bool mips_expand_ext_as_unaligned_load (rtx, rtx, HOST_WIDE_INT,
+extern bool riscv_expand_ext_as_unaligned_load (rtx, rtx, HOST_WIDE_INT,
 					       HOST_WIDE_INT);
-extern bool mips_expand_ins_as_unaligned_store (rtx, rtx, HOST_WIDE_INT,
+extern bool riscv_expand_ins_as_unaligned_store (rtx, rtx, HOST_WIDE_INT,
 						HOST_WIDE_INT);
 extern void mips_order_regs_for_local_alloc (void);
-extern HOST_WIDE_INT mips_debugger_offset (rtx, HOST_WIDE_INT);
 
 extern HOST_WIDE_INT mips_initial_elimination_offset (int, int);
 extern rtx mips_return_addr (int, rtx);
 extern void mips_emit_save_slot_move (rtx, rtx, rtx);
-extern void mips_expand_prologue (void);
-extern void mips_expand_epilogue (bool);
+extern void riscv_expand_prologue (void);
+extern void riscv_expand_epilogue (bool);
 extern bool mips_can_use_return_insn (void);
 extern rtx mips_function_value (const_tree, const_tree, enum machine_mode);
 
@@ -96,9 +95,8 @@ extern void irix_asm_output_align (FILE *, unsigned);
 extern const char *current_section_name (void);
 extern unsigned int current_section_flags (void);
 
-extern void mips_expand_vector_init (rtx, rtx);
+extern void riscv_expand_vector_init (rtx, rtx);
 
-extern bool mips_epilogue_uses (unsigned int);
 extern bool riscv_size_ok_for_small_data_p (int size);
 
 #endif /* ! GCC_MIPS_PROTOS_H */

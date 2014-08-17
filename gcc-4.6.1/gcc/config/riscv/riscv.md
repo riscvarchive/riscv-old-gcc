@@ -684,7 +684,7 @@
 ;; RISC-V stop instruction
 ;;------------------------------------------------------------------------
 ;; This is explicitly generated for functions with the utfunc attribute.
-;; We do this from within the mips_expand_epilogue() function. I
+;; We do this from within the riscv_expand_epilogue() function. I
 ;; needed some operand for this so I just used a constant.
 
 (define_insn "riscv_stop"
@@ -2133,7 +2133,7 @@
 	      (use (match_operand:SI 3 "const_int_operand"))])]
   "!TARGET_MEMCPY"
 {
-  if (mips_expand_block_move (operands[0], operands[1], operands[2]))
+  if (riscv_expand_block_move (operands[0], operands[1], operands[2]))
     DONE;
   else
     FAIL;
@@ -2278,7 +2278,7 @@
 		      (pc)))]
   ""
 {
-  mips_expand_conditional_branch (operands);
+  riscv_expand_conditional_branch (operands);
   DONE;
 })
 
@@ -2291,7 +2291,7 @@
 		      (pc)))]
   ""
 {
-  mips_expand_conditional_branch (operands);
+  riscv_expand_conditional_branch (operands);
   DONE;
 })
 
@@ -2311,7 +2311,7 @@
 	  (match_operand:GPR 3 "nonmemory_operand")]))]
   ""
 {
-  mips_expand_scc (operands);
+  riscv_expand_scc (operands);
   DONE;
 })
 
@@ -2455,7 +2455,7 @@
   [(const_int 1)]
   ""
 {
-  mips_expand_prologue ();
+  riscv_expand_prologue ();
   DONE;
 })
 
@@ -2474,7 +2474,7 @@
   [(const_int 2)]
   ""
 {
-  mips_expand_epilogue (false);
+  riscv_expand_epilogue (false);
   DONE;
 })
 
@@ -2482,7 +2482,7 @@
   [(const_int 2)]
   ""
 {
-  mips_expand_epilogue (true);
+  riscv_expand_epilogue (true);
   DONE;
 })
 
@@ -2569,7 +2569,7 @@
 	      (use (match_operand 3 ""))])]	;; struct_value_size_rtx
   ""
 {
-  mips_expand_call (true, NULL_RTX, XEXP (operands[0], 0), operands[1]);
+  riscv_expand_call (true, NULL_RTX, XEXP (operands[0], 0), operands[1]);
   DONE;
 })
 
@@ -2589,7 +2589,7 @@
 	      (use (match_operand 3 ""))])]		;; next_arg_reg
   ""
 {
-  mips_expand_call (true, operands[0], XEXP (operands[1], 0), operands[2]);
+  riscv_expand_call (true, operands[0], XEXP (operands[1], 0), operands[2]);
   DONE;
 })
 
@@ -2624,7 +2624,7 @@
 	      (use (match_operand 3 ""))])]	;; struct_value_size_rtx
   ""
 {
-  mips_expand_call (false, NULL_RTX, XEXP (operands[0], 0), operands[1]);
+  riscv_expand_call (false, NULL_RTX, XEXP (operands[0], 0), operands[1]);
   DONE;
 })
 
@@ -2645,7 +2645,7 @@
 	      (use (match_operand 3 ""))])]		;; next_arg_reg
   ""
 {
-  mips_expand_call (false, operands[0], XEXP (operands[1], 0), operands[2]);
+  riscv_expand_call (false, operands[0], XEXP (operands[1], 0), operands[2]);
   DONE;
 })
 

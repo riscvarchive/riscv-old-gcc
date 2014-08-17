@@ -1,12 +1,7 @@
-/* Subroutines used for MIPS code generation.
-   Copyright (C) 1989, 1990, 1991, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010,
-   2011
-   Free Software Foundation, Inc.
-   Contributed by A. Lichnewsky, lich@inria.inria.fr.
-   Changes by Michael Meissner, meissner@osf.org.
-   64-bit r4000 support by Ian Lance Taylor, ian@cygnus.com, and
-   Brendan Eich, brendan@microunity.com.
+/* Definition of RISC-V target for GNU compiler.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Contributed by Andrew Waterman (waterman@cs.berkeley.edu) at UC Berkeley.
+   Based on MIPS target for GNU compiler.
 
 This file is part of GCC.
 
@@ -1272,7 +1267,7 @@ mips_call_tls_get_addr (rtx sym, rtx v0)
   start_sequence ();
   
   emit_insn (riscv_got_load_tls_gd(a0, sym));
-  insn = mips_expand_call (false, v0, mips_tls_symbol, const0_rtx);
+  insn = riscv_expand_call (false, v0, mips_tls_symbol, const0_rtx);
   RTL_CONST_CALL_P (insn) = 1;
   use_reg (&CALL_INSN_FUNCTION_USAGE (insn), a0);
   insn = get_insns ();
@@ -2400,7 +2395,7 @@ mips_emit_compare (enum rtx_code *code, rtx *op0, rtx *op1)
    SImode, thus possibly narrower than that of the comparison's operands.  */
 
 void
-mips_expand_scc (rtx operands[])
+riscv_expand_scc (rtx operands[])
 {
   rtx target = operands[0];
   enum rtx_code code = GET_CODE (operands[1]);
@@ -2422,7 +2417,7 @@ mips_expand_scc (rtx operands[])
    CODE and jump to OPERANDS[3] if the condition holds.  */
 
 void
-mips_expand_conditional_branch (rtx *operands)
+riscv_expand_conditional_branch (rtx *operands)
 {
   enum rtx_code code = GET_CODE (operands[0]);
   rtx op0 = operands[1];
@@ -2916,13 +2911,13 @@ mips_va_start (tree valist, rtx nextarg)
    Return the call itself.  */
 
 rtx
-mips_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
+riscv_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
 {
   rtx pattern;
 
   if (!call_insn_operand (addr, VOIDmode))
     {
-      rtx reg = MIPS_EPILOGUE_TEMP (Pmode);
+      rtx reg = RISCV_EPILOGUE_TEMP (Pmode);
       mips_emit_move (reg, addr);
       addr = reg;
     }
@@ -3084,7 +3079,7 @@ mips_block_move_loop (rtx dest, rtx src, HOST_WIDE_INT length,
    memory reference SRC to memory reference DEST.  */
 
 bool
-mips_expand_block_move (rtx dest, rtx src, rtx length)
+riscv_expand_block_move (rtx dest, rtx src, rtx length)
 {
   if (CONST_INT_P (length))
     {
@@ -3093,7 +3088,7 @@ mips_expand_block_move (rtx dest, rtx src, rtx length)
       align = MIN (MIN (MEM_ALIGN (src), MEM_ALIGN (dest)), BITS_PER_WORD);
       factor = BITS_PER_WORD / align;
 
-      if (INTVAL (length) <= MIPS_MAX_MOVE_BYTES_STRAIGHT / factor)
+      if (INTVAL (length) <= RISCV_MAX_MOVE_BYTES_STRAIGHT / factor)
 	{
 	  mips_block_move_straight (dest, src, INTVAL (length));
 	  return true;
@@ -3101,7 +3096,7 @@ mips_expand_block_move (rtx dest, rtx src, rtx length)
       else if (optimize && align >= BITS_PER_WORD)
 	{
 	  mips_block_move_loop (dest, src, INTVAL (length),
-				MIPS_MAX_MOVE_BYTES_PER_LOOP_ITER / factor);
+				RISCV_MAX_MOVE_BYTES_PER_LOOP_ITER / factor);
 	  return true;
 	}
     }
@@ -3295,32 +3290,6 @@ riscv_elf_select_rtx_section (enum machine_mode mode, rtx x,
   return s;
 }
 
-/* The MIPS debug format wants all automatic variables and arguments
-   to be in terms of the virtual frame pointer (stack pointer before
-   any adjustment in the function), while the MIPS 3.0 linker wants
-   the frame pointer to be the stack pointer after the initial
-   adjustment.  So, we do the adjustment here.  The arg pointer (which
-   is eliminated) points to the virtual frame pointer, while the frame
-   pointer (which may be eliminated) points to the stack pointer after
-   the initial adjustments.  */
-
-HOST_WIDE_INT
-mips_debugger_offset (rtx addr, HOST_WIDE_INT offset)
-{
-  rtx offset2 = const0_rtx;
-  rtx reg = eliminate_constant_term (addr, &offset2);
-
-  if (offset == 0)
-    offset = INTVAL (offset2);
-  
-  if (reg == stack_pointer_rtx)
-    offset -= cfun->machine->frame.total_size;
-  else
-    gcc_assert (reg == frame_pointer_rtx || reg == hard_frame_pointer_rtx);
-
-  return offset;
-}
-
 /* Implement TARGET_ASM_OUTPUT_DWARF_DTPREL.  */
 
 static void ATTRIBUTE_UNUSED
@@ -3472,27 +3441,27 @@ riscv_compute_frame_info (void)
   /* At the bottom of the frame are any outgoing stack arguments. */
   offset = crtl->outgoing_args_size;
   /* Next are local stack variables. */
-  offset += MIPS_STACK_ALIGN (get_frame_size ());
+  offset += RISCV_STACK_ALIGN (get_frame_size ());
   /* The virtual frame pointer points above the local variables. */
   frame->frame_pointer_offset = offset;
   /* Next are the callee-saved FPRs. */
   if (frame->fmask)
     {
       unsigned num_saved = __builtin_popcount(frame->fmask);
-      offset += MIPS_STACK_ALIGN (num_saved * UNITS_PER_FPREG);
+      offset += RISCV_STACK_ALIGN (num_saved * UNITS_PER_FPREG);
       frame->fp_sp_offset = offset - UNITS_PER_HWFPVALUE;
     }
   /* Next are the callee-saved GPRs. */
   if (frame->mask)
     {
       unsigned num_saved = __builtin_popcount(frame->mask);
-      offset += MIPS_STACK_ALIGN (num_saved * UNITS_PER_WORD);
+      offset += RISCV_STACK_ALIGN (num_saved * UNITS_PER_WORD);
       frame->gp_sp_offset = offset - UNITS_PER_WORD;
     }
   /* The hard frame pointer points above the callee-saved GPRs. */
   frame->hard_frame_pointer_offset = offset;
   /* Above the hard frame pointer is the callee-allocated varags save area. */
-  offset += MIPS_STACK_ALIGN (cfun->machine->varargs_size);
+  offset += RISCV_STACK_ALIGN (cfun->machine->varargs_size);
   frame->arg_pointer_offset = offset;
   /* Next is the callee-allocated area for pretend stack arguments.  */
   offset += crtl->args.pretend_args_size;
@@ -3662,14 +3631,14 @@ mips_emit_save_slot_move (rtx dest, rtx src, rtx temp)
 static void
 mips_save_reg (rtx reg, rtx mem)
 {
-  mips_emit_save_slot_move (mem, reg, MIPS_PROLOGUE_TEMP (GET_MODE (reg)));
+  mips_emit_save_slot_move (mem, reg, RISCV_PROLOGUE_TEMP (GET_MODE (reg)));
 }
 
 
 /* Expand the "prologue" pattern.  */
 
 void
-mips_expand_prologue (void)
+riscv_expand_prologue (void)
 {
   const struct riscv_frame_info *frame;
   HOST_WIDE_INT size;
@@ -3714,10 +3683,10 @@ mips_expand_prologue (void)
 						       GEN_INT (-size)))) = 1;
       else
 	{
-	  mips_emit_move (MIPS_PROLOGUE_TEMP (Pmode), GEN_INT (size));
+	  mips_emit_move (RISCV_PROLOGUE_TEMP (Pmode), GEN_INT (size));
 	  emit_insn (gen_sub3_insn (stack_pointer_rtx,
 				    stack_pointer_rtx,
-				    MIPS_PROLOGUE_TEMP (Pmode)));
+				    RISCV_PROLOGUE_TEMP (Pmode)));
 
 	  /* Describe the combined effect of the previous instructions.  */
 	  mips_set_frame_expr
@@ -3732,7 +3701,7 @@ mips_expand_prologue (void)
 static void
 mips_restore_reg (rtx reg, rtx mem)
 {
-  mips_emit_save_slot_move (reg, mem, MIPS_EPILOGUE_TEMP (GET_MODE (reg)));
+  mips_emit_save_slot_move (reg, mem, RISCV_EPILOGUE_TEMP (GET_MODE (reg)));
 }
 
 /* Expand an "epilogue" or "sibcall_epilogue" pattern; SIBCALL_P
@@ -3741,7 +3710,7 @@ mips_restore_reg (rtx reg, rtx mem)
 static bool riscv_in_utfunc = false;
 
 void
-mips_expand_epilogue (bool sibcall_p)
+riscv_expand_epilogue (bool sibcall_p)
 {
   const struct riscv_frame_info *frame;
   HOST_WIDE_INT step1, step2;
@@ -3770,8 +3739,8 @@ mips_expand_epilogue (bool sibcall_p)
       rtx adjust = GEN_INT (-frame->hard_frame_pointer_offset);
       if (!SMALL_INT (adjust))
 	{
-	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
-	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
+	  mips_emit_move (RISCV_EPILOGUE_TEMP (Pmode), adjust);
+	  adjust = RISCV_EPILOGUE_TEMP (Pmode);
 	}
 
       emit_insn (gen_add3_insn (stack_pointer_rtx, hard_frame_pointer_rtx, adjust));
@@ -3792,8 +3761,8 @@ mips_expand_epilogue (bool sibcall_p)
       rtx adjust = GEN_INT (step1);
       if (!SMALL_OPERAND (step1))
 	{
-	  mips_emit_move (MIPS_EPILOGUE_TEMP (Pmode), adjust);
-	  adjust = MIPS_EPILOGUE_TEMP (Pmode);
+	  mips_emit_move (RISCV_EPILOGUE_TEMP (Pmode), adjust);
+	  adjust = RISCV_EPILOGUE_TEMP (Pmode);
 	}
 
       emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx, adjust));
@@ -4532,7 +4501,7 @@ mips_prepare_builtin_target (enum insn_code icode, unsigned int op, rtx target)
    suggests a good place to put the result.  */
 
 static rtx
-mips_expand_builtin_direct (enum insn_code icode, rtx target, tree exp,
+riscv_expand_builtin_direct (enum insn_code icode, rtx target, tree exp,
 			    bool has_target_p)
 {
   rtx ops[MAX_RECOG_OPERANDS];
@@ -4578,7 +4547,7 @@ mips_expand_builtin_direct (enum insn_code icode, rtx target, tree exp,
 /* Implement TARGET_EXPAND_BUILTIN.  */
 
 static rtx
-mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
+riscv_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
 		     enum machine_mode mode ATTRIBUTE_UNUSED,
 		     int ignore ATTRIBUTE_UNUSED)
 {
@@ -4595,10 +4564,10 @@ mips_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
   switch (d->builtin_type)
     {
     case MIPS_BUILTIN_DIRECT:
-      return mips_expand_builtin_direct (d->icode, target, exp, true);
+      return riscv_expand_builtin_direct (d->icode, target, exp, true);
 
     case MIPS_BUILTIN_DIRECT_NO_TARGET:
-      return mips_expand_builtin_direct (d->icode, target, exp, false);
+      return riscv_expand_builtin_direct (d->icode, target, exp, false);
     }
   gcc_unreachable ();
 }
@@ -4907,7 +4876,7 @@ mips_option_override (void)
   SUBTARGET_OVERRIDE_OPTIONS;
 #endif
 
-  info = mips_parse_cpu (MIPS_CPU_STRING_DEFAULT);
+  info = mips_parse_cpu (RISCV_CPU_STRING_DEFAULT);
   gcc_assert (info);
   mips_tune = info->cpu;
 
@@ -4997,7 +4966,7 @@ mips_conditional_register_usage (void)
 /* Initialize vector TARGET to VALS.  */
 
 void
-mips_expand_vector_init (rtx target, rtx vals)
+riscv_expand_vector_init (rtx target, rtx vals)
 {
   enum machine_mode mode;
   enum machine_mode inner;
@@ -5018,20 +4987,6 @@ mips_expand_vector_init (rtx target, rtx vals)
   emit_move_insn (target, mem);
 }
 
-/* Implement EPILOGUE_USES.  */
-
-bool
-mips_epilogue_uses (unsigned int regno)
-{
-  /* Say that the epilogue uses the return address register.  Note that
-     in the case of sibcalls, the values "used by the epilogue" are
-     considered live at the start of the called function.  */
-  if (regno == RETURN_ADDR_REGNUM)
-    return true;
-
-  return false;
-}
-
 /* Implement TARGET_TRAMPOLINE_INIT.  */
 
 static void
@@ -5039,7 +4994,7 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
 {
   rtx addr, end_addr, mem;
   rtx trampoline[4];
-  unsigned int i, label;
+  unsigned int i;
   HOST_WIDE_INT static_chain_offset, target_function_offset;
 
   /* Work out the offsets of the pointers from the start of the
@@ -5051,23 +5006,22 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
   /* Get pointers to the beginning and end of the code block.  */
   addr = force_reg (Pmode, XEXP (m_tramp, 0));
   end_addr = mips_force_binary (Pmode, PLUS, addr, GEN_INT (TRAMPOLINE_CODE_SIZE));
-  label = 4;
 
 #define OP(X) gen_int_mode (X, SImode)
 #define MATCH_LREG ((Pmode) == DImode ? MATCH_LD : MATCH_LW)
 
-  /* jal     v0, 1f
-   1:l[wd]   v1, target_function_offset(v0)
+  /* auipc   v0, 0
+     l[wd]   v1, target_function_offset(v0)
      l[wd]   $static_chain, static_chain_offset(v0)
      jr      v1
   */
 
-  trampoline[0] = OP (RISCV_UJTYPE (JAL, STATIC_CHAIN_REGNUM, label));
-  trampoline[1] = OP (RISCV_ITYPE (LREG, MIPS_PROLOGUE_TEMP_REGNUM,
-		    STATIC_CHAIN_REGNUM, target_function_offset - label));
+  trampoline[0] = OP (RISCV_UTYPE (AUIPC, STATIC_CHAIN_REGNUM, 0));
+  trampoline[1] = OP (RISCV_ITYPE (LREG, RISCV_PROLOGUE_TEMP_REGNUM,
+		    STATIC_CHAIN_REGNUM, target_function_offset));
   trampoline[2] = OP (RISCV_ITYPE (LREG, STATIC_CHAIN_REGNUM,
-		    STATIC_CHAIN_REGNUM, static_chain_offset - label));
-  trampoline[3] = OP (RISCV_ITYPE (JALR, 0, MIPS_PROLOGUE_TEMP_REGNUM, 0));
+		    STATIC_CHAIN_REGNUM, static_chain_offset));
+  trampoline[3] = OP (RISCV_ITYPE (JALR, 0, RISCV_PROLOGUE_TEMP_REGNUM, 0));
 
 #undef MATCH_LREG
 #undef OP
@@ -5262,7 +5216,7 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 #undef TARGET_BUILTIN_DECL
 #define TARGET_BUILTIN_DECL mips_builtin_decl
 #undef TARGET_EXPAND_BUILTIN
-#define TARGET_EXPAND_BUILTIN mips_expand_builtin
+#define TARGET_EXPAND_BUILTIN riscv_expand_builtin
 
 #undef TARGET_HAVE_TLS
 #define TARGET_HAVE_TLS HAVE_AS_TLS

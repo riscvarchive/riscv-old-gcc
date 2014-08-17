@@ -1,11 +1,7 @@
-/* Definitions of target machine for GNU compiler.  MIPS version.
-   Copyright (C) 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998
-   1999, 2000, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
-   Contributed by A. Lichnewsky (lich@inria.inria.fr).
-   Changed by Michael Meissner	(meissner@osf.org).
-   64-bit r4000 support by Ian Lance Taylor (ian@cygnus.com) and
-   Brendan Eich (brendan@microunity.com).
+/* Definition of RISC-V target for GNU compiler.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Contributed by Andrew Waterman (waterman@cs.berkeley.edu) at UC Berkeley.
+   Based on MIPS target for GNU compiler.
 
 This file is part of GCC.
 
@@ -22,17 +18,6 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
-
-
-#include "config/vxworks-dummy.h"
-
-#ifdef GENERATOR_FILE
-/* This is used in some insn conditions, so needs to be declared, but
-   does not need to be defined.  */
-extern int target_flags_explicit;
-#endif
-
-/* MIPS external variables defined in mips.c.  */
 
 /* Information about one recognized processor.  Defined here for the
    benefit of TARGET_CPU_CPP_BUILTINS.  */
@@ -145,8 +130,8 @@ struct mips_cpu_info {
 #define TARGET_CPU_DEFAULT 0
 #endif
 
-#ifndef MIPS_CPU_STRING_DEFAULT
-#define MIPS_CPU_STRING_DEFAULT "rocket"
+#ifndef RISCV_CPU_STRING_DEFAULT
+#define RISCV_CPU_STRING_DEFAULT "rocket"
 #endif
 
 #ifndef TARGET_64BIT_DEFAULT
@@ -168,43 +153,15 @@ struct mips_cpu_info {
     { MULTILIB_ARCH_DEFAULT }
 #endif
 
-/* A spec condition that matches all non-mips16 -mips arguments.  */
-
-#define MIPS_ISA_LEVEL_OPTION_SPEC \
-  "mips1|mips2|mips3|mips4|mips32*|mips64*"
-
-/* A spec condition that matches all non-mips16 architecture arguments.  */
-
-#define MIPS_ARCH_OPTION_SPEC \
-  MIPS_ISA_LEVEL_OPTION_SPEC "|march=*"
-
-/* A spec that infers a -mhard-float or -msoft-float setting from an
-   -march argument.  Note that soft-float and hard-float code are not
-   link-compatible.  */
-
-#define MIPS_ARCH_FLOAT_SPEC \
-  "%{mhard-float|msoft-float|march=mips*:; \
-     march=vr41*|march=m4k|march=4k*|march=24kc|march=24kec \
-     |march=34kc|march=74kc|march=1004kc|march=5kc \
-     |march=octeon|march=xlr: -msoft-float;		  \
-     march=*: -mhard-float}"
 
 /* Support for a compile-time default CPU, et cetera.  The rules are:
-   --with-arch is ignored if -march is specified or a -mips is specified
-     (other than -mips16); likewise --with-arch-32 and --with-arch-64.
-   --with-tune is ignored if -mtune is specified; likewise
-     --with-tune-32 and --with-tune-64.
-   --with-float is ignored if -mhard-float or -msoft-float are
-     specified.
-   --with-divide is ignored if -mdivide-traps or -mdivide-breaks are
-     specified. */
+   --with-arch is ignored if -march is specified.
+   --with-tune is ignored if -mtune is specified.
+   --with-float is ignored if -mhard-float or -msoft-float are specified. */
 #define OPTION_DEFAULT_SPECS \
-  {"arch", "%{" MIPS_ARCH_OPTION_SPEC ":;: -march=%(VALUE)}" }, \
   {"arch_32", "%{" OPT_ARCH32 ":%{m32}}" }, \
   {"arch_64", "%{" OPT_ARCH64 ":%{m64}}" }, \
   {"tune", "%{!mtune=*:-mtune=%(VALUE)}" }, \
-  {"tune_32", "%{" OPT_ARCH32 ":%{!mtune=*:-mtune=%(VALUE)}}" }, \
-  {"tune_64", "%{" OPT_ARCH64 ":%{!mtune=*:-mtune=%(VALUE)}}" }, \
   {"float", "%{!msoft-float:%{!mhard-float:-m%(VALUE)-float}}" }, \
 
 #define DRIVER_SELF_SPECS ""
@@ -347,18 +304,6 @@ struct mips_cpu_info {
    SFmode register saves.  */
 #define DWARF_CIE_DATA_ALIGNMENT -4
 
-/* Correct the offset of automatic variables and arguments.  Note that
-   the MIPS debug format wants all automatic variables and arguments
-   to be in terms of the virtual frame pointer (stack pointer before
-   any adjustment in the function), while the MIPS 3.0 linker wants
-   the frame pointer to be the stack pointer after the initial
-   adjustment.  */
-
-#define DEBUGGER_AUTO_OFFSET(X)				\
-  mips_debugger_offset (X, (HOST_WIDE_INT) 0)
-#define DEBUGGER_ARG_OFFSET(OFFSET, X)			\
-  mips_debugger_offset (X, (HOST_WIDE_INT) OFFSET)
-
 /* Target machine storage layout */
 
 #define BITS_BIG_ENDIAN 0
@@ -373,11 +318,11 @@ struct mips_cpu_info {
 #define MIN_UNITS_PER_WORD 4
 #endif
 
-/* For MIPS, width of a floating point register.  */
+/* We currently require both or neither of the `F' and `D' extensions. */
 #define UNITS_PER_FPREG 8
 
-/* The number of consecutive floating-point registers needed to store the
-   smallest format supported by the FPU.  */
+/* If FP regs aren't wide enough for a given FP argument, it is passed in
+   integer registers. */
 #define MIN_FPRS_PER_FMT 1
 
 /* The largest size of value that can be held in floating-point
@@ -402,32 +347,11 @@ struct mips_cpu_info {
 
 #define FLOAT_TYPE_SIZE 32
 #define DOUBLE_TYPE_SIZE 64
+/* XXX The ABI says long doubles are IEEE-754-2008 float128s. */
 #define LONG_DOUBLE_TYPE_SIZE 64
-
-/* Define the sizes of fixed-point types.  */
-#define SHORT_FRACT_TYPE_SIZE 8
-#define FRACT_TYPE_SIZE 16
-#define LONG_FRACT_TYPE_SIZE 32
-#define LONG_LONG_FRACT_TYPE_SIZE 64
-
-#define SHORT_ACCUM_TYPE_SIZE 16
-#define ACCUM_TYPE_SIZE 32
-#define LONG_ACCUM_TYPE_SIZE 64
-/* FIXME.  LONG_LONG_ACCUM_TYPE_SIZE should be 128 bits, but GCC
-   doesn't support 128-bit integers for MIPS32 currently.  */
-#define LONG_LONG_ACCUM_TYPE_SIZE (TARGET_64BIT ? 128 : 64)
-
-/* long double is not a fixed mode, but the idea is that, if we
-   support long double, we also want a 128-bit integer type.  */
-#define MAX_FIXED_MODE_SIZE GET_MODE_BITSIZE (TImode)
 
 #ifdef IN_LIBGCC2
 # define LIBGCC2_LONG_DOUBLE_TYPE_SIZE LONG_DOUBLE_TYPE_SIZE
-#endif
-
-/* Width in bits of a pointer.  */
-#ifndef POINTER_SIZE
-#define POINTER_SIZE (TARGET_64BIT ? 64 : 32)
 #endif
 
 /* Allocation boundary (in *bits*) for storing arguments in argument list.  */
@@ -436,15 +360,8 @@ struct mips_cpu_info {
 /* Allocation boundary (in *bits*) for the code of a function.  */
 #define FUNCTION_BOUNDARY 32
 
-/* Alignment of field after `int : 0' in a structure.  */
-#define EMPTY_FIELD_BOUNDARY 32
-
-/* Every structure's size must be a multiple of this.  */
-/* 8 is observed right on a DECstation and on riscos 4.02.  */
-#define STRUCTURE_SIZE_BOUNDARY 8
-
 /* There is no point aligning anything to a rounder boundary than this.  */
-#define BIGGEST_ALIGNMENT LONG_DOUBLE_TYPE_SIZE
+#define BIGGEST_ALIGNMENT 128
 
 /* All accesses must be aligned.  */
 #define STRICT_ALIGNMENT 1
@@ -563,8 +480,7 @@ struct mips_cpu_info {
 
 #define FIRST_PSEUDO_REGISTER 130
 
-/* By default, fix the global pointer ($28), the stack pointer ($30),
-   and the thread pointer ($31). */
+/* x0, sp, tp, and gp are fixed. */
 
 #define FIXED_REGISTERS							\
 { /* General registers.  */                                             \
@@ -584,16 +500,8 @@ struct mips_cpu_info {
 }
 
 
-/* Set up this array for o32 by default.
-
-   Note that we don't mark $1/$ra as a call-clobbered register.  The idea is
-   that it's really the call instructions themselves which clobber $ra.
-   We don't care what the called function does with it afterwards.
-
-   This approach makes it easier to implement sibcalls.  Unlike normal
-   calls, sibcalls don't clobber $ra, so the register reaches the
-   called function in tact.  EPILOGUE_USES says that $ra is useful
-   to the called function.  */
+/* Function calls clobber x16-30 (v0-1, a0-7, t0-4) and f16-31
+   (fv0-1, fa0-7, ft0-5).  The call RTLs themselves clobber x1 (ra). */
 
 #define CALL_USED_REGISTERS						\
 { /* General registers.  */                                             \
@@ -629,9 +537,7 @@ struct mips_cpu_info {
   1, 1 \
 }
 
-/* Internal macros to classify a register number as to whether it's a
-   general purpose register, a floating point register, a
-   multiply/divide register, or a status register.  */
+/* Internal macros to classify an ISA register's type. */
 
 #define GP_REG_FIRST 0
 #define GP_REG_LAST  31
@@ -686,7 +592,7 @@ struct mips_cpu_info {
 
 #define MODES_TIEABLE_P mips_modes_tieable_p
 
-/* Register to use for pushing function arguments.  */
+/* Use s0 as the frame pointer if it is so requested. */
 #define HARD_FRAME_POINTER_REGNUM 2
 #define STACK_POINTER_REGNUM 14
 #define THREAD_POINTER_REGNUM 15
@@ -710,11 +616,11 @@ struct mips_cpu_info {
    The epilogue temporary mustn't conflict with the return registers,
    the frame pointer, the EH stack adjustment, or the EH data registers. */
 
-#define MIPS_PROLOGUE_TEMP_REGNUM GP_TEMP_FIRST
-#define MIPS_EPILOGUE_TEMP_REGNUM GP_TEMP_FIRST
+#define RISCV_PROLOGUE_TEMP_REGNUM GP_TEMP_FIRST
+#define RISCV_EPILOGUE_TEMP_REGNUM GP_TEMP_FIRST
 
-#define MIPS_PROLOGUE_TEMP(MODE) gen_rtx_REG (MODE, MIPS_PROLOGUE_TEMP_REGNUM)
-#define MIPS_EPILOGUE_TEMP(MODE) gen_rtx_REG (MODE, MIPS_EPILOGUE_TEMP_REGNUM)
+#define RISCV_PROLOGUE_TEMP(MODE) gen_rtx_REG (MODE, RISCV_PROLOGUE_TEMP_REGNUM)
+#define RISCV_EPILOGUE_TEMP(MODE) gen_rtx_REG (MODE, RISCV_EPILOGUE_TEMP_REGNUM)
 
 #define FUNCTION_PROFILER(STREAM, LABELNO)	\
 {						\
@@ -944,55 +850,29 @@ enum reg_class
 #define FUNCTION_VALUE(VALTYPE, FUNC) \
   mips_function_value (VALTYPE, FUNC, VOIDmode)
 
-/* 1 if N is a possible register number for a function value.
-   On the MIPS, R2 R3 and F0 F2 are the only register thus used.
-   Currently, R2 and F0 are only implemented here (C has no complex type)  */
+/* Return scalar values in v0 or fv0. */
 
-#define FUNCTION_VALUE_REGNO_P(N) ((N) == GP_RETURN || (N) == FP_RETURN \
-  || (LONG_DOUBLE_TYPE_SIZE == 128 && FP_RETURN != GP_RETURN \
-      && (N) == FP_RETURN + 1))
+#define FUNCTION_VALUE_REGNO_P(N) ((N) == GP_RETURN || (N) == FP_RETURN)
 
 /* 1 if N is a possible register number for function argument passing.
    We have no FP argument registers when soft-float.  When FP registers
    are 32 bits, we can't directly reference the odd numbered ones.  */
 
+/* Accept arguments in a0-a7 and/or fa0-fa7. */
 #define FUNCTION_ARG_REGNO_P(N)					\
-  ((IN_RANGE((N), GP_ARG_FIRST, GP_ARG_LAST)			\
-    || (IN_RANGE((N), FP_ARG_FIRST, FP_ARG_LAST)))		\
-   && !fixed_regs[N])
-
-/* This structure has to cope with two different argument allocation
-   schemes.  Most MIPS ABIs view the arguments as a structure, of which
-   the first N words go in registers and the rest go on the stack.  If I
-   < N, the Ith word might go in Ith integer argument register or in a
-   floating-point register.  For these ABIs, we only need to remember
-   the offset of the current argument into the structure.
+  (IN_RANGE((N), GP_ARG_FIRST, GP_ARG_LAST)			\
+   || IN_RANGE((N), FP_ARG_FIRST, FP_ARG_LAST))
 
-   The EABI instead allocates the integer and floating-point arguments
-   separately.  The first N words of FP arguments go in FP registers,
-   the rest go on the stack.  Likewise, the first N words of the other
-   arguments go in integer registers, and the rest go on the stack.  We
-   need to maintain three counts: the number of integer registers used,
-   the number of floating-point registers used, and the number of words
-   passed on the stack.
-
-   We could keep separate information for the two ABIs (a word count for
-   the standard ABIs, and three separate counts for the EABI).  But it
-   seems simpler to view the standard ABIs as forms of EABI that do not
-   allocate floating-point registers.
-
-   So for the standard ABIs, the first N words are allocated to integer
-   registers, and mips_function_arg decides on an argument-by-argument
-   basis whether that argument should really go in an integer register,
-   or in a floating-point one.  */
+/* The ABI views the arguments as a structure, of which the first 8
+   words go in registers and the rest go on the stack.  If I < 8, N, the Ith
+   word might go in the Ith integer argument register or the Ith
+   floating-point argument register. */
 
 typedef struct mips_args {
-  /* The number of integer registers used so far.  For all ABIs except
-     EABI, this is the number of words that have been added to the
-     argument structure, limited to MAX_ARGS_IN_REGISTERS.  */
+  /* Number of integer registers used so far, up to MAX_ARGS_IN_REGISTERS. */
   unsigned int num_gprs;
 
-  /* The number of words passed on the stack.  */
+  /* Number of words passed on the stack.  */
   unsigned int stack_words;
 } CUMULATIVE_ARGS;
 
@@ -1003,11 +883,11 @@ typedef struct mips_args {
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
   mips_init_cumulative_args (&CUM, FNTYPE)
 
-
-#define EPILOGUE_USES(REGNO)	mips_epilogue_uses (REGNO)
+
+#define EPILOGUE_USES(REGNO)	((REGNO) == RETURN_ADDR_REGNUM)
 
 /* ABI requires 16-byte alignment, even on ven on RV32. */
-#define MIPS_STACK_ALIGN(LOC) (((LOC) + 15) & -16)
+#define RISCV_STACK_ALIGN(LOC) (((LOC) + 15) & -16)
 
 /* No mips port has ever used the profiler counter word, so don't emit it
    or the label for it.  */
@@ -1331,22 +1211,20 @@ while (0)
 
 /* The maximum number of bytes that can be copied by one iteration of
    a movmemsi loop; see mips_block_move_loop.  */
-#define MIPS_MAX_MOVE_BYTES_PER_LOOP_ITER \
-  (UNITS_PER_WORD * 4)
+#define RISCV_MAX_MOVE_BYTES_PER_LOOP_ITER (UNITS_PER_WORD * 4)
 
 /* The maximum number of bytes that can be copied by a straight-line
    implementation of movmemsi; see mips_block_move_straight.  We want
    to make sure that any loop-based implementation will iterate at
    least twice.  */
-#define MIPS_MAX_MOVE_BYTES_STRAIGHT \
-  (MIPS_MAX_MOVE_BYTES_PER_LOOP_ITER * 2)
+#define RISCV_MAX_MOVE_BYTES_STRAIGHT (RISCV_MAX_MOVE_BYTES_PER_LOOP_ITER * 2)
 
 /* The base cost of a memcpy call, for MOVE_RATIO and friends. */
 
-#define MIPS_CALL_RATIO 8
+#define RISCV_CALL_RATIO 8
 
 /* Any loop-based implementation of movmemsi will have at least
-   MIPS_MAX_MOVE_BYTES_STRAIGHT / UNITS_PER_WORD memory-to-memory
+   RISCV_MAX_MOVE_BYTES_STRAIGHT / UNITS_PER_WORD memory-to-memory
    moves, so allow individual copies of fewer elements.
 
    When movmemsi is not available, use a value approximating
@@ -1354,17 +1232,17 @@ while (0)
    will generate inline code if it is shorter than a function call.
    Since move_by_pieces_ninsns counts memory-to-memory moves, but
    we'll have to generate a load/store pair for each, halve the
-   value of MIPS_CALL_RATIO to take that into account.  */
+   value of RISCV_CALL_RATIO to take that into account.  */
 
 #define MOVE_RATIO(speed)				\
   (HAVE_movmemsi					\
-   ? MIPS_MAX_MOVE_BYTES_STRAIGHT / MOVE_MAX		\
-   : MIPS_CALL_RATIO / 2)
+   ? RISCV_MAX_MOVE_BYTES_STRAIGHT / MOVE_MAX		\
+   : RISCV_CALL_RATIO / 2)
 
 /* movmemsi is meant to generate code that is at least as good as
    move_by_pieces.  However, movmemsi effectively uses a by-pieces
    implementation both for moves smaller than a word and for word-aligned
-   moves of no more than MIPS_MAX_MOVE_BYTES_STRAIGHT bytes.  We should
+   moves of no more than RISCV_MAX_MOVE_BYTES_STRAIGHT bytes.  We should
    allow the tree-level optimisers to do such moves by pieces, as it
    often exposes other optimization opportunities.  We might as well
    continue to use movmemsi at the rtl level though, as it produces
@@ -1375,7 +1253,7 @@ while (0)
    ? (!currently_expanding_to_rtl				\
       && ((ALIGN) < BITS_PER_WORD				\
 	  ? (SIZE) < UNITS_PER_WORD				\
-	  : (SIZE) <= MIPS_MAX_MOVE_BYTES_STRAIGHT))		\
+	  : (SIZE) <= RISCV_MAX_MOVE_BYTES_STRAIGHT))		\
    : (move_by_pieces_ninsns (SIZE, ALIGN, MOVE_MAX_PIECES + 1)	\
       < (unsigned int) MOVE_RATIO (false)))
 
@@ -1383,14 +1261,14 @@ while (0)
    of the length of a memset call, but use the default otherwise.  */
 
 #define CLEAR_RATIO(speed)\
-  ((speed) ? 15 : MIPS_CALL_RATIO)
+  ((speed) ? 15 : RISCV_CALL_RATIO)
 
 /* This is similar to CLEAR_RATIO, but for a non-zero constant, so when
    optimizing for size adjust the ratio to account for the overhead of
    loading the constant and replicating it across the word.  */
 
 #define SET_RATIO(speed) \
-  ((speed) ? 15 : MIPS_CALL_RATIO - 2)
+  ((speed) ? 15 : RISCV_CALL_RATIO - 2)
 
 /* STORE_BY_PIECES_P can be used when copying a constant string, but
    in that case each word takes 3 insns (lui, ori, sw), or more in
