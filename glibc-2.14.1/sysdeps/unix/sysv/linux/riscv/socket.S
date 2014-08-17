@@ -79,7 +79,7 @@ LEAF (__socket)
 	bltz	v0, 99f
 
 #if defined NEED_CANCELLATION && defined CENABLE
-1:unimp
+1:sbreak
 #endif
 
 99: 	j	__syscall_error

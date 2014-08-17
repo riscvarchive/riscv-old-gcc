@@ -54,13 +54,13 @@
 /* Define a macro which expands into the inline wrapper code for a system
    call.  */
 #undef INLINE_SYSCALL
-#define INLINE_SYSCALL(name, nr, args...)			       \
+#define INLINE_SYSCALL(name, nr, args...)				\
   ({ INTERNAL_SYSCALL_DECL(err);					\
-     long result_var = INTERNAL_SYSCALL (name, err, nr, args);      	\
-     if ( INTERNAL_SYSCALL_ERROR_P (result_var, err) )  		\
+     long result_var = INTERNAL_SYSCALL (name, err, nr, args);		\
+     if ( INTERNAL_SYSCALL_ERROR_P (result_var, err) )			\
        {								\
-	 __set_errno (INTERNAL_SYSCALL_ERRNO (result_var, err));      	\
-	 result_var = -1L;			       		\
+	 __set_errno (INTERNAL_SYSCALL_ERRNO (result_var, err));	\
+	 result_var = -1L;						\
        }								\
      result_var; })
 
