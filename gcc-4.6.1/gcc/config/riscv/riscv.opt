@@ -27,7 +27,7 @@ Target RejectNegative InverseMask(32BIT, 64BIT)
 Generate RV64 code
 
 mbranch-cost=
-Target RejectNegative Joined UInteger Var(mips_branch_cost)
+Target RejectNegative Joined UInteger Var(riscv_branch_cost)
 -mbranch-cost=COST	Set the cost of branches to roughly COST instructions
 
 mhard-float

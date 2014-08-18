@@ -38,8 +38,8 @@ enum mips_symbol_type {
 extern bool mips_symbolic_constant_p (rtx, enum mips_symbol_type *);
 extern int riscv_regno_mode_ok_for_base_p (int, enum machine_mode, bool);
 extern int riscv_address_insns (rtx, enum machine_mode, bool);
-extern int mips_const_insns (rtx);
-extern int mips_split_const_insns (rtx);
+extern int riscv_const_insns (rtx);
+extern int riscv_split_const_insns (rtx);
 extern int mips_load_store_insns (rtx, rtx);
 extern rtx mips_emit_move (rtx, rtx);
 extern bool mips_split_symbol (rtx, rtx, enum machine_mode, rtx *);
@@ -59,11 +59,9 @@ extern void riscv_expand_conditional_branch (rtx *);
 #endif
 extern rtx riscv_expand_call (bool, rtx, rtx, rtx);
 extern void riscv_expand_fcc_reload (rtx, rtx, rtx);
-extern void mips_set_return_address (rtx, rtx);
+extern void riscv_set_return_address (rtx, rtx);
 extern bool riscv_expand_block_move (rtx, rtx, rtx);
 extern void riscv_expand_synci_loop (rtx, rtx);
-
-extern void mips_init_cumulative_args (CUMULATIVE_ARGS *, tree);
 
 extern bool riscv_expand_ext_as_unaligned_load (rtx, rtx, HOST_WIDE_INT,
 					       HOST_WIDE_INT);
@@ -71,20 +69,17 @@ extern bool riscv_expand_ins_as_unaligned_store (rtx, rtx, HOST_WIDE_INT,
 						HOST_WIDE_INT);
 extern void mips_order_regs_for_local_alloc (void);
 
-extern HOST_WIDE_INT mips_initial_elimination_offset (int, int);
-extern rtx mips_return_addr (int, rtx);
-extern void mips_emit_save_slot_move (rtx, rtx, rtx);
+extern rtx riscv_return_addr (int, rtx);
+extern HOST_WIDE_INT riscv_initial_elimination_offset (int, int);
 extern void riscv_expand_prologue (void);
 extern void riscv_expand_epilogue (bool);
 extern bool mips_can_use_return_insn (void);
-extern rtx mips_function_value (const_tree, const_tree, enum machine_mode);
+extern rtx riscv_function_value (const_tree, const_tree, enum machine_mode);
 
-extern bool mips_cannot_change_mode_class (enum machine_mode,
-					   enum machine_mode, enum reg_class);
-extern enum reg_class mips_secondary_reload_class (enum reg_class,
+extern enum reg_class riscv_secondary_reload_class (enum reg_class,
 						   enum machine_mode,
 						   rtx, bool);
-extern int mips_class_max_nregs (enum reg_class, enum machine_mode);
+extern int riscv_class_max_nregs (enum reg_class, enum machine_mode);
 
 extern unsigned int riscv_hard_regno_nregs (int, enum machine_mode);
 

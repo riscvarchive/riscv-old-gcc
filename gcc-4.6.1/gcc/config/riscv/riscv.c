@@ -313,13 +313,13 @@ static const struct mips_rtx_cost_data *mips_cost;
 /* Index [M][R] is true if register R is allowed to hold a value of mode M.  */
 bool riscv_hard_regno_mode_ok[(int) MAX_MACHINE_MODE][FIRST_PSEUDO_REGISTER];
 
-/* mips_lo_relocs[X] is the relocation to use when a symbol of type X
+/* riscv_lo_relocs[X] is the relocation to use when a symbol of type X
    appears in a LO_SUM.  It can be null if such LO_SUMs aren't valid or
    if they are matched by a special .md file pattern.  */
-const char *mips_lo_relocs[NUM_SYMBOL_TYPES];
+const char *riscv_lo_relocs[NUM_SYMBOL_TYPES];
 
 /* Likewise for HIGHs.  */
-const char *mips_hi_relocs[NUM_SYMBOL_TYPES];
+const char *riscv_hi_relocs[NUM_SYMBOL_TYPES];
 
 /* Index R is the smallest register class that contains register R.  */
 const enum reg_class riscv_regno_to_class[FIRST_PSEUDO_REGISTER] = {
@@ -819,7 +819,7 @@ mips_valid_lo_sum_p (enum mips_symbol_type symbol_type, enum machine_mode mode)
     return false;
 
   /* Check that there is a known low-part relocation.  */
-  if (mips_lo_relocs[symbol_type] == NULL)
+  if (riscv_lo_relocs[symbol_type] == NULL)
     return false;
 
   /* We may need to split multiword moves, so make sure that each word
@@ -886,8 +886,8 @@ mips_classify_address (struct mips_address_info *info, rtx x,
     case SYMBOL_REF:
       if (mips_symbolic_constant_p (x, &info->symbol_type)
 	  && riscv_symbol_insns (info->symbol_type) > 0
-	  && !mips_hi_relocs[info->symbol_type]
-	  && mips_lo_relocs[info->symbol_type])
+	  && !riscv_hi_relocs[info->symbol_type]
+	  && riscv_lo_relocs[info->symbol_type])
 	{
 	  info->type = ADDRESS_LO_SUM;
 	  info->reg = gen_rtx_REG (Pmode, GP_REGNUM);
@@ -940,7 +940,7 @@ riscv_address_insns (rtx x, enum machine_mode mode, bool might_split_p)
    Return 0 if X isn't a valid constant.  */
 
 int
-mips_const_insns (rtx x)
+riscv_const_insns (rtx x)
 {
   enum mips_symbol_type symbol_type;
   rtx offset;
@@ -949,7 +949,7 @@ mips_const_insns (rtx x)
     {
     case HIGH:
       if (!mips_symbolic_constant_p (XEXP (x, 0), &symbol_type)
-	  || !mips_hi_relocs[symbol_type])
+	  || !riscv_hi_relocs[symbol_type])
 	return 0;
 
       /* This is simply an LUI. */
@@ -983,7 +983,7 @@ mips_const_insns (rtx x)
       split_const (x, &x, &offset);
       if (offset != 0)
 	{
-	  int n = mips_const_insns (x);
+	  int n = riscv_const_insns (x);
 	  if (n != 0)
 	    {
 	      if (SMALL_INT (offset))
@@ -1008,12 +1008,12 @@ mips_const_insns (rtx x)
    instructions required to do this.  */
 
 int
-mips_split_const_insns (rtx x)
+riscv_split_const_insns (rtx x)
 {
   unsigned int low, high;
 
-  low = mips_const_insns (mips_subword (x, false));
-  high = mips_const_insns (mips_subword (x, true));
+  low = riscv_const_insns (mips_subword (x, false));
+  high = riscv_const_insns (mips_subword (x, true));
   gcc_assert (low > 0 && high > 0);
   return low + high;
 }
@@ -1203,7 +1203,7 @@ mips_split_symbol (rtx temp, rtx addr, enum machine_mode mode, rtx *low_out)
   if ((GET_CODE (addr) == HIGH && mode == MAX_MACHINE_MODE)
       || !mips_symbolic_constant_p (addr, &symbol_type)
       || riscv_symbol_insns (symbol_type) == 0
-      || !mips_hi_relocs[symbol_type])
+      || !riscv_hi_relocs[symbol_type])
     return false;
 
   if (low_out)
@@ -1746,7 +1746,7 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
     case SYMBOL_REF:
     case LABEL_REF:
     case CONST_DOUBLE:
-      cost = mips_const_insns (x);
+      cost = riscv_const_insns (x);
       if (cost > 0)
 	{
 	  /* If the constant is likely to be stored in a GPR, SETs of
@@ -2429,14 +2429,6 @@ riscv_expand_conditional_branch (rtx *operands)
   emit_jump_insn (gen_condjump (condition, operands[3]));
 }
 
-/* Initialize *CUM for a call to a function of type FNTYPE.  */
-
-void
-mips_init_cumulative_args (CUMULATIVE_ARGS *cum, tree fntype ATTRIBUTE_UNUSED)
-{
-  memset (cum, 0, sizeof (*cum));
-}
-
 /* Fill INFO with information about a single argument.  CUM is the
    cumulative state for earlier arguments.  MODE is the mode of this
    argument and TYPE is its type (if known).  NAMED is true if this
@@ -2781,7 +2773,7 @@ mips_return_fpr_pair (enum machine_mode mode,
    VALTYPE is null and MODE is the mode of the return value.  */
 
 rtx
-mips_function_value (const_tree valtype, const_tree func, enum machine_mode mode)
+riscv_function_value (const_tree valtype, const_tree func, enum machine_mode mode)
 {
   if (valtype)
     {
@@ -2970,7 +2962,7 @@ riscv_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
    Assume that the areas do not overlap.  */
 
 static void
-mips_block_move_straight (rtx dest, rtx src, HOST_WIDE_INT length)
+riscv_block_move_straight (rtx dest, rtx src, HOST_WIDE_INT length)
 {
   HOST_WIDE_INT offset, delta;
   unsigned HOST_WIDE_INT bits;
@@ -3034,7 +3026,7 @@ mips_adjust_block_mem (rtx mem, HOST_WIDE_INT length,
    the memory regions do not overlap.  */
 
 static void
-mips_block_move_loop (rtx dest, rtx src, HOST_WIDE_INT length,
+riscv_block_move_loop (rtx dest, rtx src, HOST_WIDE_INT length,
 		      HOST_WIDE_INT bytes_per_iter)
 {
   rtx label, src_reg, dest_reg, final_src, test;
@@ -3057,7 +3049,7 @@ mips_block_move_loop (rtx dest, rtx src, HOST_WIDE_INT length,
   emit_label (label);
 
   /* Emit the loop body.  */
-  mips_block_move_straight (dest, src, bytes_per_iter);
+  riscv_block_move_straight (dest, src, bytes_per_iter);
 
   /* Move on to the next block.  */
   mips_emit_move (src_reg, plus_constant (src_reg, bytes_per_iter));
@@ -3072,7 +3064,7 @@ mips_block_move_loop (rtx dest, rtx src, HOST_WIDE_INT length,
 
   /* Mop up any left-over bytes.  */
   if (leftover)
-    mips_block_move_straight (dest, src, leftover);
+    riscv_block_move_straight (dest, src, leftover);
 }
 
 /* Expand a movmemsi instruction, which copies LENGTH bytes from
@@ -3090,12 +3082,12 @@ riscv_expand_block_move (rtx dest, rtx src, rtx length)
 
       if (INTVAL (length) <= RISCV_MAX_MOVE_BYTES_STRAIGHT / factor)
 	{
-	  mips_block_move_straight (dest, src, INTVAL (length));
+	  riscv_block_move_straight (dest, src, INTVAL (length));
 	  return true;
 	}
       else if (optimize && align >= BITS_PER_WORD)
 	{
-	  mips_block_move_loop (dest, src, INTVAL (length),
+	  riscv_block_move_loop (dest, src, INTVAL (length),
 				RISCV_MAX_MOVE_BYTES_PER_LOOP_ITER / factor);
 	  return true;
 	}
@@ -3103,23 +3095,23 @@ riscv_expand_block_move (rtx dest, rtx src, rtx length)
   return false;
 }
 
-/* (Re-)Initialize mips_lo_relocs and mips_hi_relocs.  */
+/* (Re-)Initialize riscv_lo_relocs and riscv_hi_relocs.  */
 
 static void
 mips_init_relocs (void)
 {
-  memset (mips_hi_relocs, '\0', sizeof (mips_hi_relocs));
-  memset (mips_lo_relocs, '\0', sizeof (mips_lo_relocs));
+  memset (riscv_hi_relocs, '\0', sizeof (riscv_hi_relocs));
+  memset (riscv_lo_relocs, '\0', sizeof (riscv_lo_relocs));
 
   if (!flag_pic)
     {
-      mips_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
-      mips_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
+      riscv_hi_relocs[SYMBOL_ABSOLUTE] = "%hi(";
+      riscv_lo_relocs[SYMBOL_ABSOLUTE] = "%lo(";
 
-      mips_hi_relocs[SYMBOL_TLS_LE] = "%tprel_hi(";
-      mips_lo_relocs[SYMBOL_TLS_LE] = "%tprel_lo(";
+      riscv_hi_relocs[SYMBOL_TLS_LE] = "%tprel_hi(";
+      riscv_lo_relocs[SYMBOL_TLS_LE] = "%tprel_lo(";
 
-      mips_lo_relocs[SYMBOL_TLS_IE] = "%tls_ie_off(";
+      riscv_lo_relocs[SYMBOL_TLS_IE] = "%tls_ie_off(";
     }
 }
 
@@ -3163,11 +3155,11 @@ mips_print_operand (FILE *file, rtx op, int letter)
     case 'h':
       if (code == HIGH)
 	op = XEXP (op, 0);
-      mips_print_operand_reloc (file, op, mips_hi_relocs);
+      mips_print_operand_reloc (file, op, riscv_hi_relocs);
       break;
 
     case 'R':
-      mips_print_operand_reloc (file, op, mips_lo_relocs);
+      mips_print_operand_reloc (file, op, riscv_lo_relocs);
       break;
 
     case 'C':
@@ -3221,7 +3213,7 @@ mips_print_operand_address (FILE *file, rtx x)
 	return;
 
       case ADDRESS_LO_SUM:
-	mips_print_operand_reloc (file, addr.offset, mips_lo_relocs);
+	mips_print_operand_reloc (file, addr.offset, riscv_lo_relocs);
 	fprintf (file, "(%s)", reg_names[REGNO (addr.reg)]);
 	return;
 
@@ -3339,7 +3331,7 @@ mips_frame_set (rtx mem, rtx reg)
 /* Return true if the current function must save register REGNO.  */
 
 static bool
-mips_save_reg_p (unsigned int regno)
+riscv_save_reg_p (unsigned int regno)
 {
   bool call_saved = !global_regs[regno] && !call_really_used_regs[regno];
   bool might_clobber = crtl->saves_all_registers
@@ -3417,7 +3409,7 @@ riscv_compute_frame_info (void)
 
   /* Find out which GPRs we need to save.  */
   for (regno = GP_REG_FIRST; regno <= GP_REG_LAST; regno++)
-    if (mips_save_reg_p (regno))
+    if (riscv_save_reg_p (regno))
       frame->mask |= 1 << (regno - GP_REG_FIRST);
 
   /* If this function calls eh_return, we must also save and restore the
@@ -3427,10 +3419,10 @@ riscv_compute_frame_info (void)
       frame->mask |= 1 << (EH_RETURN_DATA_REGNO (i) - GP_REG_FIRST);
 
   /* Find out which FPRs we need to save.  This loop must iterate over
-     the same space as its companion in mips_for_each_saved_gpr_and_fpr.  */
+     the same space as its companion in riscv_for_each_saved_gpr_and_fpr.  */
   if (TARGET_HARD_FLOAT)
     for (regno = FP_REG_FIRST; regno <= FP_REG_LAST; regno++)
-      if (mips_save_reg_p (regno))
+      if (riscv_save_reg_p (regno))
         frame->fmask |= 1 << (regno - FP_REG_FIRST);
 
   /* At the bottom of the frame are any outgoing stack arguments. */
@@ -3478,7 +3470,7 @@ mips_can_eliminate (const int from ATTRIBUTE_UNUSED, const int to)
    pointer.  */
 
 HOST_WIDE_INT
-mips_initial_elimination_offset (int from, int to)
+riscv_initial_elimination_offset (int from, int to)
 {
   HOST_WIDE_INT src, dest;
 
@@ -3505,7 +3497,7 @@ mips_initial_elimination_offset (int from, int to)
    previous frame.  */
 
 rtx
-mips_return_addr (int count, rtx frame ATTRIBUTE_UNUSED)
+riscv_return_addr (int count, rtx frame ATTRIBUTE_UNUSED)
 {
   if (count != 0)
     return const0_rtx;
@@ -3518,7 +3510,7 @@ mips_return_addr (int count, rtx frame ATTRIBUTE_UNUSED)
    ADDRESS and SCRATCH are both word-mode GPRs.  */
 
 void
-mips_set_return_address (rtx address, rtx scratch)
+riscv_set_return_address (rtx address, rtx scratch)
 {
   rtx slot_address;
 
@@ -3551,7 +3543,7 @@ mips_save_restore_reg (enum machine_mode mode, int regno,
    of the frame.  */
 
 static void
-mips_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset,
+riscv_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset,
 				 mips_save_restore_fn fn)
 {
   HOST_WIDE_INT offset;
@@ -3577,26 +3569,16 @@ mips_for_each_saved_gpr_and_fpr (HOST_WIDE_INT sp_offset,
       }
 }
 
-/* Return true if a move between register REGNO and its save slot (MEM)
-   can be done in a single move.  LOAD_P is true if we are loading
-   from the slot, false if we are storing to it.  */
-
-static bool
-mips_direct_save_slot_move_p (unsigned int regno, rtx mem, bool load_p)
-{
-  return mips_secondary_reload_class (REGNO_REG_CLASS (regno),
-				      GET_MODE (mem), mem, load_p) == NO_REGS;
-}
-
 /* Emit a move from SRC to DEST, given that one of them is a register
    save slot and that the other is a register.  TEMP is a temporary
    GPR of the same mode that is available if need be.  */
 
-void
-mips_emit_save_slot_move (rtx dest, rtx src, rtx temp)
+static void
+riscv_emit_save_slot_move (rtx dest, rtx src, rtx temp)
 {
   unsigned int regno;
   rtx mem;
+  enum reg_class rclass;
 
   if (REG_P (src))
     {
@@ -3609,7 +3591,10 @@ mips_emit_save_slot_move (rtx dest, rtx src, rtx temp)
       mem = src;
     }
 
-  if (mips_direct_save_slot_move_p (regno, mem, mem == src))
+  rclass = riscv_secondary_reload_class (REGNO_REG_CLASS (regno),
+					 GET_MODE (mem), mem, mem == src);
+
+  if (rclass == NO_REGS)
     mips_emit_move (dest, src);
   else
     {
@@ -3624,9 +3609,9 @@ mips_emit_save_slot_move (rtx dest, rtx src, rtx temp)
 /* Save register REG to MEM.  Make the instruction frame-related.  */
 
 static void
-mips_save_reg (rtx reg, rtx mem)
+riscv_save_reg (rtx reg, rtx mem)
 {
-  mips_emit_save_slot_move (mem, reg, RISCV_PROLOGUE_TEMP (GET_MODE (reg)));
+  riscv_emit_save_slot_move (mem, reg, RISCV_PROLOGUE_TEMP (GET_MODE (reg)));
 }
 
 
@@ -3658,7 +3643,7 @@ riscv_expand_prologue (void)
 			    GEN_INT (-step1));
       RTX_FRAME_RELATED_P (emit_insn (insn)) = 1;
       size -= step1;
-      mips_for_each_saved_gpr_and_fpr (size, mips_save_reg);
+      riscv_for_each_saved_gpr_and_fpr (size, riscv_save_reg);
     }
 
   /* Set up the frame pointer, if we're using one.  */
@@ -3694,9 +3679,9 @@ riscv_expand_prologue (void)
 /* Emit instructions to restore register REG from slot MEM.  */
 
 static void
-mips_restore_reg (rtx reg, rtx mem)
+riscv_restore_reg (rtx reg, rtx mem)
 {
-  mips_emit_save_slot_move (reg, mem, RISCV_EPILOGUE_TEMP (GET_MODE (reg)));
+  riscv_emit_save_slot_move (reg, mem, RISCV_EPILOGUE_TEMP (GET_MODE (reg)));
 }
 
 /* Expand an "epilogue" or "sibcall_epilogue" pattern; SIBCALL_P
@@ -3764,7 +3749,8 @@ riscv_expand_epilogue (bool sibcall_p)
     }
 
   /* Restore the registers.  */
-  mips_for_each_saved_gpr_and_fpr (frame->total_size - step2, mips_restore_reg);
+  riscv_for_each_saved_gpr_and_fpr (frame->total_size - step2,
+				    riscv_restore_reg);
 
   /* Deallocate the final bit of the frame.  */
   if (step2 > 0)
@@ -3866,7 +3852,7 @@ riscv_hard_regno_nregs (int regno, enum machine_mode mode)
    in riscv_hard_regno_nregs.  */
 
 int
-mips_class_max_nregs (enum reg_class rclass, enum machine_mode mode)
+riscv_class_max_nregs (enum reg_class rclass, enum machine_mode mode)
 {
   int size;
   HARD_REG_SET left;
@@ -3887,18 +3873,6 @@ mips_class_max_nregs (enum reg_class rclass, enum machine_mode mode)
   if (!hard_reg_set_empty_p (left))
     size = MIN (size, UNITS_PER_WORD);
   return (GET_MODE_SIZE (mode) + size - 1) / size;
-}
-
-/* Implement CANNOT_CHANGE_MODE_CLASS.  */
-
-bool
-mips_cannot_change_mode_class (enum machine_mode from ATTRIBUTE_UNUSED,
-			       enum machine_mode to ATTRIBUTE_UNUSED,
-			       enum reg_class rclass)
-{
-  /* An FP register written in one format is undefined if interpreted in
-     another format. */
-  return reg_classes_intersect_p (FP_REGS, rclass);
 }
 
 /* Implement TARGET_PREFERRED_RELOAD_CLASS.  */
@@ -4027,7 +4001,7 @@ mips_ira_cover_classes (void)
    needed.  */
 
 enum reg_class
-mips_secondary_reload_class (enum reg_class rclass,
+riscv_secondary_reload_class (enum reg_class rclass,
 			     enum machine_mode mode, rtx x,
 			     bool in_p ATTRIBUTE_UNUSED)
 {
@@ -4821,8 +4795,8 @@ mips_option_override (void)
 
   /* If the user hasn't specified a branch cost, use the processor's
      default.  */
-  if (mips_branch_cost == 0)
-    mips_branch_cost = mips_cost->branch_cost;
+  if (riscv_branch_cost == 0)
+    riscv_branch_cost = mips_cost->branch_cost;
 
   if (!TARGET_USE_GP)
     g_switch_value = 0;

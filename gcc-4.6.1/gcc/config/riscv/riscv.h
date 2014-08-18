@@ -779,18 +779,21 @@ enum reg_class
    general registers, and from the floating point registers.  */
 
 #define SECONDARY_INPUT_RELOAD_CLASS(CLASS, MODE, X)			\
-  mips_secondary_reload_class (CLASS, MODE, X, true)
+  riscv_secondary_reload_class (CLASS, MODE, X, true)
 #define SECONDARY_OUTPUT_RELOAD_CLASS(CLASS, MODE, X)			\
-  mips_secondary_reload_class (CLASS, MODE, X, false)
+  riscv_secondary_reload_class (CLASS, MODE, X, false)
 
 /* Return the maximum number of consecutive registers
    needed to represent mode MODE in a register of class CLASS.  */
 
-#define CLASS_MAX_NREGS(CLASS, MODE) mips_class_max_nregs (CLASS, MODE)
+#define CLASS_MAX_NREGS(CLASS, MODE) riscv_class_max_nregs (CLASS, MODE)
+
+/* It is undefined to interpret an FP register in a different format than
+   that which it was created to be. */
 
 #define CANNOT_CHANGE_MODE_CLASS(FROM, TO, CLASS) \
-  mips_cannot_change_mode_class (FROM, TO, CLASS)
-
+  reg_classes_intersect_p (FP_REGS, CLASS)
+
 /* Stack layout; function entry, exit and calling.  */
 
 #define STACK_GROWS_DOWNWARD
@@ -799,7 +802,7 @@ enum reg_class
 
 #define STARTING_FRAME_OFFSET 0
 
-#define RETURN_ADDR_RTX mips_return_addr
+#define RETURN_ADDR_RTX riscv_return_addr
 
 /* The eliminations to $17 are only used for mips16 code.  See the
    definition of HARD_FRAME_POINTER_REGNUM.  */
@@ -811,7 +814,7 @@ enum reg_class
  { FRAME_POINTER_REGNUM, HARD_FRAME_POINTER_REGNUM}}				\
 
 #define INITIAL_ELIMINATION_OFFSET(FROM, TO, OFFSET) \
-  (OFFSET) = mips_initial_elimination_offset (FROM, TO)
+  (OFFSET) = riscv_initial_elimination_offset (FROM, TO)
 
 /* Allocate stack space for arguments at the beginning of each function.  */
 #define ACCUMULATE_OUTGOING_ARGS 1
@@ -847,10 +850,10 @@ enum reg_class
 #define FP_ARG_LAST  (FP_ARG_FIRST + MAX_ARGS_IN_REGISTERS - 1)
 
 #define LIBCALL_VALUE(MODE) \
-  mips_function_value (NULL_TREE, NULL_TREE, MODE)
+  riscv_function_value (NULL_TREE, NULL_TREE, MODE)
 
 #define FUNCTION_VALUE(VALTYPE, FUNC) \
-  mips_function_value (VALTYPE, FUNC, VOIDmode)
+  riscv_function_value (VALTYPE, FUNC, VOIDmode)
 
 /* Return scalar values in v0 or fv0. */
 
@@ -870,7 +873,7 @@ enum reg_class
    word might go in the Ith integer argument register or the Ith
    floating-point argument register. */
 
-typedef struct mips_args {
+typedef struct {
   /* Number of integer registers used so far, up to MAX_ARGS_IN_REGISTERS. */
   unsigned int num_gprs;
 
@@ -883,16 +886,12 @@ typedef struct mips_args {
    For a library call, FNTYPE is 0.  */
 
 #define INIT_CUMULATIVE_ARGS(CUM, FNTYPE, LIBNAME, INDIRECT, N_NAMED_ARGS) \
-  mips_init_cumulative_args (&CUM, FNTYPE)
-
+  memset (&(CUM), 0, sizeof (CUM))
 
 #define EPILOGUE_USES(REGNO)	((REGNO) == RETURN_ADDR_REGNUM)
 
 /* ABI requires 16-byte alignment, even on ven on RV32. */
 #define RISCV_STACK_ALIGN(LOC) (((LOC) + 15) & -16)
-
-/* No mips port has ever used the profiler counter word, so don't emit it
-   or the label for it.  */
 
 #define NO_PROFILE_COUNTERS 1
 
@@ -948,13 +947,10 @@ typedef struct mips_args {
 
 #define MAX_REGS_PER_ADDRESS 1
 
-/* Check for constness inline but use mips_legitimate_address_p
-   to check whether a constant really is an address.  */
-
 #define CONSTANT_ADDRESS_P(X) \
   (CONSTANT_P (X) && memory_address_p (SImode, X))
 
-#define LEGITIMATE_CONSTANT_P(X) (mips_const_insns (X) > 0)
+#define LEGITIMATE_CONSTANT_P(X) (riscv_const_insns (X) > 0)
 
 /* This handles the magic '..CURRENT_FUNCTION' symbol, which means
    'the start of the function that this code is output in'.  */
@@ -1006,7 +1002,7 @@ typedef struct mips_args {
 /* A C expression for the cost of a branch instruction.  A value of
    1 is the default; other values are interpreted relative to that.  */
 
-#define BRANCH_COST(speed_p, predictable_p) mips_branch_cost
+#define BRANCH_COST(speed_p, predictable_p) riscv_branch_cost
 #define LOGICAL_OP_NON_SHORT_CIRCUIT 0
 
 /* Control the assembler format that we output.  */
@@ -1199,11 +1195,7 @@ do									\
   }									\
 while (0)
 
-/* How to start an assembler comment.
-   The leading space is important (the mips native assembler requires it).  */
-#ifndef ASM_COMMENT_START
-#define ASM_COMMENT_START " #"
-#endif
+#define ASM_COMMENT_START "#"
 
 #undef SIZE_TYPE
 #define SIZE_TYPE (POINTER_SIZE == 64 ? "long unsigned int" : "unsigned int")
@@ -1212,11 +1204,11 @@ while (0)
 #define PTRDIFF_TYPE (POINTER_SIZE == 64 ? "long int" : "int")
 
 /* The maximum number of bytes that can be copied by one iteration of
-   a movmemsi loop; see mips_block_move_loop.  */
+   a movmemsi loop; see riscv_block_move_loop.  */
 #define RISCV_MAX_MOVE_BYTES_PER_LOOP_ITER (UNITS_PER_WORD * 4)
 
 /* The maximum number of bytes that can be copied by a straight-line
-   implementation of movmemsi; see mips_block_move_straight.  We want
+   implementation of movmemsi; see riscv_block_move_straight.  We want
    to make sure that any loop-based implementation will iterate at
    least twice.  */
 #define RISCV_MAX_MOVE_BYTES_STRAIGHT (RISCV_MAX_MOVE_BYTES_PER_LOOP_ITER * 2)
@@ -1291,7 +1283,7 @@ while (0)
 
 extern const enum reg_class riscv_regno_to_class[];
 extern bool riscv_hard_regno_mode_ok[][FIRST_PSEUDO_REGISTER];
-extern const char* mips_hi_relocs[];
+extern const char* riscv_hi_relocs[];
 extern enum processor riscv_tune;        /* which cpu to schedule for */
 #endif
 

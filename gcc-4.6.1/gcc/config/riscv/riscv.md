@@ -347,12 +347,12 @@
 	  ;; CONST{,N} moves.
 	  (and (eq_attr "move_type" "const,constN")
 	       (eq_attr "dword_mode" "yes"))
-	  (symbol_ref "mips_split_const_insns (operands[1]) * 4")
+	  (symbol_ref "riscv_split_const_insns (operands[1]) * 4")
 
 	  ;; Otherwise, constants, loads and stores are handled by external
 	  ;; routines.
 	  (eq_attr "move_type" "const,constN")
-	  (symbol_ref "mips_const_insns (operands[1]) * 4")
+	  (symbol_ref "riscv_const_insns (operands[1]) * 4")
 	  (eq_attr "move_type" "load,fpload")
 	  (symbol_ref "mips_load_store_insns (operands[1], insn) * 4")
 	  (eq_attr "move_type" "store,fpstore")
@@ -2520,7 +2520,7 @@
   "reload_completed"
   [(const_int 0)]
 {
-  mips_set_return_address (operands[0], operands[1]);
+  riscv_set_return_address (operands[0], operands[1]);
   DONE;
 })
 
