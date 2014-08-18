@@ -3906,47 +3906,14 @@ mips_cannot_change_mode_class (enum machine_mode from ATTRIBUTE_UNUSED,
   return reg_classes_intersect_p (FP_REGS, rclass);
 }
 
-/* Return true if moves in mode MODE can use the fmv.fmt pseudoinstruction. */
-
-static bool
-riscv_mode_ok_for_fmv_p (enum machine_mode mode)
-{
-  switch (mode)
-    {
-    case SFmode:
-    case DFmode:
-      return TARGET_HARD_FLOAT;
-
-    default:
-      return false;
-    }
-}
-
-/* Implement MODES_TIEABLE_P.  */
-
-bool
-mips_modes_tieable_p (enum machine_mode mode1, enum machine_mode mode2)
-{
-  /* FPRs allow no mode punning, so it's not worth tying modes if we'd
-     prefer to put one of them in FPRs.  */
-  return (mode1 == mode2
-	  || (!riscv_mode_ok_for_fmv_p (mode1)
-	      && !riscv_mode_ok_for_fmv_p (mode2)));
-}
-
 /* Implement TARGET_PREFERRED_RELOAD_CLASS.  */
 
 static reg_class_t
 mips_preferred_reload_class (rtx x, reg_class_t rclass)
 {
-  if (reg_class_subset_p (FP_REGS, rclass)
-      && riscv_mode_ok_for_fmv_p (GET_MODE (x)))
-    return FP_REGS;
-
-  if (reg_class_subset_p (GR_REGS, rclass))
-    rclass = GR_REGS;
-
-  return rclass;
+  return reg_class_subset_p (FP_REGS, rclass) ? FP_REGS :
+         reg_class_subset_p (GR_REGS, rclass) ? GR_REGS :
+	 rclass;
 }
 
 /* RCLASS is a class involved in a REGISTER_MOVE_COST calculation.
@@ -4014,7 +3981,7 @@ mips_register_move_cost (enum machine_mode mode,
   to = mips_canonicalize_move_class (to);
 
   /* Handle moves that can be done without using general-purpose registers.  */
-  if (from == FP_REGS && to == FP_REGS && riscv_mode_ok_for_fmv_p (mode))
+  if (from == FP_REGS && to == FP_REGS)
       /* fmv.fmt.  */
       return 1;
 
@@ -4087,7 +4054,7 @@ mips_secondary_reload_class (enum reg_class rclass,
 	/* We can force the constant to memory and use flw/fld. */
 	return NO_REGS;
 
-      if (FP_REG_P (regno) && riscv_mode_ok_for_fmv_p (mode))
+      if (FP_REG_P (regno))
 	/* We can use fmv.fmt. */
 	return NO_REGS;
 

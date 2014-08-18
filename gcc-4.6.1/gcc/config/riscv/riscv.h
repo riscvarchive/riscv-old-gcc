@@ -590,7 +590,9 @@ struct riscv_cpu_info {
 #define HARD_REGNO_MODE_OK(REGNO, MODE)					\
   riscv_hard_regno_mode_ok[ (int)(MODE) ][ (REGNO) ]
 
-#define MODES_TIEABLE_P mips_modes_tieable_p
+#define MODES_TIEABLE_P(MODE1, MODE2)					\
+  ((MODE1) == (MODE2) || (GET_MODE_CLASS (MODE1) == MODE_INT		\
+			  && GET_MODE_CLASS (MODE2) == MODE_INT))
 
 /* Use s0 as the frame pointer if it is so requested. */
 #define HARD_FRAME_POINTER_REGNUM 2
