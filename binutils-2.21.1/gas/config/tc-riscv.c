@@ -295,14 +295,16 @@ struct mips_hi_fixup
 };
 
 
-#define RELAX_BRANCH_ENCODE(uncond, toofar) \
-  ((relax_substateT) \
-   (0xc0000000 \
-    | ((toofar) ? 1 : 0) \
+#define RELAX_BRANCH_ENCODE(uncond, rvc, toofar)	\
+  ((relax_substateT) 					\
+   (0xc0000000						\
+    | ((rvc) ? 1 : 0)					\
+    | ((toofar) ? 2 : 0)				\
     | ((uncond) ? 8 : 0)))
 #define RELAX_BRANCH_P(i) (((i) & 0xf0000000) == 0xc0000000)
 #define RELAX_BRANCH_UNCOND(i) (((i) & 8) != 0)
-#define RELAX_BRANCH_TOOFAR(i) (((i) & 1) != 0)
+#define RELAX_BRANCH_TOOFAR(i) (((i) & 2) != 0)
+#define RELAX_BRANCH_RVC(i) (((i) & 1) != 0)
 
 /* Is the given value a sign-extended 32-bit value?  */
 #define IS_SEXT_32BIT_NUM(x)						\
@@ -787,16 +789,6 @@ riscv_rvc_compress(struct mips_cl_insn* insn)
 
   return 1;
 }
-
-static void
-add_relaxed_insn (struct mips_cl_insn *insn, int max_chars, int var,
-      relax_substateT subtype, symbolS *symbol, offsetT offset)
-{
-  frag_grow (max_chars);
-  move_insn (insn, frag_now, frag_more (0) - frag_now->fr_literal);
-  frag_var (rs_machine_dependent, max_chars, var,
-      subtype, symbol, offset, NULL);
-}
 #endif
 
 /* Initialise INSN from opcode entry MO.  Leave its position unspecified.  */
@@ -843,6 +835,16 @@ add_fixed_insn (struct mips_cl_insn *insn)
 {
   char *f = frag_more (insn_length (insn));
   move_insn (insn, frag_now, f - frag_now->fr_literal);
+}
+
+static void
+add_relaxed_insn (struct mips_cl_insn *insn, int max_chars, int var,
+      relax_substateT subtype, symbolS *symbol, offsetT offset)
+{
+  frag_grow (max_chars);
+  move_insn (insn, frag_now, frag_more (0) - frag_now->fr_literal);
+  frag_var (rs_machine_dependent, max_chars, var,
+      subtype, symbol, offset, NULL);
 }
 
 struct regname {
@@ -1310,10 +1312,7 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
       }
     }
   }
-
-  if(!compressible)
 #endif
-    add_fixed_insn(ip);
 
   if (address_expr != NULL)
     {
@@ -1343,6 +1342,14 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
 	      internalError ();
 	    }
 	    reloc_type = BFD_RELOC_UNUSED;
+	}
+      else if (reloc_type == BFD_RELOC_12_PCREL)
+	{
+	  add_relaxed_insn (ip, relaxed_branch_length (NULL, NULL, 0), 4,
+			    RELAX_BRANCH_ENCODE (0, 0, 0),
+			    address_expr->X_add_symbol,
+			    address_expr->X_add_number);
+	  return;
 	}
       else if (reloc_type < BFD_RELOC_UNUSED)
 	{
@@ -1375,12 +1382,10 @@ append_insn (struct mips_cl_insn *ip, expressionS *address_expr,
     }
 
 #if 0
-  if(compressible)
-  {
+  if (compressible)
     riscv_rvc_compress(ip);
-    add_fixed_insn (ip);
-  }
 #endif
+  add_fixed_insn (ip);
 
   install_insn (ip);
 
@@ -2986,36 +2991,40 @@ s_dtpreldword (int ignore ATTRIBUTE_UNUSED)
 
 /* Compute the length of a branch sequence, and adjust the
    RELAX_BRANCH_TOOFAR bit accordingly.  If FRAGP is NULL, the
-   worst-case length is computed, with UPDATE being used to indicate
-   whether an unconditional (-1), branch-likely (+1) or regular (0)
-   branch is to be computed.  */
+   worst-case length is computed. */
 static int
 relaxed_branch_length (fragS *fragp, asection *sec, int update)
 {
-  bfd_boolean toofar;
+  bfd_boolean toofar_rvc = TRUE, toofar = TRUE;
 
-  if (fragp
-      && S_IS_DEFINED (fragp->fr_symbol)
-      && sec == S_GET_SEGMENT (fragp->fr_symbol))
+  if (fragp)
     {
-      offsetT val = S_GET_VALUE (fragp->fr_symbol) + fragp->fr_offset;
-      val -= fragp->fr_address + fragp->fr_fix;
+      bfd_boolean uncond = RELAX_BRANCH_UNCOND (fragp->fr_subtype);
+      bfd_boolean rvc = RELAX_BRANCH_RVC (fragp->fr_subtype);
 
-      if(RELAX_BRANCH_UNCOND (fragp->fr_subtype))
-        toofar = (bfd_vma)(val + RVC_JUMP_REACH/2) >= RVC_JUMP_REACH;
-      else
-        toofar = (bfd_vma)(val + RVC_BRANCH_REACH/2) >= RVC_BRANCH_REACH;
+      if (S_IS_DEFINED (fragp->fr_symbol)
+	  && sec == S_GET_SEGMENT (fragp->fr_symbol))
+	{
+	  offsetT val = S_GET_VALUE (fragp->fr_symbol) + fragp->fr_offset;
+	  bfd_vma range;
+	  val -= fragp->fr_address + fragp->fr_fix;
+
+	  if (uncond && rvc)
+	    range = RVC_JUMP_REACH;
+	  else if (rvc)
+	    range = RVC_BRANCH_REACH;
+	  else if (uncond)
+	    range = RISCV_JUMP_REACH;
+	  else
+	    range = RISCV_BRANCH_REACH;
+	  toofar = (bfd_vma)(val + range/2) >= range;
+	}
+
+      if (update && toofar != RELAX_BRANCH_TOOFAR (fragp->fr_subtype))
+	fragp->fr_subtype = RELAX_BRANCH_ENCODE (uncond, rvc, toofar);
     }
-  else
-    /* If the symbol is not defined or it's in a different segment,
-       assume it's too far. */
-    toofar = TRUE;
 
-  if (fragp && update && toofar != RELAX_BRANCH_TOOFAR (fragp->fr_subtype))
-    fragp->fr_subtype
-      = RELAX_BRANCH_ENCODE (RELAX_BRANCH_UNCOND (fragp->fr_subtype), toofar);
-
-  return toofar ? 4 : 2;
+  return toofar ? 8 : toofar_rvc ? 4 : 2;
 }
 
 int
@@ -3084,64 +3093,83 @@ md_convert_frag_branch (bfd *abfd ATTRIBUTE_UNUSED, segT asec ATTRIBUTE_UNUSED,
   insn_t insn;
   expressionS exp;
   fixS *fixp;
-  bfd_reloc_code_real_type reloc_type = BFD_RELOC_12_PCREL;
 
   buf = (bfd_byte *)fragp->fr_literal + fragp->fr_fix;
-  insn = bfd_getl16 (buf);
 
-  if (!RELAX_BRANCH_TOOFAR (fragp->fr_subtype))
+  exp.X_op = O_symbol;
+  exp.X_add_symbol = fragp->fr_symbol;
+  exp.X_add_number = fragp->fr_offset;
+
+#if 0
+  if (RELAX_BRANCH_RVC (fragp->fr_subtype))
     {
-      gas_assert(S_IS_DEFINED(fragp->fr_symbol));
-      gas_assert(fragp->fr_var == 2);
+      if (RELAX_BRANCH_TOOFAR (fragp->fr_subtype))
+	{
+	  bfd_reloc_code_real_type reloc_type = BFD_RELOC_12_PCREL;
 
-      offsetT target = S_GET_VALUE (fragp->fr_symbol) + fragp->fr_offset;
-      target -= fragp->fr_address + fragp->fr_fix;
-      target >>= RVC_JUMP_ALIGN_BITS;
-      gas_assert(RVC_JUMP_ALIGN_BITS == RVC_BRANCH_ALIGN_BITS);
-     
-      if((insn & MASK_C_J) == MATCH_C_J)
-        insn |= ((target & OP_MASK_CIMM10) << OP_SH_CIMM10);
-      else if((insn & MASK_C_BEQ) == MATCH_C_BEQ ||
-              (insn & MASK_C_BNE) == MATCH_C_BNE)
-        insn |= ((target & OP_MASK_CIMM5) << OP_SH_CIMM5);
+	  gas_assert(fragp->fr_var == 4);
+	  insn = bfd_getl16 (buf);
+
+	  int rs1 = rvc_rs1_regmap[(insn >> OP_SH_CRS1S) & OP_MASK_CRS1S];
+	  int rs2 = rvc_rs2_regmap[(insn >> OP_SH_CRS2S) & OP_MASK_CRS2S];
+
+	  if((insn & MASK_C_J) == MATCH_C_J)
+	    {
+	      insn = MATCH_JAL;
+	      reloc_type = BFD_RELOC_MIPS_JMP;
+	    }
+	  else if((insn & MASK_C_BEQ) == MATCH_C_BEQ)
+	    insn = MATCH_BEQ | (rs1 << OP_SH_RS1) | (rs2 << OP_SH_RS2);
+	  else if((insn & MASK_C_BNE) == MATCH_C_BNE)
+	    insn = MATCH_BNE | (rs1 << OP_SH_RS1) | (rs2 << OP_SH_RS2);
+	  else
+	    gas_assert(0);
+
+	  fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
+			      4, &exp, FALSE, reloc_type);
+	  md_number_to_chars ((char *) buf, insn, 4);
+	  buf += 4;
+	}
       else
-        gas_assert(0);
-
-      md_number_to_chars ((char *) buf, insn, 2);
-      buf += 2;
+	{
+	  fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
+			      2, &exp, FALSE, BFD_RELOC_12_PCREL);
+	  buf += 2;
+	}
     }
   else
+#endif
     {
-      gas_assert(fragp->fr_var == 4);
+      if (RELAX_BRANCH_TOOFAR (fragp->fr_subtype))
+	{
+	  gas_assert (fragp->fr_var == 8);
+	  /* We could relax JAL to AUIPC/JALR, but we don't do this yet. */
+	  gas_assert (!RELAX_BRANCH_UNCOND (fragp->fr_subtype));
 
-      int rs1 = rvc_rs1_regmap[(insn >> OP_SH_CRS1S) & OP_MASK_CRS1S];
-      int rs2 = rvc_rs2_regmap[(insn >> OP_SH_CRS2S) & OP_MASK_CRS2S];
+	  /* Invert the branch condition.  Branch over the jump. */
+	  insn = bfd_getl32 (buf);
+	  insn ^= MATCH_BEQ ^ MATCH_BNE;
+	  insn |= ENCODE_SBTYPE_IMM (8);
+	  md_number_to_chars ((char *) buf, insn, 4);
+	  buf += 4;
 
-      if((insn & MASK_C_J) == MATCH_C_J)
-      {
-        insn = MATCH_JAL;
-        reloc_type = BFD_RELOC_MIPS_JMP;
-      }
-      else if((insn & MASK_C_BEQ) == MATCH_C_BEQ)
-        insn = MATCH_BEQ | (rs1 << OP_SH_RS1) | (rs2 << OP_SH_RS2);
-      else if((insn & MASK_C_BNE) == MATCH_C_BNE)
-        insn = MATCH_BNE | (rs1 << OP_SH_RS1) | (rs2 << OP_SH_RS2);
+	  /* Jump to the target. */
+	  fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
+			  4, &exp, FALSE, BFD_RELOC_MIPS_JMP);
+	  md_number_to_chars ((char *) buf, MATCH_JAL, 4);
+	  buf += 4;
+	}
       else
-        gas_assert(0);
-
-      exp.X_op = O_symbol;
-      exp.X_add_symbol = fragp->fr_symbol;
-      exp.X_add_number = fragp->fr_offset;
-
-      fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
-			  4, &exp, FALSE, reloc_type);
-      fixp->fx_file = fragp->fr_file;
-      fixp->fx_line = fragp->fr_line;
-      fixp->fx_pcrel = 1;
-
-      md_number_to_chars ((char *) buf, insn, 4);
-      buf += 4;
+	{
+	  fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
+			      4, &exp, FALSE, BFD_RELOC_12_PCREL);
+	  buf += 4;
+      }
     }
+
+  fixp->fx_file = fragp->fr_file;
+  fixp->fx_line = fragp->fr_line;
+  fixp->fx_pcrel = 1;
 
   gas_assert (buf == (bfd_byte *)fragp->fr_literal
           + fragp->fr_fix + fragp->fr_var);

@@ -3148,7 +3148,6 @@ mips_print_operand_reloc (FILE *file, rtx op, const char **relocs)
 	  any outermost HIGH.
    'R'	Print the low-part relocation associated with OP.
    'C'	Print the integer branch condition for comparison OP.
-   'N'	Print the inverse of the integer branch condition for comparison OP.
    'z'	Print $0 if OP is zero, otherwise print OP normally.  */
 
 static void
@@ -3174,10 +3173,6 @@ mips_print_operand (FILE *file, rtx op, int letter)
     case 'C':
       /* The RTL names match the instruction names. */
       fputs (GET_RTX_NAME (code), file);
-      break;
-
-    case 'N':
-      fputs (GET_RTX_NAME (reverse_condition (code)), file);
       break;
 
     default:
@@ -4109,44 +4104,6 @@ mips_scalar_mode_supported_p (enum machine_mode mode)
     return true;
 
   return default_scalar_mode_supported_p (mode);
-}
-
-/* Return the assembly code for INSN, which has the operands given by
-   OPERANDS, and which branches to OPERANDS[0] if some condition is true.
-   BRANCH_IF_TRUE is the asm template that should be used if OPERANDS[0]
-   is in range of a direct branch.  BRANCH_IF_FALSE is an inverted
-   version of BRANCH_IF_TRUE.  */
-
-const char *
-mips_output_conditional_branch (rtx insn, rtx *operands,
-				const char *branch_if_true,
-				const char *branch_if_false)
-{
-  unsigned int length;
-  rtx taken, not_taken;
-
-  gcc_assert (LABEL_P (operands[0]));
-
-  length = get_attr_length (insn);
-  if (length <= 4)
-    return branch_if_true;
-
-  /* Generate a reversed branch around a direct jump.  This fallback does
-     not use branch-likely instructions.  */
-  not_taken = gen_label_rtx ();
-  taken = operands[0];
-
-  /* Generate the reversed branch to NOT_TAKEN.  */
-  operands[0] = not_taken;
-  output_asm_insn (branch_if_false, operands);
-
-  /* Output the unconditional branch to TAKEN.  */
-  output_asm_insn ("j\t%0", &taken);
-
-  /* Output NOT_TAKEN.  */
-  targetm.asm_out.internal_label (asm_out_file, "L",
-				  CODE_LABEL_NUMBER (not_taken));
-  return "";
 }
 
 /* Implement TARGET_SCHED_ADJUST_COST.  We assume that anti and output

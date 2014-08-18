@@ -86,8 +86,6 @@ extern enum reg_class mips_secondary_reload_class (enum reg_class,
 						   rtx, bool);
 extern int mips_class_max_nregs (enum reg_class, enum machine_mode);
 
-extern const char *mips_output_conditional_branch (rtx, rtx *, const char *,
-						   const char *);
 extern unsigned int riscv_hard_regno_nregs (int, enum machine_mode);
 
 extern void irix_asm_output_align (FILE *, unsigned);

@@ -2237,28 +2237,7 @@
 	 (label_ref (match_operand 0 "" ""))
 	 (pc)))]
   ""
-{
-  return mips_output_conditional_branch (insn, operands,
-					 "b%C1\t%2,%z3,%0",
-					 "b%N1\t%2,%z3,%0");
-}
-  [(set_attr "type" "branch")
-   (set_attr "mode" "none")])
-
-(define_insn "*branch_order<mode>_inverted"
-  [(set (pc)
-	(if_then_else
-	 (match_operator 1 "order_operator"
-			 [(match_operand:GPR 2 "register_operand" "d")
-			  (match_operand:GPR 3 "reg_or_0_operand" "dJ")])
-	 (pc)
-	 (label_ref (match_operand 0 "" ""))))]
-  ""
-{
-  return mips_output_conditional_branch (insn, operands,
-					 "b%N1\t%2,%z3,%0",
-					 "b%C1\t%2,%z3,%0");
-}
+  "b%C1\t%2,%z3,%0"
   [(set_attr "type" "branch")
    (set_attr "mode" "none")])
 
