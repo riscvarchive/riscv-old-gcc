@@ -21,7 +21,7 @@ along with GCC; see the file COPYING3.  If not see
 
 /* Information about one recognized processor.  Defined here for the
    benefit of TARGET_CPU_CPP_BUILTINS.  */
-struct mips_cpu_info {
+struct riscv_cpu_info {
   /* The 'canonical' name of the processor as far as GCC is concerned.
      It's typically a manufacturer's prefix followed by a numerical
      designation.  It should be lowercase.  */
@@ -585,10 +585,10 @@ struct mips_cpu_info {
    : COP3_REG_P (REGNO) ? '3' : '?')
 
 
-#define HARD_REGNO_NREGS(REGNO, MODE) mips_hard_regno_nregs (REGNO, MODE)
+#define HARD_REGNO_NREGS(REGNO, MODE) riscv_hard_regno_nregs (REGNO, MODE)
 
 #define HARD_REGNO_MODE_OK(REGNO, MODE)					\
-  mips_hard_regno_mode_ok[ (int)(MODE) ][ (REGNO) ]
+  riscv_hard_regno_mode_ok[ (int)(MODE) ][ (REGNO) ]
 
 #define MODES_TIEABLE_P mips_modes_tieable_p
 
@@ -712,7 +712,7 @@ enum reg_class
    choose a class which is "minimal", meaning that no smaller class
    also contains the register.  */
 
-#define REGNO_REG_CLASS(REGNO) mips_regno_to_class[ (REGNO) ]
+#define REGNO_REG_CLASS(REGNO) riscv_regno_to_class[ (REGNO) ]
 
 /* A macro whose definition is the name of the class to which a
    valid base register must belong.  A base register is one used in
@@ -918,7 +918,7 @@ typedef struct mips_args {
 
 #define REGNO_OK_FOR_INDEX_P(REGNO) 0
 #define REGNO_MODE_OK_FOR_BASE_P(REGNO, MODE) \
-  mips_regno_mode_ok_for_base_p (REGNO, MODE, 1)
+  riscv_regno_mode_ok_for_base_p (REGNO, MODE, 1)
 
 /* The macros REG_OK_FOR..._P assume that the arg is a REG rtx
    and check its validity for a certain class.
@@ -933,10 +933,10 @@ typedef struct mips_args {
 
 #ifndef REG_OK_STRICT
 #define REG_MODE_OK_FOR_BASE_P(X, MODE) \
-  mips_regno_mode_ok_for_base_p (REGNO (X), MODE, 0)
+  riscv_regno_mode_ok_for_base_p (REGNO (X), MODE, 0)
 #else
 #define REG_MODE_OK_FOR_BASE_P(X, MODE) \
-  mips_regno_mode_ok_for_base_p (REGNO (X), MODE, 1)
+  riscv_regno_mode_ok_for_base_p (REGNO (X), MODE, 1)
 #endif
 
 #define REG_OK_FOR_INDEX_P(X) 0
@@ -1287,10 +1287,10 @@ while (0)
 
 #ifndef USED_FOR_TARGET
 
-extern const enum reg_class mips_regno_to_class[];
-extern bool mips_hard_regno_mode_ok[][FIRST_PSEUDO_REGISTER];
+extern const enum reg_class riscv_regno_to_class[];
+extern bool riscv_hard_regno_mode_ok[][FIRST_PSEUDO_REGISTER];
 extern const char* mips_hi_relocs[];
-extern enum processor mips_tune;        /* which cpu to schedule for */
+extern enum processor riscv_tune;        /* which cpu to schedule for */
 #endif
 
 #define ASM_PREFERRED_EH_DATA_FORMAT(CODE,GLOBAL) \

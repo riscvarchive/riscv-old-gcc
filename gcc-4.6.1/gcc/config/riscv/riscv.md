@@ -361,7 +361,7 @@
 
 ;; Attribute describing the processor.
 (define_enum_attr "cpu" "processor"
-  (const (symbol_ref "mips_tune")))
+  (const (symbol_ref "riscv_tune")))
 
 ;; Describe a user's asm statement.
 (define_asm_attributes

@@ -305,13 +305,13 @@ struct mips_rtx_cost_data
 /* Global variables for machine-dependent things.  */
 
 /* The processor that we should tune the code for.  */
-enum processor mips_tune;
+enum processor riscv_tune;
 
 /* Which cost information to use.  */
 static const struct mips_rtx_cost_data *mips_cost;
 
 /* Index [M][R] is true if register R is allowed to hold a value of mode M.  */
-bool mips_hard_regno_mode_ok[(int) MAX_MACHINE_MODE][FIRST_PSEUDO_REGISTER];
+bool riscv_hard_regno_mode_ok[(int) MAX_MACHINE_MODE][FIRST_PSEUDO_REGISTER];
 
 /* mips_lo_relocs[X] is the relocation to use when a symbol of type X
    appears in a LO_SUM.  It can be null if such LO_SUMs aren't valid or
@@ -322,7 +322,7 @@ const char *mips_lo_relocs[NUM_SYMBOL_TYPES];
 const char *mips_hi_relocs[NUM_SYMBOL_TYPES];
 
 /* Index R is the smallest register class that contains register R.  */
-const enum reg_class mips_regno_to_class[FIRST_PSEUDO_REGISTER] = {
+const enum reg_class riscv_regno_to_class[FIRST_PSEUDO_REGISTER] = {
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
   GR_REGS,	GR_REGS,	GR_REGS,	GR_REGS,
@@ -373,10 +373,10 @@ static const struct attribute_spec mips_attribute_table[] = {
    taken as the canonical name for that ISA.
 
    To ease comparison, please keep this table in the same order
-   as GAS's mips_cpu_info_table.  Please also make sure that
+   as GAS's riscv_cpu_info_table.  Please also make sure that
    MIPS_ISA_LEVEL_SPEC and MIPS_ARCH_FLOAT_SPEC handle all -march
    options correctly.  */
-static const struct mips_cpu_info mips_cpu_info_table[] = {
+static const struct riscv_cpu_info riscv_cpu_info_table[] = {
   /* Entries for generic ISAs.  */
   { "rocket", PROCESSOR_ROCKET, 0 },
 };
@@ -756,7 +756,7 @@ mips_cannot_force_const_mem (rtx x)
    STRICT_P is true if REG_OK_STRICT is in effect.  */
 
 int
-mips_regno_mode_ok_for_base_p (int regno, enum machine_mode mode ATTRIBUTE_UNUSED,
+riscv_regno_mode_ok_for_base_p (int regno, enum machine_mode mode ATTRIBUTE_UNUSED,
 			       bool strict_p)
 {
   if (!HARD_REGISTER_NUM_P (regno))
@@ -785,7 +785,7 @@ mips_valid_base_register_p (rtx x, enum machine_mode mode, bool strict_p)
     x = SUBREG_REG (x);
 
   return (REG_P (x)
-	  && mips_regno_mode_ok_for_base_p (REGNO (x), mode, strict_p));
+	  && riscv_regno_mode_ok_for_base_p (REGNO (x), mode, strict_p));
 }
 
 /* Return true if, for every base register BASE_REG, (plus BASE_REG X)
@@ -3797,10 +3797,10 @@ mips_can_use_return_insn (void)
 }
 
 /* Return true if register REGNO can store a value of mode MODE.
-   The result of this function is cached in mips_hard_regno_mode_ok.  */
+   The result of this function is cached in riscv_hard_regno_mode_ok.  */
 
 static bool
-mips_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
+riscv_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
 {
   unsigned int size;
   enum mode_class mclass;
@@ -3852,7 +3852,7 @@ mips_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
 /* Implement HARD_REGNO_NREGS.  */
 
 unsigned int
-mips_hard_regno_nregs (int regno, enum machine_mode mode)
+riscv_hard_regno_nregs (int regno, enum machine_mode mode)
 {
   if (VECTOR_MODE_P(mode))
     return 1;
@@ -3868,7 +3868,7 @@ mips_hard_regno_nregs (int regno, enum machine_mode mode)
 }
 
 /* Implement CLASS_MAX_NREGS, taking the maximum of the cases
-   in mips_hard_regno_nregs.  */
+   in riscv_hard_regno_nregs.  */
 
 int
 mips_class_max_nregs (enum reg_class rclass, enum machine_mode mode)
@@ -3906,10 +3906,10 @@ mips_cannot_change_mode_class (enum machine_mode from ATTRIBUTE_UNUSED,
   return reg_classes_intersect_p (FP_REGS, rclass);
 }
 
-/* Return true if moves in mode MODE can use the fsgnj instruction.  */
+/* Return true if moves in mode MODE can use the fmv.fmt pseudoinstruction. */
 
 static bool
-riscv_mode_ok_for_fsgnj_p (enum machine_mode mode)
+riscv_mode_ok_for_fmv_p (enum machine_mode mode)
 {
   switch (mode)
     {
@@ -3930,8 +3930,8 @@ mips_modes_tieable_p (enum machine_mode mode1, enum machine_mode mode2)
   /* FPRs allow no mode punning, so it's not worth tying modes if we'd
      prefer to put one of them in FPRs.  */
   return (mode1 == mode2
-	  || (!riscv_mode_ok_for_fsgnj_p (mode1)
-	      && !riscv_mode_ok_for_fsgnj_p (mode2)));
+	  || (!riscv_mode_ok_for_fmv_p (mode1)
+	      && !riscv_mode_ok_for_fmv_p (mode2)));
 }
 
 /* Implement TARGET_PREFERRED_RELOAD_CLASS.  */
@@ -3940,7 +3940,7 @@ static reg_class_t
 mips_preferred_reload_class (rtx x, reg_class_t rclass)
 {
   if (reg_class_subset_p (FP_REGS, rclass)
-      && riscv_mode_ok_for_fsgnj_p (GET_MODE (x)))
+      && riscv_mode_ok_for_fmv_p (GET_MODE (x)))
     return FP_REGS;
 
   if (reg_class_subset_p (GR_REGS, rclass))
@@ -4014,8 +4014,8 @@ mips_register_move_cost (enum machine_mode mode,
   to = mips_canonicalize_move_class (to);
 
   /* Handle moves that can be done without using general-purpose registers.  */
-  if (from == FP_REGS && to == FP_REGS && riscv_mode_ok_for_fsgnj_p (mode))
-      /* fsgnj.fmt.  */
+  if (from == FP_REGS && to == FP_REGS && riscv_mode_ok_for_fmv_p (mode))
+      /* fmv.fmt.  */
       return 1;
 
   /* Handle cases in which only one class deviates from the ideal.  */
@@ -4087,8 +4087,8 @@ mips_secondary_reload_class (enum reg_class rclass,
 	/* We can force the constant to memory and use flw/fld. */
 	return NO_REGS;
 
-      if (FP_REG_P (regno) && riscv_mode_ok_for_fsgnj_p (mode))
-	/* We can use fsgnj. */
+      if (FP_REG_P (regno) && riscv_mode_ok_for_fmv_p (mode))
+	/* We can use fmv.fmt. */
 	return NO_REGS;
 
       /* Otherwise, we need to reload through an integer register.  */
@@ -4199,7 +4199,7 @@ mips_adjust_cost (rtx insn ATTRIBUTE_UNUSED, rtx link,
 static int
 mips_issue_rate (void)
 {
-  switch (mips_tune)
+  switch (riscv_tune)
     {
     case PROCESSOR_ROCKET:
       return 1;
@@ -4832,19 +4832,19 @@ mips_init_machine_status (void)
   return ggc_alloc_cleared_machine_function ();
 }
 
-/* Return the mips_cpu_info entry for the processor or ISA given
+/* Return the riscv_cpu_info entry for the processor or ISA given
    by CPU_STRING.  Return null if the string isn't recognized.
 
    A similar function exists in GAS.  */
 
-static const struct mips_cpu_info *
+static const struct riscv_cpu_info *
 mips_parse_cpu (const char *cpu_string)
 {
   unsigned int i;
 
-  for (i = 0; i < ARRAY_SIZE (mips_cpu_info_table); i++)
-    if (strcmp (mips_cpu_info_table[i].name, cpu_string) == 0)
-      return mips_cpu_info_table + i;
+  for (i = 0; i < ARRAY_SIZE (riscv_cpu_info_table); i++)
+    if (strcmp (riscv_cpu_info_table[i].name, cpu_string) == 0)
+      return riscv_cpu_info_table + i;
 
   return NULL;
 }
@@ -4870,7 +4870,7 @@ static void
 mips_option_override (void)
 {
   int regno, mode;
-  const struct mips_cpu_info *info;
+  const struct riscv_cpu_info *info;
 
 #ifdef SUBTARGET_OVERRIDE_OPTIONS
   SUBTARGET_OVERRIDE_OPTIONS;
@@ -4878,13 +4878,13 @@ mips_option_override (void)
 
   info = mips_parse_cpu (RISCV_CPU_STRING_DEFAULT);
   gcc_assert (info);
-  mips_tune = info->cpu;
+  riscv_tune = info->cpu;
 
-  if (mips_tune_string != 0)
+  if (riscv_tune_string != 0)
     {
-      const struct mips_cpu_info *tune = mips_parse_cpu (mips_tune_string);
+      const struct riscv_cpu_info *tune = mips_parse_cpu (riscv_tune_string);
       if (tune)
-	mips_tune = tune->cpu;
+	riscv_tune = tune->cpu;
     }
 
   flag_pcc_struct_return = 0;
@@ -4893,7 +4893,7 @@ mips_option_override (void)
   if (optimize_size)
     mips_cost = &mips_rtx_cost_optimize_size;
   else
-    mips_cost = &mips_rtx_cost_data[mips_tune];
+    mips_cost = &mips_rtx_cost_data[riscv_tune];
 
   /* If the user hasn't specified a branch cost, use the processor's
      default.  */
@@ -4912,11 +4912,11 @@ mips_option_override (void)
   REAL_MODE_FORMAT (TFmode) = &MIPS_TFMODE_FORMAT;
 #endif
 
-  /* Set up mips_hard_regno_mode_ok.  */
+  /* Set up riscv_hard_regno_mode_ok.  */
   for (mode = 0; mode < MAX_MACHINE_MODE; mode++)
     for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
-      mips_hard_regno_mode_ok[mode][regno]
-	= mips_hard_regno_mode_ok_p (regno, (enum machine_mode) mode);
+      riscv_hard_regno_mode_ok[mode][regno]
+	= riscv_hard_regno_mode_ok_p (regno, (enum machine_mode) mode);
 
   /* Function to allocate machine-dependent function status.  */
   init_machine_status = &mips_init_machine_status;

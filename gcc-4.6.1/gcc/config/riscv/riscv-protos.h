@@ -36,7 +36,7 @@ enum mips_symbol_type {
 #define NUM_SYMBOL_TYPES (SYMBOL_TLS_IE + 1)
 
 extern bool mips_symbolic_constant_p (rtx, enum mips_symbol_type *);
-extern int mips_regno_mode_ok_for_base_p (int, enum machine_mode, bool);
+extern int riscv_regno_mode_ok_for_base_p (int, enum machine_mode, bool);
 extern int riscv_address_insns (rtx, enum machine_mode, bool);
 extern int mips_const_insns (rtx);
 extern int mips_split_const_insns (rtx);
@@ -89,7 +89,7 @@ extern int mips_class_max_nregs (enum reg_class, enum machine_mode);
 
 extern const char *mips_output_conditional_branch (rtx, rtx *, const char *,
 						   const char *);
-extern unsigned int mips_hard_regno_nregs (int, enum machine_mode);
+extern unsigned int riscv_hard_regno_nregs (int, enum machine_mode);
 
 extern void irix_asm_output_align (FILE *, unsigned);
 extern const char *current_section_name (void);

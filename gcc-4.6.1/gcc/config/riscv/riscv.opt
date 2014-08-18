@@ -55,7 +55,7 @@ Target Report RejectNegative Mask(FDIV)
 Use hardware floating-point divide and square root instructions
 
 mtune=
-Target RejectNegative Joined Var(mips_tune_string)
+Target RejectNegative Joined Var(riscv_tune_string)
 -mtune=PROCESSOR	Optimize the output for PROCESSOR
 
 msmall-data-limit=
