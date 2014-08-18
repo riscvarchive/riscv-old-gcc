@@ -1,6 +1,8 @@
-;; Generic DFA-based pipeline description for MIPS targets
-;;   Copyright (C) 2004, 2005, 2007 Free Software Foundation, Inc.
-;;
+;; Generic DFA-based pipeline description for RISC-V targets.
+;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
+;; Contributed by Andrew Waterman (waterman@cs.berkeley.edu) at UC Berkeley.
+;; Based on MIPS target for GNU compiler.
+
 ;; This file is part of GCC.
 
 ;; GCC is free software; you can redistribute it and/or modify it
@@ -22,8 +24,7 @@
 ;; Each reservation can be overridden on a processor-by-processor basis.
 
 (define_insn_reservation "generic_alu" 1
-  (eq_attr "type" "unknown,prefetch,prefetchx,condmove,const,arith,
-		   shift,slt,clz,trap,multi,nop,logical,signext,move")
+  (eq_attr "type" "unknown,const,arith,shift,slt,multi,nop,logical,move")
   "alu")
 
 (define_insn_reservation "generic_load" 3
@@ -55,7 +56,7 @@
   "alu")
 
 (define_insn_reservation "generic_fmove" 2
-  (eq_attr "type" "fabs,fneg,fmove")
+  (eq_attr "type" "fmove")
   "alu")
 
 (define_insn_reservation "generic_fcmp" 3
@@ -77,25 +78,21 @@
   "alu")
 
 (define_insn_reservation "generic_fdiv_single" 23
-  (and (eq_attr "type" "fdiv,frdiv")
+  (and (eq_attr "type" "fdiv")
        (eq_attr "mode" "SF"))
   "alu")
 
 (define_insn_reservation "generic_fdiv_double" 36
-  (and (eq_attr "type" "fdiv,frdiv")
+  (and (eq_attr "type" "fdiv")
        (eq_attr "mode" "DF"))
   "alu")
 
 (define_insn_reservation "generic_fsqrt_single" 54
-  (and (eq_attr "type" "fsqrt,frsqrt")
+  (and (eq_attr "type" "fsqrt")
        (eq_attr "mode" "SF"))
   "alu")
 
 (define_insn_reservation "generic_fsqrt_double" 112
-  (and (eq_attr "type" "fsqrt,frsqrt")
+  (and (eq_attr "type" "fsqrt")
        (eq_attr "mode" "DF"))
-  "alu")
-
-(define_insn_reservation "generic_frecip_fsqrt_step" 5
-  (eq_attr "type" "frdiv1,frdiv2,frsqrt1,frsqrt2")
   "alu")

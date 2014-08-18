@@ -34,10 +34,6 @@ mhard-float
 Target Report RejectNegative InverseMask(SOFT_FLOAT_ABI, HARD_FLOAT_ABI)
 Allow the use of hardware floating-point ABI and instructions
 
-mips
-Target RejectNegative Joined
--mipsN	Generate code for ISA level N
-
 mmemcpy
 Target Report Mask(MEMCPY)
 Don't optimize block moves

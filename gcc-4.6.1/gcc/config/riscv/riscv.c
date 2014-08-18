@@ -1,4 +1,4 @@
-/* Definition of RISC-V target for GNU compiler.
+/* Subroutines used for code generation for RISC-V.
    Copyright (C) 2011-2014 Free Software Foundation, Inc.
    Contributed by Andrew Waterman (waterman@cs.berkeley.edu) at UC Berkeley.
    Based on MIPS target for GNU compiler.
@@ -4805,10 +4805,6 @@ mips_option_override (void)
      though see MOVE_RATIO in mips.h.  */
   if (optimize_size && (target_flags_explicit & MASK_MEMCPY) == 0)
     target_flags |= MASK_MEMCPY;
-
-#ifdef MIPS_TFMODE_FORMAT
-  REAL_MODE_FORMAT (TFmode) = &MIPS_TFMODE_FORMAT;
-#endif
 
   /* Set up riscv_hard_regno_mode_ok.  */
   for (mode = 0; mode < MAX_MACHINE_MODE; mode++)

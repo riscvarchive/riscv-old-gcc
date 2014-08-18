@@ -1,11 +1,7 @@
-;;  Mips.md	     Machine Description for MIPS based processors
-;;  Copyright (C) 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-;;  1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009, 2010
-;;  Free Software Foundation, Inc.
-;;  Contributed by   A. Lichnewsky, lich@inria.inria.fr
-;;  Changes by       Michael Meissner, meissner@osf.org
-;;  64-bit r4000 support by Ian Lance Taylor, ian@cygnus.com, and
-;;  Brendan Eich, brendan@microunity.com.
+;; Machine description for RISC-V for GNU compiler.
+;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
+;; Contributed by Andrew Waterman (waterman@cs.berkeley.edu) at UC Berkeley.
+;; Based on MIPS target for GNU compiler.
 
 ;; This file is part of GCC.
 
@@ -28,29 +24,15 @@
 ])
 
 (define_c_enum "unspec" [
-  ;; Unaligned accesses.
-  UNSPEC_LOAD_LEFT
-  UNSPEC_LOAD_RIGHT
-  UNSPEC_STORE_LEFT
-  UNSPEC_STORE_RIGHT
-
   ;; Floating-point moves.
   UNSPEC_LOAD_LOW
   UNSPEC_LOAD_HIGH
   UNSPEC_STORE_WORD
-  UNSPEC_MFHC1
-  UNSPEC_MTHC1
-
-  ;; HI/LO moves.
-  UNSPEC_MFHI
-  UNSPEC_MTHI
-  UNSPEC_SET_HILO
 
   ;; GP manipulation.
   UNSPEC_EH_RETURN
 
   ;; Symbolic accesses.
-  UNSPEC_LOAD_CALL
   UNSPEC_LOAD_GOT
   UNSPEC_TLS_LE_ADD
   UNSPEC_TLS_IE_ADD
@@ -59,31 +41,8 @@
   UNSPEC_TLS_IE_HI
   UNSPEC_TLS_IE_LO
 
-  ;; MIPS16 constant pools.
-  UNSPEC_ALIGN
-  UNSPEC_CONSTTABLE_INT
-  UNSPEC_CONSTTABLE_FLOAT
-
   ;; Blockage and synchronisation.
   UNSPEC_BLOCKAGE
-  UNSPEC_CLEAR_HAZARD
-  UNSPEC_RDHWR
-  UNSPEC_SYNC
-
-  ;; Interrupt handling.
-  UNSPEC_MIPS_CACHE
-  UNSPEC_ERET
-  UNSPEC_DERET
-  UNSPEC_DI
-  UNSPEC_EHB
-  UNSPEC_RDPGPR
-  UNSPEC_COP0
-
-  ;; Used in a call expression in place of args_size.  It's present for PIC
-  ;; indirect calls where it contains args_size and the function symbol.
-  UNSPEC_CALL_ATTR
-
-  ;; Fences
   UNSPEC_FENCE
   UNSPEC_FENCE_I
 ])
@@ -101,7 +60,7 @@
 
 (include "predicates.md")
 (include "constraints.md")
-
+
 ;; ....................
 ;;
 ;;	Attributes
@@ -120,11 +79,6 @@
 ;; are as for "type" (see below) but there are also the following
 ;; move-specific values:
 ;;
-;; constN	move an N-constraint integer into a MIPS16 register
-;; sll0		"sll DEST,SRC,0", which on 64-bit targets is guaranteed
-;;		to produce a sign-extended DEST, even if SRC is not
-;;		properly sign-extended
-;; ext_ins	EXT, DEXT, INS or DINS instruction
 ;; andi		a single ANDI instruction
 ;; shift_shift	a shift left followed by a shift right
 ;;
@@ -134,10 +88,10 @@
 ;; scheduling type to be "multi" instead.
 (define_attr "move_type"
   "unknown,load,fpload,store,fpstore,mtc,mfc,move,fmove,
-   const,constN,signext,ext_ins,logical,arith,sll0,andi,shift_shift"
+   const,logical,arith,andi,shift_shift"
   (const_string "unknown"))
 
-(define_attr "alu_type" "unknown,add,sub,not,nor,and,or,xor"
+(define_attr "alu_type" "unknown,add,sub,and,or,xor"
   (const_string "unknown"))
 
 ;; Main data type used by the insn
@@ -165,9 +119,6 @@
 ;; store	store instruction(s)
 ;; fpstore	floating point store
 ;; fpidxstore	floating point indexed store
-;; prefetch	memory prefetch (register + offset)
-;; prefetchx	memory indexed prefetch (register + register)
-;; condmove	conditional moves
 ;; mtc		transfer to coprocessor
 ;; mfc		transfer from coprocessor
 ;; const	load constant
@@ -175,10 +126,6 @@
 ;; logical      integer logical instructions
 ;; shift	integer shift instructions
 ;; slt		set less than instructions
-;; signext      sign extend instructions
-;; clz		the clz and clo instructions
-;; pop		the pop instruction
-;; trap		trap if instructions
 ;; imul		integer multiply 
 ;; idiv		integer divide
 ;; move		integer register move (addi rd, rs1, 0)
@@ -187,32 +134,22 @@
 ;; fmul		floating point multiply
 ;; fmadd	floating point multiply-add
 ;; fdiv		floating point divide
-;; frdiv	floating point reciprocal divide
-;; frdiv1	floating point reciprocal divide step 1
-;; frdiv2	floating point reciprocal divide step 2
-;; fabs		floating point absolute value
-;; fneg		floating point negation
 ;; fcmp		floating point compare
 ;; fcvt		floating point convert
 ;; fsqrt	floating point square root
-;; frsqrt       floating point reciprocal square root
-;; frsqrt1      floating point reciprocal square root step1
-;; frsqrt2      floating point reciprocal square root step2
 ;; multi	multiword sequence (or user asm statements)
 ;; nop		no operation
 ;; ghost	an instruction that produces no real code
 (define_attr "type"
   "unknown,branch,jump,call,load,fpload,fpidxload,store,fpstore,fpidxstore,
-   prefetch,prefetchx,condmove,mtc,mfc,const,arith,logical,
-   shift,slt,signext,clz,pop,trap,imul,idiv,move,
-   fmove,fadd,fmul,fmadd,fdiv,frdiv,frdiv1,frdiv2,fabs,fneg,fcmp,fcvt,fsqrt,
-   frsqrt,frsqrt1,frsqrt2,multi,nop,ghost"
+   mtc,mfc,const,arith,logical,shift,slt,imul,idiv,move,fmove,fadd,fmul,
+   fmadd,fdiv,fcmp,fcvt,fsqrt,multi,nop,ghost"
   (cond [(eq_attr "jal" "!unset") (const_string "call")
 	 (eq_attr "got" "load") (const_string "load")
 
 	 (eq_attr "alu_type" "add,sub") (const_string "arith")
 
-	 (eq_attr "alu_type" "not,nor,and,or,xor") (const_string "logical")
+	 (eq_attr "alu_type" "and,or,xor") (const_string "logical")
 
 	 ;; If a doubleword move uses these expensive instructions,
 	 ;; it is usually better to schedule them in the same way
@@ -226,15 +163,12 @@
 
 	 ;; These types of move are always single insns.
 	 (eq_attr "move_type" "fmove") (const_string "fmove")
-	 (eq_attr "move_type" "signext") (const_string "signext")
-	 (eq_attr "move_type" "ext_ins") (const_string "arith")
 	 (eq_attr "move_type" "arith") (const_string "arith")
 	 (eq_attr "move_type" "logical") (const_string "logical")
-	 (eq_attr "move_type" "sll0") (const_string "shift")
 	 (eq_attr "move_type" "andi") (const_string "logical")
 
 	 ;; These types of move are always split.
-	 (eq_attr "move_type" "constN,shift_shift")
+	 (eq_attr "move_type" "shift_shift")
 	   (const_string "multi")
 
 	 ;; These types of move are split for doubleword modes only.
@@ -255,49 +189,6 @@
 
 (define_attr "cnv_mode" "unknown,I2S,I2D,S2I,D2I,D2S,S2D" 
   (const_string "unknown"))
-
-;; Attributes describing a sync loop.  These loops have the form:
-;;
-;;       if (RELEASE_BARRIER == YES) sync
-;;    1: OLDVAL = *MEM
-;;       if ((OLDVAL & INCLUSIVE_MASK) != REQUIRED_OLDVAL) goto 2
-;;       $TMP1 = OLDVAL & EXCLUSIVE_MASK
-;;       $TMP2 = INSN1 (OLDVAL, INSN1_OP2)
-;;       $TMP3 = INSN2 ($TMP2, INCLUSIVE_MASK)
-;;       $AT |= $TMP1 | $TMP3
-;;       if (!commit (*MEM = $AT)) goto 1.
-;;         if (INSN1 != MOVE && INSN1 != LI) NEWVAL = $TMP3 [delay slot]
-;;       sync
-;;    2:
-;;
-;; where "$" values are temporaries and where the other values are
-;; specified by the attributes below.  Values are specified as operand
-;; numbers and insns are specified as enums.  If no operand number is
-;; specified, the following values are used instead:
-;;
-;;    - OLDVAL: $AT
-;;    - NEWVAL: $AT
-;;    - INCLUSIVE_MASK: -1
-;;    - REQUIRED_OLDVAL: OLDVAL & INCLUSIVE_MASK
-;;    - EXCLUSIVE_MASK: 0
-;;
-;; MEM and INSN1_OP2 are required.
-;;
-;; Ideally, the operand attributes would be integers, with -1 meaning "none",
-;; but the gen* programs don't yet support that.
-(define_attr "sync_mem" "none,0,1,2,3,4,5" (const_string "none"))
-(define_attr "sync_oldval" "none,0,1,2,3,4,5" (const_string "none"))
-(define_attr "sync_newval" "none,0,1,2,3,4,5" (const_string "none"))
-(define_attr "sync_inclusive_mask" "none,0,1,2,3,4,5" (const_string "none"))
-(define_attr "sync_exclusive_mask" "none,0,1,2,3,4,5" (const_string "none"))
-(define_attr "sync_required_oldval" "none,0,1,2,3,4,5" (const_string "none"))
-(define_attr "sync_insn1_op2" "none,0,1,2,3,4,5" (const_string "none"))
-(define_attr "sync_insn1" "move,li,add,addi,sub,and,andi,or,ori,xor,xori"
-  (const_string "move"))
-(define_attr "sync_insn2" "nop,and,xor,not"
-  (const_string "nop"))
-(define_attr "sync_release_barrier" "yes,no"
-  (const_string "yes"))
 
 ;; Length of instruction in bytes.
 (define_attr "length" ""
@@ -345,14 +236,12 @@
 
 	  ;; Doubleword CONST{,N} moves are split into two word
 	  ;; CONST{,N} moves.
-	  (and (eq_attr "move_type" "const,constN")
+	  (and (eq_attr "move_type" "const")
 	       (eq_attr "dword_mode" "yes"))
 	  (symbol_ref "riscv_split_const_insns (operands[1]) * 4")
 
 	  ;; Otherwise, constants, loads and stores are handled by external
 	  ;; routines.
-	  (eq_attr "move_type" "const,constN")
-	  (symbol_ref "riscv_const_insns (operands[1]) * 4")
 	  (eq_attr "move_type" "load,fpload")
 	  (symbol_ref "mips_load_store_insns (operands[1], insn) * 4")
 	  (eq_attr "move_type" "store,fpstore")
@@ -1255,7 +1144,7 @@
 	(abs:ANYF (match_operand:ANYF 1 "register_operand" "f")))]
   "TARGET_HARD_FLOAT"
   "fabs.<fmt>\t%0,%1"
-  [(set_attr "type" "fabs")
+  [(set_attr "type" "fmove")
    (set_attr "mode" "<UNITMODE>")])
 
 
@@ -1272,7 +1161,7 @@
 			    (match_operand:ANYF 2 "register_operand" "f")))]
   "TARGET_HARD_FLOAT"
   "fmin.<fmt>\t%0,%1,%2"
-  [(set_attr "type" "fabs")
+  [(set_attr "type" "fmove")
    (set_attr "mode" "<UNITMODE>")])
 
 (define_insn "smax<mode>3"
@@ -1281,7 +1170,7 @@
 			    (match_operand:ANYF 2 "register_operand" "f")))]
   "TARGET_HARD_FLOAT"
   "fmax.<fmt>\t%0,%1,%2"
-  [(set_attr "type" "fabs")
+  [(set_attr "type" "fmove")
    (set_attr "mode" "<UNITMODE>")])
 
 
@@ -1297,7 +1186,7 @@
 	(neg:ANYF (match_operand:ANYF 1 "register_operand" "f")))]
   "TARGET_HARD_FLOAT"
   "fneg.<fmt>\t%0,%1"
-  [(set_attr "type" "fneg")
+  [(set_attr "type" "fmove")
    (set_attr "mode" "<UNITMODE>")])
 
 (define_insn "one_cmpl<mode>2"
@@ -2684,13 +2573,6 @@
   "nop"
   [(set_attr "type"	"nop")
    (set_attr "mode"	"none")])
-
-
-(define_insn "align"
-  [(unspec_volatile [(match_operand 0 "const_int_operand" "")] UNSPEC_ALIGN)]
-  ""
-  ".align\t%0"
-  [(set (attr "length") (symbol_ref "(1 << INTVAL (operands[0])) - 1"))])
 
 (include "sync.md")
 (include "peephole.md")

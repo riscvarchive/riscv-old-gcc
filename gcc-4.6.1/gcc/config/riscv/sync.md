@@ -1,7 +1,7 @@
-;;  Machine Description for MIPS based processor synchronization
-;;  instructions.
-;;  Copyright (C) 2007, 2008, 2009, 2010
-;;  Free Software Foundation, Inc.
+;; Machine description for RISC-V atomic operations.
+;; Copyright (C) 2011-2014 Free Software Foundation, Inc.
+;; Contributed by Andrew Waterman (waterman@cs.berkeley.edu) at UC Berkeley.
+;; Based on MIPS target for GNU compiler.
 
 ;; This file is part of GCC.
 

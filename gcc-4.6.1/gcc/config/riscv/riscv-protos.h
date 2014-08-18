@@ -1,11 +1,7 @@
-/* Prototypes of target machine for GNU compiler.  MIPS version.
-   Copyright (C) 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2001, 2002, 2003, 2004, 2005, 2007, 2008, 2009, 2010, 2011
-   Free Software Foundation, Inc.
-   Contributed by A. Lichnewsky (lich@inria.inria.fr).
-   Changed by Michael Meissner	(meissner@osf.org).
-   64-bit r4000 support by Ian Lance Taylor (ian@cygnus.com) and
-   Brendan Eich (brendan@microunity.com).
+/* Definition of RISC-V target for GNU compiler.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Contributed by Andrew Waterman (waterman@cs.berkeley.edu) at UC Berkeley.
+   Based on MIPS target for GNU compiler.
 
 This file is part of GCC.
 
@@ -23,8 +19,8 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-#ifndef GCC_MIPS_PROTOS_H
-#define GCC_MIPS_PROTOS_H
+#ifndef GCC_RISCV_PROTOS_H
+#define GCC_RISCV_PROTOS_H
 
 enum mips_symbol_type {
   SYMBOL_ABSOLUTE,
@@ -91,4 +87,4 @@ extern void riscv_expand_vector_init (rtx, rtx);
 
 extern bool riscv_size_ok_for_small_data_p (int size);
 
-#endif /* ! GCC_MIPS_PROTOS_H */
+#endif /* ! GCC_RISCV_PROTOS_H */
