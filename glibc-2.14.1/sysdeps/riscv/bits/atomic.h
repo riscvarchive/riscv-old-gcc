@@ -41,9 +41,9 @@ typedef uintmax_t uatomic_max_t;
 #define asm_amo(which, ordering, mem, value) ({ 		\
   typeof(*mem) __tmp; 						\
   if (sizeof(__tmp) == 4)					\
-    asm volatile (which ".w" ordering "\t%0, %z1, (%2)" : "=r"(__tmp) : "dJ"(value), "r"(mem)); \
+    asm volatile (which ".w" ordering "\t%0, %z1, (%2)" : "=r"(__tmp) : "rJ"(value), "r"(mem)); \
   else if (sizeof(__tmp) == 8)					\
-    asm volatile (which ".d" ordering "\t%0, %z1, (%2)" : "=r"(__tmp) : "dJ"(value), "r"(mem)); \
+    asm volatile (which ".d" ordering "\t%0, %z1, (%2)" : "=r"(__tmp) : "rJ"(value), "r"(mem)); \
   else								\
     abort();							\
   __tmp; })
@@ -72,14 +72,14 @@ typedef uintmax_t uatomic_max_t;
 		  "sc.w" ordering "\t%1, %z3, (%2)\n"		\
 		  "bnez\t%1, 1b\n"				\
 		  "1:"						\
-		  : "=&r"(__tmp), "=&r"(__tmp2) : "r"(mem), "dJ"(newval), "dJ"(oldval)); \
+		  : "=&r"(__tmp), "=&r"(__tmp2) : "r"(mem), "rJ"(newval), "rJ"(oldval)); \
   else if (sizeof(__tmp) == 8)					\
     asm volatile ("1: lr.d" ordering "\t%0, (%2)\n"		\
                   "bne\t%0, %z4, 1f\n"				\
 		  "sc.d" ordering "\t%1, %z3, (%2)\n"		\
 		  "bnez\t%1, 1b\n"				\
 		  "1:"						\
-		  : "=&r"(__tmp), "=&r"(__tmp2) : "r"(mem), "dJ"(newval), "dJ"(oldval)); \
+		  : "=&r"(__tmp), "=&r"(__tmp2) : "r"(mem), "rJ"(newval), "rJ"(oldval)); \
   else								\
     abort();							\
   __tmp; })
@@ -93,13 +93,13 @@ typedef uintmax_t uatomic_max_t;
                   "bne\tt3, %z2, %l[failure]\n"			\
 		  "sc.w" ordering "\tt3, %z1, (%0)\n"		\
 		  "bnez\tt3, 1b"				\
-		  : : "r"(mem), "dJ"(newval), "dJ"(oldval) : "t3" : failure); \
+		  : : "r"(mem), "rJ"(newval), "rJ"(oldval) : "t3" : failure); \
   else if (sizeof(__tmp) == 8)					\
     asm goto ("1: lr.d" ordering "\tt3, (%0)\n"			\
                   "bne\tt3, %z2, %l[failure]\n"			\
 		  "sc.d" ordering "\tt3, %z1, (%0)\n"		\
 		  "bnez\tt3, 1b"				\
-		  : : "r"(mem), "dJ"(newval), "dJ"(oldval) : "t3" : failure); \
+		  : : "r"(mem), "rJ"(newval), "rJ"(oldval) : "t3" : failure); \
   else								\
     abort();							\
   __res = 0;							\

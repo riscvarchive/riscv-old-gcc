@@ -107,22 +107,9 @@ along with GCC; see the file COPYING3.  If not see
   ((enum mips_symbol_type) (XINT (X, 1) - UNSPEC_ADDRESS_FIRST))
 
 /* The maximum distance between the top of the stack frame and the
-   value $sp has when we save and restore registers.
-
-   The value for normal-mode code must be a SMALL_OPERAND and must
-   preserve the maximum stack alignment.  We therefore use a value
-   of 0x7ff0 in this case.
-
-   MIPS16e SAVE and RESTORE instructions can adjust the stack pointer by
-   up to 0x7f8 bytes and can usually save or restore all the registers
-   that we need to save or restore.  (Note that we can only use these
-   instructions for o32, for which the stack alignment is 8 bytes.)
-
-   We use a maximum gap of 0x100 or 0x400 for MIPS16 code when SAVE and
-   RESTORE are not available.  We can then use unextended instructions
-   to save and restore registers, and to allocate and deallocate the top
-   part of the frame.  */
-#define MIPS_MAX_FIRST_STACK_STEP (RISCV_IMM_REACH/2 - 16)
+   value sp has when we save and restore registers.  This is set by the
+   range  of load/store offsets and must also preserve stack alignment. */
+#define RISCV_MAX_FIRST_STACK_STEP (RISCV_IMM_REACH/2 - 16)
 
 /* True if INSN is a mips.md pattern or asm statement.  */
 #define USEFUL_INSN_P(INSN)						\
@@ -168,7 +155,7 @@ enum mips_function_type {
 #define DEF_MIPS_FTYPE(NARGS, LIST) MIPS_FTYPE_NAME##NARGS LIST,
 #include "config/riscv/riscv-ftypes.def"
 #undef DEF_MIPS_FTYPE
-  MIPS_MAX_FTYPE_MAX
+  RISCV_MAX_FTYPE_MAX
 };
 
 /* Specifies how a built-in function should be converted into rtl.  */
@@ -283,7 +270,7 @@ struct mips_integer_op {
    The worst accepted case for 64-bit constants is LUI,ORI,SLL,ORI,SLL,ORI.
    When the lowest bit is clear, we can try, but reject a sequence with
    an extra SLL at the end.  */
-#define MIPS_MAX_INTEGER_OPS 32
+#define RISCV_MAX_INTEGER_OPS 32
 
 /* Costs of various operations on the different architectures.  */
 
@@ -483,7 +470,7 @@ riscv_build_integer_simple (struct mips_integer_op *codes, HOST_WIDE_INT value)
 {
   HOST_WIDE_INT low_part = RISCV_CONST_LOW_PART (value);
   int cost = INT_MAX, alt_cost;
-  struct mips_integer_op alt_codes[MIPS_MAX_INTEGER_OPS];
+  struct mips_integer_op alt_codes[RISCV_MAX_INTEGER_OPS];
 
   if (SMALL_OPERAND (value) || LUI_OPERAND (value))
     {
@@ -522,7 +509,7 @@ riscv_build_integer_simple (struct mips_integer_op *codes, HOST_WIDE_INT value)
 	cost = alt_cost, memcpy (codes, alt_codes, sizeof(alt_codes));
     }
 
-  gcc_assert (cost <= MIPS_MAX_INTEGER_OPS);
+  gcc_assert (cost <= RISCV_MAX_INTEGER_OPS);
   return cost;
 }
 
@@ -534,7 +521,7 @@ riscv_build_integer (struct mips_integer_op *codes, HOST_WIDE_INT value)
   /* Eliminate leading zeros and end with SRLI */
   if (value > 0 && cost > 2)
     {
-      struct mips_integer_op alt_codes[MIPS_MAX_INTEGER_OPS];
+      struct mips_integer_op alt_codes[RISCV_MAX_INTEGER_OPS];
       int alt_cost, shift;
 
       shift = __builtin_clzl(value);
@@ -562,7 +549,7 @@ riscv_split_integer_cost (HOST_WIDE_INT val)
 {
   int cost;
   int32_t loval = val, hival = (val - (int32_t)val) >> 32;
-  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
+  struct mips_integer_op codes[RISCV_MAX_INTEGER_OPS];
 
   cost = 2 + riscv_build_integer(codes, loval);
   if (loval != hival)
@@ -574,7 +561,7 @@ riscv_split_integer_cost (HOST_WIDE_INT val)
 static int
 riscv_integer_cost (HOST_WIDE_INT val)
 {
-  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
+  struct mips_integer_op codes[RISCV_MAX_INTEGER_OPS];
   return MIN (riscv_build_integer (codes, val), riscv_split_integer_cost (val));
 }
 
@@ -1019,8 +1006,7 @@ riscv_split_const_insns (rtx x)
 }
 
 /* Return the number of instructions needed to implement INSN,
-   given that it loads from or stores to MEM.  Count extended
-   MIPS16 instructions as two instructions.  */
+   given that it loads from or stores to MEM. */
 
 int
 mips_load_store_insns (rtx mem, rtx insn)
@@ -1385,7 +1371,7 @@ mips_legitimize_address (rtx x, rtx oldx ATTRIBUTE_UNUSED,
 void
 mips_move_integer (rtx temp, rtx dest, HOST_WIDE_INT value)
 {
-  struct mips_integer_op codes[MIPS_MAX_INTEGER_OPS];
+  struct mips_integer_op codes[RISCV_MAX_INTEGER_OPS];
   enum machine_mode mode;
   int i, num_ops;
   rtx x;
@@ -1449,13 +1435,12 @@ mips_legitimize_const_move (enum machine_mode mode, rtx dest, rtx src)
     }
 
   /* If we have (const (plus symbol offset)), and that expression cannot
-     be forced into memory, load the symbol first and add in the offset.
-     In non-MIPS16 mode, prefer to do this even if the constant _can_ be
-     forced into memory, as it usually produces better code.  */
+     be forced into memory, load the symbol first and add in the offset.  Also
+     prefer to do this even if the constant _can_ be forced into memory, as it
+     usually produces better code.  */
   split_const (src, &base, &offset);
   if (offset != const0_rtx
-      && (targetm.cannot_force_const_mem (src)
-	  || can_create_pseudo_p ()))
+      && (targetm.cannot_force_const_mem (src) || can_create_pseudo_p ()))
     {
       base = mips_force_temporary (dest, base);
       mips_emit_move (dest, mips_add_offset (NULL, base, INTVAL (offset)));
@@ -1592,8 +1577,8 @@ mips_legitimize_vector_move (enum machine_mode mode, rtx dest, rtx src)
    larger than the cost of any constant we want to synthesize inline.  */
 #define CONSTANT_POOL_COST COSTS_N_INSNS (8)
 
-/* Return true if there is a non-MIPS16 instruction that implements CODE
-   and if that instruction accepts X as an immediate operand.  */
+/* Return true if there is an instruction that implements CODE and accepts
+   X as an immediate operand. */
 
 static int
 mips_immediate_operand_p (int code, HOST_WIDE_INT x)
@@ -1645,7 +1630,7 @@ mips_binary_cost (rtx x, int single_cost, int double_cost, bool speed)
   if (GET_MODE_SIZE (GET_MODE (x)) == UNITS_PER_WORD * 2)
     single_cost = double_cost;
 
-  return (single_cost
+  return (COSTS_N_INSNS (single_cost)
 	  + rtx_cost (XEXP (x, 0), SET, speed)
 	  + rtx_cost (XEXP (x, 1), GET_CODE (x), speed));
 }
@@ -1796,8 +1781,7 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
     case IOR:
     case XOR:
       /* Double-word operations use two single-word operations.  */
-      *total = mips_binary_cost (x, COSTS_N_INSNS (1), COSTS_N_INSNS (2),
-				 speed);
+      *total = mips_binary_cost (x, 1, 2, speed);
       return true;
 
     case ASHIFT:
@@ -1806,11 +1790,9 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
     case ROTATE:
     case ROTATERT:
       if (CONSTANT_P (XEXP (x, 1)))
-	*total = mips_binary_cost (x, COSTS_N_INSNS (1), COSTS_N_INSNS (4),
-				   speed);
+	*total = mips_binary_cost (x, 1, 4, speed);
       else
-	*total = mips_binary_cost (x, COSTS_N_INSNS (1), COSTS_N_INSNS (12),
-				   speed);
+	*total = mips_binary_cost (x, 1, 12, speed);
       return true;
 
     case ABS:
@@ -1845,8 +1827,7 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
 	  *total = mips_cost->fp_add;
 	  return false;
 	}
-      *total = mips_binary_cost (x, COSTS_N_INSNS (1), COSTS_N_INSNS (4),
-				 speed);
+      *total = mips_binary_cost (x, 1, 4, speed);
       return true;
 
     case MINUS:
@@ -1889,12 +1870,8 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
 	  return false;
 	}
 
-      /* Double-word operations require three single-word operations and
-	 an SLTU.  The MIPS16 version then needs to move the result of
-	 the SLTU from $24 to a MIPS16 register.  */
-      *total = mips_binary_cost (x, COSTS_N_INSNS (1),
-				 COSTS_N_INSNS (4),
-				 speed);
+      /* Double-word operations require three ADDs and an SLTU. */
+      *total = mips_binary_cost (x, 1, 4, speed);
       return true;
 
     case NEG:
@@ -2896,11 +2873,7 @@ mips_va_start (tree valist, rtx nextarg)
 /* Expand a call of type TYPE.  RESULT is where the result will go (null
    for "call"s and "sibcall"s), ADDR is the address of the function,
    ARGS_SIZE is the size of the arguments and AUX is the value passed
-   to us by mips_function_arg.  LAZY_P is true if this call already
-   involves a lazily-bound function address (such as when calling
-   functions through a MIPS16 hard-float stub).
-
-   Return the call itself.  */
+   to us by mips_function_arg.  Return the call itself.  */
 
 rtx
 riscv_expand_call (bool sibcall_p, rtx result, rtx addr, rtx args_size)
@@ -3630,14 +3603,14 @@ riscv_expand_prologue (void)
   if (flag_stack_usage)
     current_function_static_stack_size = size;
 
-  /* Save the registers.  Allocate up to MIPS_MAX_FIRST_STACK_STEP
+  /* Save the registers.  Allocate up to RISCV_MAX_FIRST_STACK_STEP
      bytes beforehand; this is enough to cover the register save area
      without going out of range.  */
   if ((frame->mask | frame->fmask) != 0)
     {
       HOST_WIDE_INT step1;
 
-      step1 = MIN (size, MIPS_MAX_FIRST_STACK_STEP);
+      step1 = MIN (size, RISCV_MAX_FIRST_STACK_STEP);
       insn = gen_add3_insn (stack_pointer_rtx,
 			    stack_pointer_rtx,
 			    GEN_INT (-step1));
@@ -3730,7 +3703,7 @@ riscv_expand_epilogue (bool sibcall_p)
      possible in the second step without going out of range.  */
   if ((frame->mask | frame->fmask) != 0)
     {
-      step2 = MIN (step1, MIPS_MAX_FIRST_STACK_STEP);
+      step2 = MIN (step1, RISCV_MAX_FIRST_STACK_STEP);
       step1 -= step2;
     }
 
@@ -3757,8 +3730,7 @@ riscv_expand_epilogue (bool sibcall_p)
     emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx,
 			      GEN_INT (step2)));
 
-  /* Add in the __builtin_eh_return stack adjustment.  We need to
-     use a temporary in MIPS16 code.  */
+  /* Add in the __builtin_eh_return stack adjustment. */
   if (crtl->calls_eh_return)
     emit_insn (gen_add3_insn (stack_pointer_rtx, stack_pointer_rtx,
 			      EH_RETURN_STACKADJ_RTX));
@@ -4290,7 +4262,7 @@ mips_builtin_vector_type (tree type, enum machine_mode mode)
 static tree
 mips_build_function_type (enum mips_function_type type)
 {
-  static tree types[(int) MIPS_MAX_FTYPE_MAX];
+  static tree types[(int) RISCV_MAX_FTYPE_MAX];
 
   if (types[(int) type] == NULL_TREE)
     switch (type)

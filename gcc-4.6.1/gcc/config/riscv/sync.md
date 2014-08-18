@@ -54,39 +54,39 @@
   [(set (match_operand:GPR 0 "memory_operand" "+YR")
 	(unspec_volatile:GPR
           [(any_atomic:GPR (match_dup 0)
-		     (match_operand:GPR 1 "reg_or_0_operand" "dJ"))]
+		     (match_operand:GPR 1 "reg_or_0_operand" "rJ"))]
 	 UNSPEC_SYNC_OLD_OP))]
   ""
   "amo<insn>.<amo> zero,%z1,%0")
 
 (define_insn "sync_old_<optab><mode>"
-  [(set (match_operand:GPR 0 "register_operand" "=&d")
+  [(set (match_operand:GPR 0 "register_operand" "=&r")
 	(match_operand:GPR 1 "memory_operand" "+YR"))
    (set (match_dup 1)
 	(unspec_volatile:GPR
           [(any_atomic:GPR (match_dup 1)
-		     (match_operand:GPR 2 "reg_or_0_operand" "dJ"))]
+		     (match_operand:GPR 2 "reg_or_0_operand" "rJ"))]
 	 UNSPEC_SYNC_OLD_OP))]
   ""
   "amo<insn>.<amo> %0,%z2,%1")
 
 (define_insn "sync_lock_test_and_set<mode>"
-  [(set (match_operand:GPR 0 "register_operand" "=&d")
+  [(set (match_operand:GPR 0 "register_operand" "=&r")
 	(match_operand:GPR 1 "memory_operand" "+YR"))
    (set (match_dup 1)
-	(unspec_volatile:GPR [(match_operand:GPR 2 "reg_or_0_operand" "dJ")]
+	(unspec_volatile:GPR [(match_operand:GPR 2 "reg_or_0_operand" "rJ")]
 	 UNSPEC_SYNC_EXCHANGE))]
   ""
   "amoswap.<amo> %0,%z2,%1")
 
 (define_insn "sync_compare_and_swap<mode>"
-  [(set (match_operand:GPR 0 "register_operand" "=&d")
+  [(set (match_operand:GPR 0 "register_operand" "=&r")
 	(match_operand:GPR 1 "memory_operand" "+YR"))
    (set (match_dup 1)
-	(unspec_volatile:GPR [(match_operand:GPR 2 "reg_or_0_operand" "dJ")
-			      (match_operand:GPR 3 "reg_or_0_operand" "dJ")]
+	(unspec_volatile:GPR [(match_operand:GPR 2 "reg_or_0_operand" "rJ")
+			      (match_operand:GPR 3 "reg_or_0_operand" "rJ")]
 	 UNSPEC_COMPARE_AND_SWAP))
-   (clobber (match_scratch:GPR 4 "=&d"))]
+   (clobber (match_scratch:GPR 4 "=&r"))]
   ""
   "1: lr.<amo> %0,%1; bne %0,%z2,1f; sc.<amo> %4,%z3,%1; bnez %4,1b; 1:"
   [(set (attr "length") (const_int 16))])

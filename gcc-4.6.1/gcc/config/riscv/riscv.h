@@ -804,9 +804,6 @@ enum reg_class
 
 #define RETURN_ADDR_RTX riscv_return_addr
 
-/* The eliminations to $17 are only used for mips16 code.  See the
-   definition of HARD_FRAME_POINTER_REGNUM.  */
-
 #define ELIMINABLE_REGS							\
 {{ ARG_POINTER_REGNUM,   STACK_POINTER_REGNUM},				\
  { ARG_POINTER_REGNUM,   HARD_FRAME_POINTER_REGNUM},			\

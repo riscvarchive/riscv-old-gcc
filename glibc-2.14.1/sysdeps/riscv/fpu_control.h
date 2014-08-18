@@ -58,9 +58,9 @@ typedef unsigned int fpu_control_t __attribute__ ((__mode__ (__SI__)));
 #define _FPU_GETCW(cw) __asm__ volatile ("frsr %0" : "=r" (cw))
 #define _FPU_GETROUND(cw) __asm__ volatile ("frrm %0" : "=r" (cw))
 #define _FPU_GETFLAGS(cw) __asm__ volatile ("frflags %0" : "=r" (cw))
-#define _FPU_SETCW(cw) __asm__ volatile ("fssr %z0" : : "dJ" (cw))
-#define _FPU_SETROUND(cw) __asm__ volatile ("fsrm %z0" : : "dJ" (cw))
-#define _FPU_SETFLAGS(cw) __asm__ volatile ("fsflags %z0" : : "dJ" (cw))
+#define _FPU_SETCW(cw) __asm__ volatile ("fssr %z0" : : "rJ" (cw))
+#define _FPU_SETROUND(cw) __asm__ volatile ("fsrm %z0" : : "rJ" (cw))
+#define _FPU_SETFLAGS(cw) __asm__ volatile ("fsflags %z0" : : "rJ" (cw))
 
 /* Default control word set at startup.  */
 extern fpu_control_t __fpu_control;

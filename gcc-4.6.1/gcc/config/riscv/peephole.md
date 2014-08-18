@@ -74,7 +74,7 @@
   [(set (mem:ANYIF (match_dup 1)) (match_dup 2))
    (clobber (match_dup 0))])
 (define_insn "*local_pic_load<mode>"
-  [(set (match_operand:ANYI 0 "register_operand" "=d")
+  [(set (match_operand:ANYI 0 "register_operand" "=r")
         (mem:ANYI (match_operand 1 "absolute_symbolic_operand" "")))]
   "flag_pic && SYMBOL_REF_LOCAL_P (operands[1])"
   "<load>\t%0,%1"
@@ -82,41 +82,41 @@
 (define_insn "*local_pic_load<mode>"
   [(set (match_operand:ANYF 0 "register_operand" "=f")
         (mem:ANYF (match_operand 1 "absolute_symbolic_operand" "")))
-   (clobber (match_scratch:DI 2 "=&d"))]
+   (clobber (match_scratch:DI 2 "=&r"))]
   "flag_pic && SYMBOL_REF_LOCAL_P (operands[1])"
   "<load>\t%0,%1,%2"
   [(set (attr "length") (const_int 8))])
 (define_insn "*local_pic_loadu<mode>"
-  [(set (match_operand:SUPERQI 0 "register_operand" "=d")
+  [(set (match_operand:SUPERQI 0 "register_operand" "=r")
         (zero_extend:SUPERQI (mem:SUBDI (match_operand 1 "absolute_symbolic_operand" ""))))]
   "flag_pic && SYMBOL_REF_LOCAL_P (operands[1])"
   "<load>u\t%0,%1"
   [(set (attr "length") (const_int 8))])
 (define_insn "*local_pic_storedi<mode>"
   [(set (mem:ANYI (match_operand 0 "absolute_symbolic_operand" ""))
-	(match_operand:ANYI 1 "reg_or_0_operand" "dJ"))
-   (clobber (match_scratch:DI 2 "=&d"))]
+	(match_operand:ANYI 1 "reg_or_0_operand" "rJ"))
+   (clobber (match_scratch:DI 2 "=&r"))]
   "TARGET_64BIT && (flag_pic && SYMBOL_REF_LOCAL_P (operands[0]))"
   "<store>\t%z1,%0,%2"
   [(set (attr "length") (const_int 8))])
 (define_insn "*local_pic_storesi<mode>"
   [(set (mem:ANYI (match_operand 0 "absolute_symbolic_operand" ""))
-	(match_operand:ANYI 1 "reg_or_0_operand" "dJ"))
-   (clobber (match_scratch:SI 2 "=&d"))]
+	(match_operand:ANYI 1 "reg_or_0_operand" "rJ"))
+   (clobber (match_scratch:SI 2 "=&r"))]
   "!TARGET_64BIT && (flag_pic && SYMBOL_REF_LOCAL_P (operands[0]))"
   "<store>\t%z1,%0,%2"
   [(set (attr "length") (const_int 8))])
 (define_insn "*local_pic_storedi<mode>"
   [(set (mem:ANYF (match_operand 0 "absolute_symbolic_operand" ""))
 	(match_operand:ANYF 1 "register_operand" "f"))
-   (clobber (match_scratch:DI 2 "=&d"))]
+   (clobber (match_scratch:DI 2 "=&r"))]
   "TARGET_64BIT && (flag_pic && SYMBOL_REF_LOCAL_P (operands[0]))"
   "<store>\t%1,%0,%2"
   [(set (attr "length") (const_int 8))])
 (define_insn "*local_pic_storesi<mode>"
   [(set (mem:ANYF (match_operand 0 "absolute_symbolic_operand" ""))
 	(match_operand:ANYF 1 "register_operand" "f"))
-   (clobber (match_scratch:SI 2 "=&d"))]
+   (clobber (match_scratch:SI 2 "=&r"))]
   "!TARGET_64BIT && (flag_pic && SYMBOL_REF_LOCAL_P (operands[0]))"
   "<store>\t%1,%0,%2"
   [(set (attr "length") (const_int 8))])

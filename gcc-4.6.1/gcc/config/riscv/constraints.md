@@ -29,10 +29,6 @@
 
 ;; Register constraints
 
-(define_register_constraint "d" "GR_REGS"
-  "An address register.  This is equivalent to @code{r} unless
-   generating MIPS16 code.")
-
 (define_register_constraint "f" "TARGET_HARD_FLOAT ? FP_REGS : NO_REGS"
   "A floating-point register (if available).")
 
@@ -96,10 +92,7 @@
 
 (define_memory_constraint "W"
   "@internal
-   A memory address based on a member of @code{BASE_REG_CLASS}.  This is
-   true for all references (although it can sometimes be implicit if
-   @samp{!TARGET_EXPLICIT_RELOCS}).  For MIPS16, it excludes stack and
-   constant-pool references."
+   A memory address based on a member of @code{BASE_REG_CLASS}."
   (and (match_code "mem")
        (match_operand 0 "memory_operand")))
 
