@@ -109,16 +109,16 @@ enum mips_address_type {
 };
 
 /* Macros to create an enumeration identifier for a function prototype.  */
-#define MIPS_FTYPE_NAME1(A, B) MIPS_##A##_FTYPE_##B
-#define MIPS_FTYPE_NAME2(A, B, C) MIPS_##A##_FTYPE_##B##_##C
-#define MIPS_FTYPE_NAME3(A, B, C, D) MIPS_##A##_FTYPE_##B##_##C##_##D
-#define MIPS_FTYPE_NAME4(A, B, C, D, E) MIPS_##A##_FTYPE_##B##_##C##_##D##_##E
+#define RISCV_FTYPE_NAME1(A, B) RISCV_##A##_FTYPE_##B
+#define RISCV_FTYPE_NAME2(A, B, C) RISCV_##A##_FTYPE_##B##_##C
+#define RISCV_FTYPE_NAME3(A, B, C, D) RISCV_##A##_FTYPE_##B##_##C##_##D
+#define RISCV_FTYPE_NAME4(A, B, C, D, E) RISCV_##A##_FTYPE_##B##_##C##_##D##_##E
 
 /* Classifies the prototype of a built-in function.  */
 enum mips_function_type {
-#define DEF_MIPS_FTYPE(NARGS, LIST) MIPS_FTYPE_NAME##NARGS LIST,
+#define DEF_RISCV_FTYPE(NARGS, LIST) RISCV_FTYPE_NAME##NARGS LIST,
 #include "config/riscv/riscv-ftypes.def"
-#undef DEF_MIPS_FTYPE
+#undef DEF_RISCV_FTYPE
   RISCV_MAX_FTYPE_MAX
 };
 
@@ -127,11 +127,11 @@ enum mips_builtin_type {
   /* The function corresponds directly to an .md pattern.  The return
      value is mapped to operand 0 and the arguments are mapped to
      operands 1 and above.  */
-  MIPS_BUILTIN_DIRECT,
+  RISCV_BUILTIN_DIRECT,
 
   /* The function corresponds directly to an .md pattern.  There is no return
      value and the arguments are mapped to operands 0 and above.  */
-  MIPS_BUILTIN_DIRECT_NO_TARGET
+  RISCV_BUILTIN_DIRECT_NO_TARGET
 };
 
 /* Information about a function's frame layout.  */
@@ -3919,25 +3919,25 @@ mips_builtin_avail_riscv (void)
 
    AVAIL is the name of the availability predicate, without the leading
    mips_builtin_avail_.  */
-#define MIPS_BUILTIN(INSN, NAME, BUILTIN_TYPE, FUNCTION_TYPE, AVAIL)	\
-  { CODE_FOR_ ## INSN, "__builtin_mips_" NAME,			\
+#define RISCV_BUILTIN(INSN, NAME, BUILTIN_TYPE, FUNCTION_TYPE, AVAIL)	\
+  { CODE_FOR_ ## INSN, "__builtin_riscv_" NAME,				\
     BUILTIN_TYPE, FUNCTION_TYPE, mips_builtin_avail_ ## AVAIL }
 
-/* Define __builtin_mips_<INSN>, which is a MIPS_BUILTIN_DIRECT function
-   mapped to instruction CODE_FOR_mips_<INSN>,  FUNCTION_TYPE and AVAIL
-   are as for MIPS_BUILTIN.  */
+/* Define __builtin_mips_<INSN>, which is a RISCV_BUILTIN_DIRECT function
+   mapped to instruction CODE_FOR_<INSN>,  FUNCTION_TYPE and AVAIL
+   are as for RISCV_BUILTIN.  */
 #define DIRECT_BUILTIN(INSN, FUNCTION_TYPE, AVAIL)			\
-  MIPS_BUILTIN (INSN, #INSN, MIPS_BUILTIN_DIRECT, FUNCTION_TYPE, AVAIL)
+  RISCV_BUILTIN (INSN, #INSN, RISCV_BUILTIN_DIRECT, FUNCTION_TYPE, AVAIL)
 
-/* Define __builtin_mips_<INSN>, which is a MIPS_BUILTIN_DIRECT_NO_TARGET
-   function mapped to instruction CODE_FOR_mips_<INSN>,  FUNCTION_TYPE
-   and AVAIL are as for MIPS_BUILTIN.  */
+/* Define __builtin_riscv_<INSN>, which is a RISCV_BUILTIN_DIRECT_NO_TARGET
+   function mapped to instruction CODE_FOR_<INSN>,  FUNCTION_TYPE
+   and AVAIL are as for RISCV_BUILTIN.  */
 #define DIRECT_NO_TARGET_BUILTIN(INSN, FUNCTION_TYPE, AVAIL)		\
-  MIPS_BUILTIN (INSN, #INSN, MIPS_BUILTIN_DIRECT_NO_TARGET,		\
+  RISCV_BUILTIN (INSN, #INSN, RISCV_BUILTIN_DIRECT_NO_TARGET,		\
 		FUNCTION_TYPE, AVAIL)
 
 static const struct mips_builtin_description mips_builtins[] = {
-  DIRECT_NO_TARGET_BUILTIN( nop, MIPS_VOID_FTYPE_VOID, riscv ),
+  DIRECT_NO_TARGET_BUILTIN (nop, RISCV_VOID_FTYPE_VOID, riscv),
 };
 
 /* Index I is the function declaration for mips_builtins[I], or null if the
@@ -3964,34 +3964,34 @@ mips_builtin_vector_type (tree type, enum machine_mode mode)
 }
 
 /* Source-level argument types.  */
-#define MIPS_ATYPE_VOID void_type_node
-#define MIPS_ATYPE_INT integer_type_node
-#define MIPS_ATYPE_POINTER ptr_type_node
-#define MIPS_ATYPE_CPOINTER const_ptr_type_node
+#define RISCV_ATYPE_VOID void_type_node
+#define RISCV_ATYPE_INT integer_type_node
+#define RISCV_ATYPE_POINTER ptr_type_node
+#define RISCV_ATYPE_CPOINTER const_ptr_type_node
 
 /* Standard mode-based argument types.  */
-#define MIPS_ATYPE_UQI unsigned_intQI_type_node
-#define MIPS_ATYPE_SI intSI_type_node
-#define MIPS_ATYPE_USI unsigned_intSI_type_node
-#define MIPS_ATYPE_DI intDI_type_node
-#define MIPS_ATYPE_UDI unsigned_intDI_type_node
-#define MIPS_ATYPE_SF float_type_node
-#define MIPS_ATYPE_DF double_type_node
+#define RISCV_ATYPE_UQI unsigned_intQI_type_node
+#define RISCV_ATYPE_SI intSI_type_node
+#define RISCV_ATYPE_USI unsigned_intSI_type_node
+#define RISCV_ATYPE_DI intDI_type_node
+#define RISCV_ATYPE_UDI unsigned_intDI_type_node
+#define RISCV_ATYPE_SF float_type_node
+#define RISCV_ATYPE_DF double_type_node
 
-/* MIPS_FTYPE_ATYPESN takes N MIPS_FTYPES-like type codes and lists
-   their associated MIPS_ATYPEs.  */
-#define MIPS_FTYPE_ATYPES1(A, B) \
-  MIPS_ATYPE_##A, MIPS_ATYPE_##B
+/* RISCV_FTYPE_ATYPESN takes N RISCV_FTYPES-like type codes and lists
+   their associated RISCV_ATYPEs.  */
+#define RISCV_FTYPE_ATYPES1(A, B) \
+  RISCV_ATYPE_##A, RISCV_ATYPE_##B
 
-#define MIPS_FTYPE_ATYPES2(A, B, C) \
-  MIPS_ATYPE_##A, MIPS_ATYPE_##B, MIPS_ATYPE_##C
+#define RISCV_FTYPE_ATYPES2(A, B, C) \
+  RISCV_ATYPE_##A, RISCV_ATYPE_##B, RISCV_ATYPE_##C
 
-#define MIPS_FTYPE_ATYPES3(A, B, C, D) \
-  MIPS_ATYPE_##A, MIPS_ATYPE_##B, MIPS_ATYPE_##C, MIPS_ATYPE_##D
+#define RISCV_FTYPE_ATYPES3(A, B, C, D) \
+  RISCV_ATYPE_##A, RISCV_ATYPE_##B, RISCV_ATYPE_##C, RISCV_ATYPE_##D
 
-#define MIPS_FTYPE_ATYPES4(A, B, C, D, E) \
-  MIPS_ATYPE_##A, MIPS_ATYPE_##B, MIPS_ATYPE_##C, MIPS_ATYPE_##D, \
-  MIPS_ATYPE_##E
+#define RISCV_FTYPE_ATYPES4(A, B, C, D, E) \
+  RISCV_ATYPE_##A, RISCV_ATYPE_##B, RISCV_ATYPE_##C, RISCV_ATYPE_##D, \
+  RISCV_ATYPE_##E
 
 /* Return the function type associated with function prototype TYPE.  */
 
@@ -4003,14 +4003,14 @@ mips_build_function_type (enum mips_function_type type)
   if (types[(int) type] == NULL_TREE)
     switch (type)
       {
-#define DEF_MIPS_FTYPE(NUM, ARGS)					\
-  case MIPS_FTYPE_NAME##NUM ARGS:					\
+#define DEF_RISCV_FTYPE(NUM, ARGS)					\
+  case RISCV_FTYPE_NAME##NUM ARGS:					\
     types[(int) type]							\
-      = build_function_type_list (MIPS_FTYPE_ATYPES##NUM ARGS,		\
+      = build_function_type_list (RISCV_FTYPE_ATYPES##NUM ARGS,		\
 				  NULL_TREE);				\
     break;
 #include "config/riscv/riscv-ftypes.def"
-#undef DEF_MIPS_FTYPE
+#undef DEF_RISCV_FTYPE
       default:
 	gcc_unreachable ();
       }
@@ -4101,7 +4101,7 @@ mips_prepare_builtin_target (enum insn_code icode, unsigned int op, rtx target)
   return target;
 }
 
-/* Expand a MIPS_BUILTIN_DIRECT or MIPS_BUILTIN_DIRECT_NO_TARGET function;
+/* Expand a RISCV_BUILTIN_DIRECT or RISCV_BUILTIN_DIRECT_NO_TARGET function;
    HAS_TARGET_P says which.  EXP is the CALL_EXPR that calls the function
    and ICODE is the code of the associated .md pattern.  TARGET, if nonnull,
    suggests a good place to put the result.  */
@@ -4169,10 +4169,10 @@ riscv_expand_builtin (tree exp, rtx target, rtx subtarget ATTRIBUTE_UNUSED,
   gcc_assert (avail != 0);
   switch (d->builtin_type)
     {
-    case MIPS_BUILTIN_DIRECT:
+    case RISCV_BUILTIN_DIRECT:
       return riscv_expand_builtin_direct (d->icode, target, exp, true);
 
-    case MIPS_BUILTIN_DIRECT_NO_TARGET:
+    case RISCV_BUILTIN_DIRECT_NO_TARGET:
       return riscv_expand_builtin_direct (d->icode, target, exp, false);
     }
   gcc_unreachable ();

@@ -1,7 +1,7 @@
-/* riscv.h.  RISC-V opcode list for GDB, the GNU debugger.
-   Copyright 2011
-   Free Software Foundation, Inc.
-   Contributed by Andrew Waterman 
+/* RISC-V ISA encoding.
+   Copyright (C) 2011-2014 Free Software Foundation, Inc.
+   Contributed by Andrew Waterman (waterman@cs.berkeley.edu) at UC Berkeley.
+   Based on MIPS target for GNU compiler.
 
 This file is part of GDB, GAS, and the GNU binutils.
 
@@ -21,41 +21,6 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 
 #ifndef _RISCV_H_
 #define _RISCV_H_
-
-/* RVC fields */
-
-#define OP_MASK_COP		0x1f
-#define OP_SH_COP		0
-#define OP_MASK_CRD		0x1f
-#define OP_SH_CRD		5
-#define OP_MASK_CRS2	0x1f
-#define OP_SH_CRS2	5
-#define OP_MASK_CRS1	0x1f
-#define OP_SH_CRS1	10
-#define OP_MASK_CRDS		0x7
-#define OP_SH_CRDS		13
-#define OP_MASK_CRS2S	0x7
-#define OP_SH_CRS2S	13
-#define OP_MASK_CRS2BS	0x7
-#define OP_SH_CRS2BS	5
-#define OP_MASK_CRS1S	0x7
-#define OP_SH_CRS1S	10
-#define OP_MASK_CIMM6	0x3f
-#define OP_SH_CIMM6	10
-#define OP_MASK_CIMM5	0x1f
-#define OP_SH_CIMM5	5
-#define OP_MASK_CIMM10	0x3ff
-#define OP_SH_CIMM10	5
-
-#define RVC_JUMP_BITS 10
-#define RVC_JUMP_ALIGN_BITS 1
-#define RVC_JUMP_ALIGN (1 << RVC_JUMP_ALIGN_BITS)
-#define RVC_JUMP_REACH ((1ULL<<RVC_JUMP_BITS)*RVC_JUMP_ALIGN)
-
-#define RVC_BRANCH_BITS 5
-#define RVC_BRANCH_ALIGN_BITS RVC_JUMP_ALIGN_BITS
-#define RVC_BRANCH_ALIGN (1 << RVC_BRANCH_ALIGN_BITS)
-#define RVC_BRANCH_REACH ((1ULL<<RVC_BRANCH_BITS)*RVC_BRANCH_ALIGN)
 
 #define RV_X(x, s, n) (((x) >> (s)) & ((1<<(n))-1))
 #define RV_IMM_SIGN(x) (-(((x) >> 31) & 1))
@@ -182,88 +147,4 @@ Software Foundation, 51 Franklin Street - Fifth Floor, Boston, MA 02110-1301, US
 
 #include "riscv-opc.h"
 
-/* This structure holds information for a particular instruction.  */
-
-struct riscv_opcode
-{
-  /* The name of the instruction.  */
-  const char *name;
-  /* A string describing the arguments for this instruction.  */
-  const char *args;
-  /* The basic opcode for the instruction.  When assembling, this
-     opcode is modified by the arguments to produce the actual opcode
-     that is used.  If pinfo is INSN_MACRO, then this is 0.  */
-  unsigned long match;
-  /* If pinfo is not INSN_MACRO, then this is a bit mask for the
-     relevant portions of the opcode when disassembling.  If the
-     actual opcode anded with the match field equals the opcode field,
-     then we have found the correct instruction.  If pinfo is
-     INSN_MACRO, then this field is the macro identifier.  */
-  unsigned long mask;
-  /* For a macro, this is INSN_MACRO.  Otherwise, it is a collection
-     of bits describing the instruction, notably any relevant hazard
-     information.  */
-  unsigned long pinfo;
-};
-
-#define INSN_WRITE_GPR_D            0x00000001
-#define INSN_WRITE_GPR_RA           0x00000004
-#define INSN_WRITE_FPR_D            0x00000008
-#define INSN_READ_GPR_S             0x00000040
-#define INSN_READ_GPR_T             0x00000080
-#define INSN_READ_FPR_S             0x00000100
-#define INSN_READ_FPR_T             0x00000200
-#define INSN_READ_FPR_R        	    0x00000400
-/* Instruction is a simple alias (I.E. "move" for daddu/addu/or) */
-#define	INSN_ALIAS		    0x00001000
-/* Instruction is actually a macro.  It should be ignored by the
-   disassembler, and requires special treatment by the assembler.  */
-#define INSN_MACRO                  0xffffffff
-
-/* These are the bits which may be set in the pinfo2 field of an
-   instruction. */
-
-/* MIPS ISA defines, use instead of hardcoding ISA level.  */
-
-#define       ISA_UNKNOWN     0               /* Gas internal use.  */
-#define       ISA_RV32        1
-#define       ISA_RV64        2
-
-#define CPU_UNKNOWN    0
-#define CPU_ROCKET32 132
-#define CPU_ROCKET64 164
-
-/* This is a list of macro expanded instructions.
-
-   _I appended means immediate
-   _A appended means address
-   _AB appended means address with base register
-   _D appended means 64 bit floating point constant
-   _S appended means 32 bit floating point constant.  */
-
-enum
-{
-  M_LA_AB,
-  M_J,
-  M_LI,
-  M_NUM_MACROS
-};
-
-
-/* The order of overloaded instructions matters.  Label arguments and
-   register arguments look the same. Instructions that can have either
-   for arguments must apear in the correct order in this table for the
-   assembler to pick the right one. In other words, entries with
-   immediate operands must apear after the same instruction with
-   registers.
-
-   Many instructions are short hand for other instructions (i.e., The
-   jal <register> instruction is short for jalr <register>).  */
-
-extern const struct riscv_opcode riscv_builtin_opcodes[];
-extern const int bfd_riscv_num_builtin_opcodes;
-extern struct riscv_opcode *riscv_opcodes;
-extern int bfd_riscv_num_opcodes;
-#define NUMOPCODES bfd_riscv_num_opcodes
-
-#endif /* _MIPS_H_ */
+#endif /* _RISCV_H_ */
