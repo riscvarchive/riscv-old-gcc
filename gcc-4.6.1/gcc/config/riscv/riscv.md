@@ -320,29 +320,18 @@
 (define_mode_attr reg [(SI "d") (DI "d") (CC "d")])
 
 ;; This attribute gives the format suffix for floating-point operations.
-(define_mode_attr fmt [(SF "s") (DF "d") (V2SF "ps")])
+(define_mode_attr fmt [(SF "s") (DF "d")])
 
 ;; This attribute gives the format suffix for atomic memory operations.
 (define_mode_attr amo [(SI "w") (DI "d")])
 
 ;; This attribute gives the upper-case mode name for one unit of a
 ;; floating-point mode.
-(define_mode_attr UNITMODE [(SF "SF") (DF "DF") (V2SF "SF")])
-
-;; This attribute gives the integer mode that has the same size as a
-;; fixed-point mode.
-(define_mode_attr IMODE [(QQ "QI") (HQ "HI") (SQ "SI") (DQ "DI")
-			 (UQQ "QI") (UHQ "HI") (USQ "SI") (UDQ "DI")
-			 (HA "HI") (SA "SI") (DA "DI")
-			 (UHA "HI") (USA "SI") (UDA "DI")
-			 (V4UQQ "SI") (V2UHQ "SI") (V2UHA "SI")
-			 (V2HQ "SI") (V2HA "SI")])
+(define_mode_attr UNITMODE [(SF "SF") (DF "DF")])
 
 ;; This attribute gives the integer mode that has half the size of
 ;; the controlling mode.
-(define_mode_attr HALFMODE [(DF "SI") (DI "SI") (V2SF "SI")
-			    (V2SI "SI") (V4HI "SI") (V8QI "SI")
-			    (TF "DI")])
+(define_mode_attr HALFMODE [(DF "SI") (DI "SI") (TF "DI")])
 
 ;; This code iterator allows signed and unsigned widening multiplications
 ;; to use the same template.
@@ -436,150 +425,6 @@
   "nothing")
 
 (include "generic.md")
-
-;;------------------------------------------------------------------------
-;; RISC-V vector mode iterators and attributes
-;;------------------------------------------------------------------------
-;; cbatten - Ideally we would define this using syscfg.h so that it is
-;; easy to change the maximum vector length. Since this file doesn't go
-;; through the preprocessor, we would need to have a separate .md file
-;; included from here which we preprocess explicitly in our t-riscv make
-;; fragment. For now we just hard code the mode types.
-
-;; Basic set of vector modes and attributes
-
-(define_mode_iterator VEC
-  [V32DI V32SI V32HI V32QI V32DF V32SF])
-
-(define_mode_iterator IVEC
-  [V32DI V32SI V32HI V32QI])
-
-(define_mode_attr innermode
-  [(V32DI "DI") (V32SI "SI") (V32HI "HI") (V32QI "QI") (V32DF "DF") (V32SF "SF")])
-
-(define_mode_attr vmode
-  [(V32DI "vdi") (V32SI "vsi") (V32HI "vhi") (V32QI "vqi") (V32DF "vdf") (V32SF "vsf")])
-
-(define_mode_attr vec_mem_prefix
-  [(V32DI "") (V32SI "") (V32HI "") (V32QI "") (V32DF "f") (V32SF "f")])
-
-(define_mode_attr vec_mem_suffix
-  [(V32DI "d") (V32SI "w") (V32HI "h") (V32QI "b") (V32DF "d") (V32SF "w")])
-
-(define_mode_attr vec_umem_suffix
-  [(V32DI "d") (V32SI "wu") (V32HI "hu") (V32QI "bu") (V32DF "d") (V32SF "w")])
-
-(define_mode_attr vec_uarith_suffix
-  [(V32DI "u") (V32SI "u") (V32HI "u") (V32QI "u") (V32DF ".d") (V32SF ".s")])
-
-(define_mode_attr vec_arith_suffix
-  [(V32DI "") (V32SI "") (V32HI "") (V32QI "") (V32DF ".d") (V32SF ".s")])
-
-;;------------------------------------------------------------------------
-;; RISC-V vector move patterns
-;;------------------------------------------------------------------------
-;; cbatten - This pattern is required to support vector modes and
-;; registers. It basically tells gcc how to "reload" vector modes into
-;; and out of vector registers. According to gcc internals we need to be
-;; careful in terms of how we write this pattern - specifically I don't
-;; think you can use multiple patterns via define_qsplit or mutually
-;; exclusive predicates. There needs to be a single pattern for the
-;; reload. This complicates things a bit, because what I really want to
-;; do is a split to brake base offset addressing into two separate
-;; pieces of RTL (the address calculation and the actual load). This
-;; would allow gcc more flexibility in how to schedule and register
-;; allocate the address calculation. Unforutnately, I couldn't get this
-;; to work. I ended up having to hardcode the scheduling and use of the
-;; $at register for the address calculation result (see
-;; mips_riscv_output_vector_move). Works for now but maybe not the best
-;; approach. My attempt at using a split is commented out below as an
-;; example for future work.
-
-(define_expand "mov<mode>"
-  [(set (match_operand:VEC 0 "")
-        (match_operand:VEC 1 ""))]
-  ""
-{
-  if (mips_legitimize_vector_move (<MODE>mode, operands[0], operands[1]))
-    DONE;
-})
-
-(define_insn "*mov<mode>_internal"
-  [(set (match_operand:VEC 0 "nonimmediate_operand" "=A,A,YR,=B,B,YR")
-        (match_operand:VEC 1 "nonimmediate_operand" "A,YR,A,B,YR,B"))]
-  ""
-{
-  return mips_riscv_output_vector_move( <MODE>mode,
-                                        operands[0], operands[1] );
-})
-
-;;------------------------------------------------------------------------
-;; RISC-V unit-stride vector load/store builtins
-;;------------------------------------------------------------------------
-;; cbatten - The signed/unsigned load variants are actually quite tricky
-;; to get right since normally gcc just always uses unsigned loads and
-;; then has separate sign extension patterns which can be used when
-;; necessary. Because with VT we won't know if sign extension is needed
-;; until inside the vector fetched code (and then it is too late to use
-;; a signed-extending vector load) so for now what we do is always use
-;; unsigned types. Then in the VP code you can explicitly cast to an
-;; signed type if you need to. Not as efficient but it will do for now.
-;; Also note that we include an unspec in these patterns. This is to
-;; make sure that these patterns don't match the normal reload movm
-;; pattern above. I'm not positive whether or not this is necessary, but
-;; from the gcc mailing lists it seems like it might be important.
-
-(define_insn "mips_riscv_vload_<VEC:vmode>"
-  [(set (match_operand:VEC 0 "register_operand" "=A,=B")
-        (unspec:VEC [(mem:VEC 
-                       (match_operand:DI 1 "pmode_register_operand" "b,b"))]
-                    UNSPEC_RISCV_VLOAD))]
-  ""
-  "v<vec_mem_prefix>l<vec_mem_suffix>\t%0,%1")
-
-(define_insn "mips_riscv_vstore_<VEC:vmode>"
-  [(set (mem:VEC (match_operand:DI 1 "pmode_register_operand" "b,b"))
-        (unspec:VEC [(match_operand:VEC 0 "register_operand" "A,B")]
-                    UNSPEC_RISCV_VSTORE))]
-  ""
-  "v<vec_mem_prefix>s<vec_mem_suffix>\t%0,%1")
-
-;;------------------------------------------------------------------------
-;; RISC-V strided vector load/store builtins
-;;------------------------------------------------------------------------
-;; cbatten - Since we use a standard scalar register as the base
-;; register, gcc will take care of generating any extra address
-;; arithmetic itself.
-
-(define_insn "mips_riscv_vload_strided_<VEC:vmode>"
-  [(set (match_operand:VEC 0 "register_operand" "=A,=B")
-        (unspec:VEC [(mem:BLK (scratch))
-                     (match_operand:DI 1 "pmode_register_operand" "b,b")
-                     (match_operand:DI 2 "register_operand" "r,r")]
-                    UNSPEC_RISCV_VLOAD_STRIDED))]
-  ""
-  "v<vec_mem_prefix>lst<vec_mem_suffix>\t%0,%1,%2")
-
-(define_insn "mips_riscv_vstore_strided_<VEC:vmode>"
-  [(set (mem:BLK (scratch))
-        (unspec:BLK [(match_operand:VEC 0 "register_operand" "=A,=B")
-                     (match_operand:DI 1 "pmode_register_operand" "b,b")
-                     (match_operand:DI 2 "register_operand" "r,r")]
-                     UNSPEC_RISCV_VSTORE_STRIDED))]
-  ""
-  "v<vec_mem_prefix>sst<vec_mem_suffix>\t%0,%1,%2")
-
-;;------------------------------------------------------------------------
-;; RISC-V stop instruction
-;;------------------------------------------------------------------------
-;; This is explicitly generated for functions with the utfunc attribute.
-;; We do this from within the riscv_expand_epilogue() function. I
-;; needed some operand for this so I just used a constant.
-
-(define_insn "riscv_stop"
-  [(unspec_volatile:VOID [(const_int 0)] UNSPEC_RISCV_STOP)]
-  ""
-  "stop")
 
 ;;
 ;;  ....................

@@ -478,7 +478,7 @@ struct riscv_cpu_info {
 	- ARG_POINTER_REGNUM
 	- FRAME_POINTER_REGNUM */
 
-#define FIRST_PSEUDO_REGISTER 130
+#define FIRST_PSEUDO_REGISTER 66
 
 /* x0, sp, tp, and gp are fixed. */
 
@@ -487,12 +487,6 @@ struct riscv_cpu_info {
   1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1,			\
   /* Floating-point registers.  */                                      \
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  /* Vector General registers.  */                                      \
-  1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
-  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
-  /* Vector Floating-point registers.  */                               \
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   /* Others.  */                                                        \
@@ -510,12 +504,6 @@ struct riscv_cpu_info {
   /* Floating-point registers.  */                                      \
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  /* Vector General registers.  */                                      \
-  1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,			\
-  /* Vector Floating-point registers.  */                               \
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,			\
   /* Others.  */                                                        \
   1, 1 \
 }
@@ -527,12 +515,6 @@ struct riscv_cpu_info {
   /* Floating-point registers.  */                                      \
   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,			\
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  /* Vector General registers.  */                                      \
-  1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,                       \
-  1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,                       \
-  /* Vector Floating-point registers.  */                               \
-  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,			\
-  1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0,			\
   /* Others.  */                                                        \
   1, 1 \
 }
@@ -553,14 +535,6 @@ struct riscv_cpu_info {
 #define CALLEE_SAVED_FP_REG_FIRST (FP_REG_FIRST + 0)
 #define CALLEE_SAVED_FP_REG_LAST (CALLEE_SAVED_FP_REG_FIRST + 16 - 1)
 
-#define VEC_GP_REG_FIRST 64
-#define VEC_GP_REG_LAST  95
-#define VEC_GP_REG_NUM   (VEC_GP_REG_LAST - VEC_GP_REG_FIRST + 1)
-
-#define VEC_FP_REG_FIRST 96
-#define VEC_FP_REG_LAST  127
-#define VEC_FP_REG_NUM   (VEC_FP_REG_LAST - VEC_FP_REG_FIRST + 1)
-
 /* The DWARF 2 CFA column which tracks the return address from a
    signal handler context.  This means that to maintain backwards
    compatibility, no hard register can be assigned this column if it
@@ -571,10 +545,6 @@ struct riscv_cpu_info {
   ((unsigned int) ((int) (REGNO) - GP_REG_FIRST) < GP_REG_NUM)
 #define FP_REG_P(REGNO)  \
   ((unsigned int) ((int) (REGNO) - FP_REG_FIRST) < FP_REG_NUM)
-#define VEC_GP_REG_P(REGNO)	\
-  ((unsigned int) ((int) (REGNO) - VEC_GP_REG_FIRST) < VEC_GP_REG_NUM)
-#define VEC_FP_REG_P(REGNO)  \
-  ((unsigned int) ((int) (REGNO) - VEC_FP_REG_FIRST) < VEC_FP_REG_NUM)
 
 #define FP_REG_RTX_P(X) (REG_P (X) && FP_REG_P (REGNO (X)))
 
@@ -602,8 +572,8 @@ struct riscv_cpu_info {
 
 /* These two registers don't really exist: they get eliminated to either
    the stack or hard frame pointer.  */
-#define ARG_POINTER_REGNUM 128
-#define FRAME_POINTER_REGNUM 129
+#define ARG_POINTER_REGNUM 64
+#define FRAME_POINTER_REGNUM 65
 
 #define HARD_FRAME_POINTER_IS_FRAME_POINTER 0
 #define HARD_FRAME_POINTER_IS_ARG_POINTER 0
@@ -659,8 +629,6 @@ enum reg_class
   T_REGS,			/* registers used by indirect sibcalls */
   GR_REGS,			/* integer registers */
   FP_REGS,			/* floating point registers */
-  VEC_GR_REGS,			/* vector integer registers */
-  VEC_FP_REGS,			/* vector floating point registers */
   FRAME_REGS,			/* $arg and $frame */
   ALL_REGS,			/* all registers */
   LIM_REG_CLASSES		/* max value + 1 */
@@ -680,8 +648,6 @@ enum reg_class
   "T_REGS",								\
   "GR_REGS",								\
   "FP_REGS",								\
-  "VEC_GR_REGS",							\
-  "VEC_FP_REGS",							\
   "FRAME_REGS",								\
   "ALL_REGS"								\
 }
@@ -699,14 +665,12 @@ enum reg_class
 
 #define REG_CLASS_CONTENTS									\
 {												\
-  { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* NO_REGS */		\
-  { 0x7c000000, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* T_REGS */		\
-  { 0xffffffff, 0x00000000, 0x00000000, 0x00000000, 0x00000000 },	/* GR_REGS */		\
-  { 0x00000000, 0xffffffff, 0x00000000, 0x00000000, 0x00000000 },	/* FP_REGS */		\
-  { 0x00000000, 0x00000000, 0xffffffff, 0x00000000, 0x00000000 },	/* VEC_GR_REGS */	\
-  { 0x00000000, 0x00000000, 0x00000000, 0xffffffff, 0x00000000 },	/* VEC_FP_REGS */	\
-  { 0x00000000, 0x00000000, 0x00000000, 0x00000000, 0x00000003 },	/* FRAME_REGS */	\
-  { 0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff, 0x00000003 }	/* ALL_REGS */		\
+  { 0x00000000, 0x00000000, 0x00000000 },	/* NO_REGS */		\
+  { 0x7c000000, 0x00000000, 0x00000000 },	/* T_REGS */		\
+  { 0xffffffff, 0x00000000, 0x00000000 },	/* GR_REGS */		\
+  { 0x00000000, 0xffffffff, 0x00000000 },	/* FP_REGS */		\
+  { 0x00000000, 0x00000000, 0x00000003 },	/* FRAME_REGS */	\
+  { 0xffffffff, 0xffffffff, 0x00000003 }	/* ALL_REGS */		\
 }
 
 /* A C expression whose value is a register class containing hard
@@ -745,15 +709,9 @@ enum reg_class
   48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63,	\
   /* Call-saved FPRs.  */						\
   32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,	\
-  /* Vector GPRs  */							\
-  64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79,	\
-  80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,	\
-  /* Vector FPRs  */							\
-  96, 97, 98, 99,100,101,102,103,104,105,106,107,108,109,110,111,	\
- 112,113,114,115,116,117,118,119,120,121,122,123,124,125,126,127,	\
   /* None of the remaining classes have defined call-saved		\
      registers.  */							\
- 128,129 \
+  64, 65								\
 }
 
 /* True if VALUE is a signed 16-bit number.  */
@@ -1027,14 +985,6 @@ typedef struct {
   "f8",  "f9",  "f10", "f11", "f12", "f13", "f14", "f15",	\
   "f16", "f17", "f18", "f19", "f20", "f21", "f22", "f23",	\
   "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31",	\
-  "vx0", "vx1", "vx2", "vx3", "vx4", "vx5", "vx6", "vx7",	\
-  "vx8", "vx9", "vx10","vx11","vx12","vx13","vx14","vx15",	\
-  "vx16","vx17","vx18","vx19","vx20","vx21","vx22","vx23",	\
-  "vx24","vx25","vx26","vx27","vx28","vx29","vx30","vx31",	\
-  "vf0", "vf1", "vf2", "vf3", "vf4", "vf5", "vf6", "vf7",	\
-  "vf8", "vf9", "vf10","vf11","vf12","vf13","vf14","vf15",	\
-  "vf16","vf17","vf18","vf19","vf20","vf21","vf22","vf23",	\
-  "vf24","vf25","vf26","vf27","vf28","vf29","vf30","vf31",	\
   "arg", "frame", }
 
 #define ADDITIONAL_REGISTER_NAMES					\

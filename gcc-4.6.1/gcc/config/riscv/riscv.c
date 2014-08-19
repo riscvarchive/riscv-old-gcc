@@ -56,42 +56,6 @@ along with GCC; see the file COPYING3.  If not see
 #include "symcat.h"
 #include <stdint.h>
 
-/*----------------------------------------------------------------------*/
-/* RISCV_SYSCFG_VLEN_MAX                                                */
-/*----------------------------------------------------------------------*/
-/* Eventually we want to include syscfg.h here so that we can use the
-   common definition of RISCV_SYSCFG_VLEN_MAX, but for now it is not
-   clear how to do this. syscfg.h in in libgloss which is not used when
-   building the actual cross-compiler. We kind of want to use the
-   "version" in sims - the one for native programs instead of RISC-V
-   programs. Even if we could include syscfg.h though, we would still
-   need to figure out a way to include it in the mips-riscv.md since the
-   machine description file also refers to these modes. */
-
-#define RISCV_SYSCFG_VLEN_MAX 32
-
-/*----------------------------------------------------------------------*/
-/* MIPS_RISCV_VECTOR_MODE_NAME                                          */
-/*----------------------------------------------------------------------*/
-/* This is a helper macro which creates a RISC-V vector mode name from
-   the given inner_mode. It does this by concatenating a 'V' prefix, the
-   maximum RISC-V vector length, and the inner mode together. For
-   example, MIPS_RISCV_VECTOR_MODE_NAME(SI) should expand to V32SI if
-   the RISC-V maximum vector length is 32. We need to use the nested
-   macros to make sure RISCV_SYSCFG_VLEN_MAX is expanded _before_
-   concatenation. */
-
-#define MIPS_RISCV_VECTOR_MODE_NAME_H2( res_ ) res_
-
-#define MIPS_RISCV_VECTOR_MODE_NAME_H1( arg0_, arg1_ ) \
-  MIPS_RISCV_VECTOR_MODE_NAME_H2( V ## arg0_ ## arg1_ ## mode )
-
-#define MIPS_RISCV_VECTOR_MODE_NAME_H0( arg0_, arg1_ ) \
-  MIPS_RISCV_VECTOR_MODE_NAME_H1( arg0_, arg1_ )
-
-#define MIPS_RISCV_VECTOR_MODE_NAME( inner_mode_ ) \
-  MIPS_RISCV_VECTOR_MODE_NAME_H0( RISCV_SYSCFG_VLEN_MAX, inner_mode_ )
-
 /* True if X is an UNSPEC wrapper around a SYMBOL_REF or LABEL_REF.  */
 #define UNSPEC_ADDRESS_P(X)					\
   (GET_CODE (X) == UNSPEC					\
@@ -326,22 +290,6 @@ const enum reg_class riscv_regno_to_class[FIRST_PSEUDO_REGISTER] = {
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
   FP_REGS,	FP_REGS,	FP_REGS,	FP_REGS,
-  VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,
-  VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,
-  VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,
-  VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,
-  VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,
-  VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,
-  VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,
-  VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,	VEC_GR_REGS,
-  VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,
-  VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,
-  VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,
-  VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,
-  VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,
-  VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,
-  VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,
-  VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,	VEC_FP_REGS,
   FRAME_REGS,	FRAME_REGS,
 };
 
@@ -351,7 +299,6 @@ static const struct attribute_spec mips_attribute_table[] = {
   { "long_call",   0, 0, false, true,  true,  NULL },
   { "far",     	   0, 0, false, true,  true,  NULL },
   { "near",        0, 0, false, true,  true,  NULL },
-  { "utfunc",      0, 0, true,  false, false, NULL },
   { NULL,	   0, 0, false, false, false, NULL }
 };
 
@@ -1475,101 +1422,6 @@ mips_legitimize_move (enum machine_mode mode, rtx dest, rtx src)
       set_unique_reg_note (get_last_insn (), REG_EQUAL, copy_rtx (src));
       return true;
     }
-  return false;
-}
-
-bool
-mips_legitimize_vector_move (enum machine_mode mode, rtx dest, rtx src)
-{
-  bool dest_mem, dest_mem_reg;
-  bool src_mem, src_mem_reg;
-
-  dest_mem = (GET_CODE(dest) == MEM);
-  dest_mem_reg = dest_mem && GET_CODE(XEXP(dest, 0)) == REG;
-
-  src_mem = (GET_CODE(src) == MEM);
-  src_mem_reg = src_mem && GET_CODE(XEXP(src, 0)) == REG;
-
-  if (dest_mem && !dest_mem_reg)
-  {
-    rtx add, scratch, base, move;
-    HOST_WIDE_INT offset;
-
-    mips_split_plus(XEXP(dest,0), &base, &offset);
-
-    scratch = gen_reg_rtx(Pmode);
-    add = gen_add3_insn(scratch, base, GEN_INT(offset));
-    emit_insn(add);
-
-    switch (mode)
-    {
-      case MIPS_RISCV_VECTOR_MODE_NAME(DI):
-        move = gen_movv32di(gen_rtx_MEM(mode, scratch), src);
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(SI):
-        move = gen_movv32si(gen_rtx_MEM(mode, scratch), src);
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(HI):
-        move = gen_movv32hi(gen_rtx_MEM(mode, scratch), src);
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(QI):
-        move = gen_movv32qi(gen_rtx_MEM(mode, scratch), src);
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(DF):
-        move = gen_movv32df(gen_rtx_MEM(mode, scratch), src);
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(SF):
-        move = gen_movv32sf(gen_rtx_MEM(mode, scratch), src);
-        break;
-      default:
-        gcc_unreachable();
-    }
-
-    emit_insn(move);
-
-    return true;
-  }
-
-  if (src_mem && !src_mem_reg)
-  {
-    rtx add, scratch, base, move;
-    HOST_WIDE_INT offset;
-
-    mips_split_plus(XEXP(src,0), &base, &offset);
-
-    scratch = gen_reg_rtx(Pmode);
-    add = gen_add3_insn(scratch, base, GEN_INT(offset));
-    emit_insn(add);
-
-    switch (mode)
-    {
-      case MIPS_RISCV_VECTOR_MODE_NAME(DI):
-        move = gen_movv32di(dest, gen_rtx_MEM(mode, scratch));
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(SI):
-        move = gen_movv32si(dest, gen_rtx_MEM(mode, scratch));
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(HI):
-        move = gen_movv32hi(dest, gen_rtx_MEM(mode, scratch));
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(QI):
-        move = gen_movv32qi(dest, gen_rtx_MEM(mode, scratch));
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(DF):
-        move = gen_movv32df(dest, gen_rtx_MEM(mode, scratch));
-        break;
-      case MIPS_RISCV_VECTOR_MODE_NAME(SF):
-        move = gen_movv32sf(dest, gen_rtx_MEM(mode, scratch));
-        break;
-      default:
-        gcc_unreachable();
-    }
-
-    emit_insn(move);
-
-    return true;
-  }
-
   return false;
 }
 
@@ -3660,8 +3512,6 @@ riscv_restore_reg (rtx reg, rtx mem)
 /* Expand an "epilogue" or "sibcall_epilogue" pattern; SIBCALL_P
    says which.  */
 
-static bool riscv_in_utfunc = false;
-
 void
 riscv_expand_epilogue (bool sibcall_p)
 {
@@ -3670,9 +3520,6 @@ riscv_expand_epilogue (bool sibcall_p)
 
   if (!sibcall_p && mips_can_use_return_insn ())
     {
-      if (riscv_in_utfunc)
-        emit_insn(gen_riscv_stop());
-
       emit_jump_insn (gen_return ());
       return;
     }
@@ -3758,24 +3605,9 @@ riscv_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
   unsigned int size;
   enum mode_class mclass;
 
-  if (VECTOR_MODE_P(mode))
-  {
-    switch (mode)
-    {
-      case MIPS_RISCV_VECTOR_MODE_NAME(DI):
-      case MIPS_RISCV_VECTOR_MODE_NAME(SI):
-      case MIPS_RISCV_VECTOR_MODE_NAME(HI):
-      case MIPS_RISCV_VECTOR_MODE_NAME(QI):
-        return VEC_GP_REG_P(regno);
-
-      case MIPS_RISCV_VECTOR_MODE_NAME(DF):
-      case MIPS_RISCV_VECTOR_MODE_NAME(SF):
-        return VEC_FP_REG_P(regno);
-
-      default:
-        return false;
-    }
-  }
+  /* This is hella bogus but ira_build segfaults on RV32 without it. */
+  if (VECTOR_MODE_P (mode))
+    return true;
 
   if (mode == CCmode)
     return GP_REG_P (regno);
@@ -3807,12 +3639,6 @@ riscv_hard_regno_mode_ok_p (unsigned int regno, enum machine_mode mode)
 unsigned int
 riscv_hard_regno_nregs (int regno, enum machine_mode mode)
 {
-  if (VECTOR_MODE_P(mode))
-    return 1;
-
-  if (VEC_GP_REG_P(regno) || VEC_FP_REG_P(regno))
-    return 1;
-
   if (FP_REG_P (regno))
     return (GET_MODE_SIZE (mode) + UNITS_PER_FPREG - 1) / UNITS_PER_FPREG;
 
@@ -3828,12 +3654,6 @@ riscv_class_max_nregs (enum reg_class rclass, enum machine_mode mode)
 {
   int size;
   HARD_REG_SET left;
-
-  if (VECTOR_MODE_P(mode))
-    return 1;
-
-  if ((rclass == VEC_GR_REGS) || (rclass == VEC_FP_REGS))
-    return 1;
 
   size = 0x8000;
   COPY_HARD_REG_SET (left, reg_class_contents[(int) rclass]);
@@ -3959,7 +3779,7 @@ static const reg_class_t *
 mips_ira_cover_classes (void)
 {
   static const reg_class_t no_acc_classes[] = {
-    GR_REGS, FP_REGS, VEC_GR_REGS, VEC_FP_REGS,
+    GR_REGS, FP_REGS,
     LIM_REG_CLASSES
   };
 
@@ -4018,26 +3838,6 @@ mips_mode_rep_extended (enum machine_mode mode, enum machine_mode mode_rep)
     return SIGN_EXTEND;
 
   return UNKNOWN;
-}
-
-/* Implement TARGET_VECTOR_MODE_SUPPORTED_P.  */
-
-static bool
-mips_vector_mode_supported_p (enum machine_mode mode ATTRIBUTE_UNUSED)
-{
-  switch (mode)
-    {
-    case MIPS_RISCV_VECTOR_MODE_NAME(DI):
-    case MIPS_RISCV_VECTOR_MODE_NAME(SI):
-    case MIPS_RISCV_VECTOR_MODE_NAME(HI):
-    case MIPS_RISCV_VECTOR_MODE_NAME(QI):
-    case MIPS_RISCV_VECTOR_MODE_NAME(DF):
-    case MIPS_RISCV_VECTOR_MODE_NAME(SF):
-      return true;
-
-    default:
-      return false;
-    }
 }
 
 /* Implement TARGET_SCALAR_MODE_SUPPORTED_P.  */
@@ -4120,7 +3920,7 @@ mips_builtin_avail_riscv (void)
    AVAIL is the name of the availability predicate, without the leading
    mips_builtin_avail_.  */
 #define MIPS_BUILTIN(INSN, NAME, BUILTIN_TYPE, FUNCTION_TYPE, AVAIL)	\
-  { CODE_FOR_mips_ ## INSN, "__builtin_mips_" NAME,			\
+  { CODE_FOR_ ## INSN, "__builtin_mips_" NAME,			\
     BUILTIN_TYPE, FUNCTION_TYPE, mips_builtin_avail_ ## AVAIL }
 
 /* Define __builtin_mips_<INSN>, which is a MIPS_BUILTIN_DIRECT function
@@ -4137,33 +3937,7 @@ mips_builtin_avail_riscv (void)
 		FUNCTION_TYPE, AVAIL)
 
 static const struct mips_builtin_description mips_builtins[] = {
-  DIRECT_BUILTIN( riscv_vload_vdi, MIPS_VDI_FTYPE_CPOINTER, riscv ),
-  DIRECT_BUILTIN( riscv_vload_vsi, MIPS_VSI_FTYPE_CPOINTER, riscv ),
-  DIRECT_BUILTIN( riscv_vload_vhi, MIPS_VHI_FTYPE_CPOINTER, riscv ),
-  DIRECT_BUILTIN( riscv_vload_vqi, MIPS_VQI_FTYPE_CPOINTER, riscv ),
-  DIRECT_BUILTIN( riscv_vload_vdf, MIPS_VDF_FTYPE_CPOINTER, riscv ),
-  DIRECT_BUILTIN( riscv_vload_vsf, MIPS_VSF_FTYPE_CPOINTER, riscv ),
-
-  DIRECT_BUILTIN( riscv_vload_strided_vdi, MIPS_VDI_FTYPE_CPOINTER_DI, riscv ),
-  DIRECT_BUILTIN( riscv_vload_strided_vsi, MIPS_VSI_FTYPE_CPOINTER_DI, riscv ),
-  DIRECT_BUILTIN( riscv_vload_strided_vhi, MIPS_VHI_FTYPE_CPOINTER_DI, riscv ),
-  DIRECT_BUILTIN( riscv_vload_strided_vqi, MIPS_VQI_FTYPE_CPOINTER_DI, riscv ),
-  DIRECT_BUILTIN( riscv_vload_strided_vdf, MIPS_VDF_FTYPE_CPOINTER_DI, riscv ),
-  DIRECT_BUILTIN( riscv_vload_strided_vsf, MIPS_VSF_FTYPE_CPOINTER_DI, riscv ),
-
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vdi, MIPS_VOID_FTYPE_VDI_POINTER, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vsi, MIPS_VOID_FTYPE_VSI_POINTER, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vhi, MIPS_VOID_FTYPE_VHI_POINTER, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vqi, MIPS_VOID_FTYPE_VQI_POINTER, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vdf, MIPS_VOID_FTYPE_VDF_POINTER, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_vsf, MIPS_VOID_FTYPE_VSF_POINTER, riscv ),
-
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vdi, MIPS_VOID_FTYPE_VDI_POINTER_DI, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vsi, MIPS_VOID_FTYPE_VSI_POINTER_DI, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vhi, MIPS_VOID_FTYPE_VHI_POINTER_DI, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vqi, MIPS_VOID_FTYPE_VQI_POINTER_DI, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vdf, MIPS_VOID_FTYPE_VDF_POINTER_DI, riscv ),
-  DIRECT_NO_TARGET_BUILTIN( riscv_vstore_strided_vsf, MIPS_VOID_FTYPE_VSF_POINTER_DI, riscv ),
+  DIRECT_NO_TARGET_BUILTIN( nop, MIPS_VOID_FTYPE_VOID, riscv ),
 };
 
 /* Index I is the function declaration for mips_builtins[I], or null if the
@@ -4203,44 +3977,6 @@ mips_builtin_vector_type (tree type, enum machine_mode mode)
 #define MIPS_ATYPE_UDI unsigned_intDI_type_node
 #define MIPS_ATYPE_SF float_type_node
 #define MIPS_ATYPE_DF double_type_node
-
-/* Vector argument types.  */
-#define MIPS_ATYPE_V2SF mips_builtin_vector_type (float_type_node, V2SFmode)
-#define MIPS_ATYPE_V2HI mips_builtin_vector_type (intHI_type_node, V2HImode)
-#define MIPS_ATYPE_V2SI mips_builtin_vector_type (intSI_type_node, V2SImode)
-#define MIPS_ATYPE_V4QI mips_builtin_vector_type (intQI_type_node, V4QImode)
-#define MIPS_ATYPE_V4HI mips_builtin_vector_type (intHI_type_node, V4HImode)
-#define MIPS_ATYPE_V8QI mips_builtin_vector_type (intQI_type_node, V8QImode)
-#define MIPS_ATYPE_UV2SI					\
-  mips_builtin_vector_type (unsigned_intSI_type_node, V2SImode)
-#define MIPS_ATYPE_UV4HI					\
-  mips_builtin_vector_type (unsigned_intHI_type_node, V4HImode)
-#define MIPS_ATYPE_UV8QI					\
-  mips_builtin_vector_type (unsigned_intQI_type_node, V8QImode)
-
-#define MIPS_ATYPE_VDI \
-  mips_builtin_vector_type( intDI_type_node, \
-    MIPS_RISCV_VECTOR_MODE_NAME(DI) )
-
-#define MIPS_ATYPE_VSI \
-  mips_builtin_vector_type( intSI_type_node, \
-    MIPS_RISCV_VECTOR_MODE_NAME(SI) )
-
-#define MIPS_ATYPE_VHI \
-  mips_builtin_vector_type( intHI_type_node, \
-    MIPS_RISCV_VECTOR_MODE_NAME(HI) )
-
-#define MIPS_ATYPE_VQI \
-  mips_builtin_vector_type( intQI_type_node, \
-    MIPS_RISCV_VECTOR_MODE_NAME(QI) )
-
-#define MIPS_ATYPE_VDF \
-  mips_builtin_vector_type( double_type_node, \
-    MIPS_RISCV_VECTOR_MODE_NAME(DF) )
-
-#define MIPS_ATYPE_VSF \
-  mips_builtin_vector_type( float_type_node, \
-    MIPS_RISCV_VECTOR_MODE_NAME(SF) )
 
 /* MIPS_FTYPE_ATYPESN takes N MIPS_FTYPES-like type codes and lists
    their associated MIPS_ATYPEs.  */
@@ -4682,18 +4418,6 @@ mips_output_mi_thunk (FILE *file, tree thunk_fndecl ATTRIBUTE_UNUSED,
   reload_completed = 0;
 }
 
-/* Implement TARGET_SET_CURRENT_FUNCTION.  Decide whether the current
-   function should use the MIPS16 ISA and switch modes accordingly.  */
-
-static void
-mips_set_current_function (tree fndecl)
-{
-  bool utfunc = fndecl && (lookup_attribute("utfunc", DECL_ATTRIBUTES(fndecl)) != NULL);
-  if (riscv_in_utfunc != utfunc)
-    reinit_regs();
-  riscv_in_utfunc = utfunc;
-}
-
 /* Allocate a chunk of memory for per-function machine-dependent data.  */
 
 static struct machine_function *
@@ -4810,47 +4534,6 @@ mips_conditional_register_usage (void)
       for (regno = FP_REG_FIRST; regno <= FP_REG_LAST; regno++)
 	fixed_regs[regno] = call_used_regs[regno] = 1;
     }
-
-  /* Mark all callee-saved registers as caller-saved when riscv_in_utfunc */
-  for (regno = CALLEE_SAVED_GP_REG_FIRST;
-       regno <= CALLEE_SAVED_GP_REG_LAST; regno++)
-    call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
-
-  if (TARGET_HARD_FLOAT)
-    {
-      for (regno = CALLEE_SAVED_FP_REG_FIRST;
-           regno <= CALLEE_SAVED_FP_REG_LAST; regno++)
-        call_used_regs[regno] = call_really_used_regs[regno] = riscv_in_utfunc;
-    }
-
-  call_used_regs[RETURN_ADDR_REGNUM] =
-    call_really_used_regs[RETURN_ADDR_REGNUM] = riscv_in_utfunc;
-
-  fixed_regs[GP_REGNUM] = call_used_regs[GP_REGNUM] = !riscv_in_utfunc;
-}
-
-/* Initialize vector TARGET to VALS.  */
-
-void
-riscv_expand_vector_init (rtx target, rtx vals)
-{
-  enum machine_mode mode;
-  enum machine_mode inner;
-  unsigned int i, n_elts;
-  rtx mem;
-
-  mode = GET_MODE (target);
-  inner = GET_MODE_INNER (mode);
-  n_elts = GET_MODE_NUNITS (mode);
-
-  gcc_assert (VECTOR_MODE_P (mode));
-
-  mem = assign_stack_temp (mode, GET_MODE_SIZE (mode), 0);
-  for (i = 0; i < n_elts; i++)
-    emit_move_insn (adjust_address_nv (mem, inner, i * GET_MODE_SIZE (inner)),
-                    XVECEXP (vals, 0, i));
-
-  emit_move_insn (target, mem);
 }
 
 /* Implement TARGET_TRAMPOLINE_INIT.  */
@@ -4912,73 +4595,6 @@ mips_trampoline_init (rtx m_tramp, tree fndecl, rtx chain_value)
   emit_insn (gen_clear_cache (addr, end_addr));
 }
 
-const char*
-mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
-{
-  bool dest_mem, dest_vgp_reg, dest_vfp_reg;
-  bool src_mem, src_vgp_reg, src_vfp_reg;
-
-  dest_mem = (GET_CODE(dest) == MEM);
-  dest_vgp_reg = (GET_CODE(dest) == REG) && VEC_GP_REG_P(REGNO(dest));
-  dest_vfp_reg = (GET_CODE(dest) == REG) && VEC_FP_REG_P(REGNO(dest));
-
-  src_mem = (GET_CODE(src) == MEM);
-  src_vgp_reg = (GET_CODE(src) == REG) && VEC_GP_REG_P(REGNO(src));
-  src_vfp_reg = (GET_CODE(src) == REG) && VEC_FP_REG_P(REGNO(src));
-
-  if (dest_vgp_reg && src_vgp_reg)
-    return "vmvv\t%0,%1";
-
-  if (dest_vfp_reg && src_vfp_reg)
-    return "vfmvv\t%0,%1";
-
-  if (dest_vgp_reg && src_mem)
-  {
-    switch (mode)
-    {
-      case MIPS_RISCV_VECTOR_MODE_NAME(DI): return "vld\t%0,%y1";
-      case MIPS_RISCV_VECTOR_MODE_NAME(SI): return "vlw\t%0,%y1";
-      case MIPS_RISCV_VECTOR_MODE_NAME(HI): return "vlh\t%0,%y1";
-      case MIPS_RISCV_VECTOR_MODE_NAME(QI): return "vlb\t%0,%y1";
-      default: gcc_unreachable();
-    }
-  }
-
-  if (dest_vfp_reg && src_mem)
-  {
-    switch (mode)
-    {
-      case MIPS_RISCV_VECTOR_MODE_NAME(DF): return "vfld\t%0,%y1";
-      case MIPS_RISCV_VECTOR_MODE_NAME(SF): return "vflw\t%0,%y1";
-      default: gcc_unreachable();
-    }
-  }
-
-  if (dest_mem && src_vgp_reg)
-  {
-    switch (mode)
-    {
-      case MIPS_RISCV_VECTOR_MODE_NAME(DI): return "vsd\t%1,%y0";
-      case MIPS_RISCV_VECTOR_MODE_NAME(SI): return "vsw\t%1,%y0";
-      case MIPS_RISCV_VECTOR_MODE_NAME(HI): return "vsh\t%1,%y0";
-      case MIPS_RISCV_VECTOR_MODE_NAME(QI): return "vsb\t%1,%y0";
-      default: gcc_unreachable();
-    }
-  }
-
-  if (dest_mem && src_vfp_reg)
-  {
-    switch (mode)
-    {
-      case MIPS_RISCV_VECTOR_MODE_NAME(DF): return "vfsd\t%1,%y0";
-      case MIPS_RISCV_VECTOR_MODE_NAME(SF): return "vfsw\t%1,%y0";
-      default: gcc_unreachable();
-    }
-  }
-
-  gcc_unreachable();
-}
-
 /* Initialize the GCC target structure.  */
 #undef TARGET_ASM_ALIGNED_HI_OP
 #define TARGET_ASM_ALIGNED_HI_OP "\t.half\t"
@@ -5010,9 +4626,6 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 
 #undef TARGET_FUNCTION_OK_FOR_SIBCALL
 #define TARGET_FUNCTION_OK_FOR_SIBCALL hook_bool_tree_tree_true
-
-#undef TARGET_SET_CURRENT_FUNCTION
-#define TARGET_SET_CURRENT_FUNCTION mips_set_current_function
 
 #undef TARGET_REGISTER_MOVE_COST
 #define TARGET_REGISTER_MOVE_COST mips_register_move_cost
@@ -5070,9 +4683,6 @@ mips_riscv_output_vector_move(enum machine_mode mode, rtx dest, rtx src)
 
 #undef TARGET_MODE_REP_EXTENDED
 #define TARGET_MODE_REP_EXTENDED mips_mode_rep_extended
-
-#undef TARGET_VECTOR_MODE_SUPPORTED_P
-#define TARGET_VECTOR_MODE_SUPPORTED_P mips_vector_mode_supported_p
 
 #undef TARGET_SCALAR_MODE_SUPPORTED_P
 #define TARGET_SCALAR_MODE_SUPPORTED_P mips_scalar_mode_supported_p

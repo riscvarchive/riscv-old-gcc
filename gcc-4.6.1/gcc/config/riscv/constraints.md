@@ -19,14 +19,6 @@
 ;; along with GCC; see the file COPYING3.  If not see
 ;; <http://www.gnu.org/licenses/>.
 
-;; Vector register constraints
-
-(define_register_constraint "A" "VEC_GR_REGS"
-  "A vector integer register.")
-
-(define_register_constraint "B" "VEC_FP_REGS"
-  "A vector floating-point register.")
-
 ;; Register constraints
 
 (define_register_constraint "f" "TARGET_HARD_FLOAT ? FP_REGS : NO_REGS"
