@@ -1,5 +1,5 @@
-/* DWARF2 EH unwinding support for MIPS Linux.
-   Copyright (C) 2004, 2005, 2006, 2007, 2008, 2009 Free Software Foundation, Inc.
+/* DWARF2 EH unwinding support for RISC-V Linux.
+   Copyright (C) 2014 Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,98 +23,28 @@ see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
 <http://www.gnu.org/licenses/>.  */
 
 #ifndef inhibit_libc
-/* Do code reading to identify a signal frame, and set the frame
-   state data appropriately.  See unwind-dw2.c for the structs.  */
+/* Examine the code and attempt to identify a signal frame. */
 
-#include <signal.h>
-#include <asm/unistd.h>
+#include <stdlib.h>
+#include <asm-generic/unistd.h>
 
-/* The third parameter to the signal handler points to something with
- * this structure defined in asm/ucontext.h, but the name clashes with
- * struct ucontext from sys/ucontext.h so this private copy is used.  */
-typedef struct _sig_ucontext {
-    unsigned long         uc_flags;
-    struct _sig_ucontext  *uc_link;
-    stack_t               uc_stack;
-    struct sigcontext uc_mcontext;
-    sigset_t      uc_sigmask;
-} _sig_ucontext_t;
-
-#define MD_FALLBACK_FRAME_STATE_FOR mips_fallback_frame_state
+#define MD_FALLBACK_FRAME_STATE_FOR riscv_fallback_frame_state
 
 static _Unwind_Reason_Code
-mips_fallback_frame_state (struct _Unwind_Context *context,
-			   _Unwind_FrameState *fs)
+riscv_fallback_frame_state (struct _Unwind_Context *context,
+			    _Unwind_FrameState *fs)
 {
-  u_int32_t *pc = (u_int32_t *) context->ra;
-  struct sigcontext *sc;
-  _Unwind_Ptr new_cfa, reg_offset;
-  int i;
+  unsigned int *pc = (unsigned int *) context->ra;
 
-  /* 24021061 li v0, 0x1061 (rt_sigreturn)*/
-  /* 0000000c syscall    */
-  /*    or */
-  /* 24021017 li v0, 0x1017 (sigreturn) */
-  /* 0000000c syscall  */
-  if (pc[1] != 0x0000000c)
-    return _URC_END_OF_STACK;
-#if _MIPS_SIM == _ABIO32
-  if (pc[0] == (0x24020000 | __NR_sigreturn))
-    {
-      struct sigframe {
-	u_int32_t ass[4];  /* Argument save space for o32.  */
-	u_int32_t trampoline[2];
-	struct sigcontext sigctx;
-      } *rt_ = context->cfa;
-      sc = &rt_->sigctx;
-    }
-  else
-#endif
-  if (pc[0] == (0x24020000 | __NR_rt_sigreturn))
-    {
-      struct rt_sigframe {
-	u_int32_t ass[4];  /* Argument save space for o32.  */
-	u_int32_t trampoline[2];
-	struct siginfo info;
-	_sig_ucontext_t uc;
-      } *rt_ = context->cfa;
-      sc = &rt_->uc.uc_mcontext;
-    }
-  else
+  /* Signal frames begin with the following code sequence:
+      li v0, __NR_rt_sigreturn
+      scall */
+  if (((unsigned long)pc & 0x3) != 0
+      || pc[0] != RISCV_ITYPE (ADDI, GP_RETURN, 0, __NR_rt_sigreturn)
+      || pc[1] != RISCV_ITYPE (SCALL, 0, 0, 0))
     return _URC_END_OF_STACK;
 
-  new_cfa = (_Unwind_Ptr) sc;
-  fs->regs.cfa_how = CFA_REG_OFFSET;
-  fs->regs.cfa_reg = STACK_POINTER_REGNUM;
-  fs->regs.cfa_offset = new_cfa - (_Unwind_Ptr) context->cfa;
-
-  /* On o32 Linux, the register save slots in the sigcontext are
-     eight bytes.  We need the lower half of each register slot,
-     so slide our view of the structure back four bytes.  */
-#if _MIPS_SIM == _ABIO32 && defined __MIPSEB__
-  reg_offset = 4;
-#else
-  reg_offset = 0;
-#endif
-
-  for (i = 0; i < 32; i++) {
-    fs->regs.reg[i].how = REG_SAVED_OFFSET;
-    fs->regs.reg[i].loc.offset
-      = (_Unwind_Ptr)&(sc->sc_regs[i]) + reg_offset - new_cfa;
-  }
-  /* "PC & -2" points to the faulting instruction, but the unwind code
-     searches for "(ADDR & -2) - 1".  (See MASK_RETURN_ADDR for the source
-     of the -2 mask.)  Adding 2 here ensures that "(ADDR & -2) - 1" is the
-     address of the second byte of the faulting instruction.
-
-     Note that setting fs->signal_frame would not work.  As the comment
-     above MASK_RETURN_ADDR explains, MIPS unwinders must earch for an
-     odd-valued address.  */
-  fs->regs.reg[DWARF_ALT_FRAME_RETURN_COLUMN].how = REG_SAVED_VAL_OFFSET;
-  fs->regs.reg[DWARF_ALT_FRAME_RETURN_COLUMN].loc.offset
-    = (_Unwind_Ptr)(sc->sc_pc) + 2 - new_cfa;
-  fs->retaddr_column = DWARF_ALT_FRAME_RETURN_COLUMN;
-
-  return _URC_NO_REASON;
+  /* TODO: Actually implement this. */
+  abort();
 }
 #endif
