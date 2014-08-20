@@ -3629,17 +3629,14 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  break;
 	}
 
-      if (r_type == R_RISCV_GOT_LO12)
+      switch (r_type)
 	{
+	case R_RISCV_GOT_LO12:
 	  if (!mips_elf_record_local_got_symbol (abfd, r_symndx,
 						 rel->r_addend, info, 0))
 	    return FALSE;
-	}
-
-      switch (r_type)
-	{
+	  /* Fall through. */
 	case R_RISCV_GOT_HI20:
-	case R_RISCV_GOT_LO12:
 	  if (h && !mips_elf_record_global_got_symbol (h, abfd, info, 0))
 	    return FALSE;
 	  break;
@@ -3733,6 +3730,21 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	  break;
 
 	case R_RISCV_JAL:
+	  break;
+
+	case R_RISCV_HI20:
+	case R_RISCV_TPREL_HI20:
+	  /* Can't use these in a shared library. */
+	  if (info->shared)
+	    {
+	      reloc_howto_type *howto = riscv_elf_rtype_to_howto (r_type);
+	      (*_bfd_error_handler)
+		(_("%B: relocation %s against `%s' can not be used when making a shared object; recompile with -fPIC"),
+		  abfd, howto->name,
+		  (h) ? h->root.root.string : "a local symbol");
+	      bfd_set_error (bfd_error_bad_value);
+	      return FALSE;
+	    }
 	  break;
 
 	default:

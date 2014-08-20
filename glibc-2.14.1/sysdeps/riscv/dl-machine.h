@@ -73,21 +73,14 @@ elf_machine_matches_host (const ElfW(Ehdr) *ehdr)
   return 1;
 }
 
-static inline ElfW(Addr) *
-elf_mips_got_from_gpreg (ElfW(Addr) gpreg)
-{
-  return (ElfW(Addr) *) gpreg;
-}
-
 /* Return the link-time address of _DYNAMIC.  Conveniently, this is the
    first element of the GOT.  This must be inlined in a function which
    uses global data.  */
 static inline ElfW(Addr)
 elf_machine_dynamic (void)
 {
-  ElfW(Addr) addr;
-  asm ("lla %0, _GLOBAL_OFFSET_TABLE_\n" : "=r"(addr));
-  return *elf_mips_got_from_gpreg(addr);
+  extern ElfW(Addr) _GLOBAL_OFFSET_TABLE_ __attribute__ ((visibility("hidden")));
+  return _GLOBAL_OFFSET_TABLE_;
 }
 
 #define STRINGXP(X) __STRING(X)
@@ -98,10 +91,9 @@ elf_machine_dynamic (void)
 static inline ElfW(Addr)
 elf_machine_load_address (void)
 {
-  ElfW(Addr) link, load;
-  asm ("lui %0, %%hi(_begin); add %0, %0, %%lo(_begin)" : "=r"(link));
-  asm ("lla %0, _begin" : "=r"(load));
-  return load - link;
+  /* Subtract the link-time address of _DYNAMIC from its runtime address. */
+  extern ElfW(Dyn) _DYNAMIC[] __attribute__ ((visibility("hidden")));
+  return (char*)&_DYNAMIC - elf_machine_dynamic ();
 }
 
 /* We can't rely on elf_machine_got_rel because _dl_object_relocation_scope
@@ -160,31 +152,26 @@ do {									\
 	".text\n\
 	" _RTLD_PROLOGUE(ENTRY_POINT) "\
 	# Store &_DYNAMIC in the first entry of the GOT.\n\
-	lla a0, _GLOBAL_OFFSET_TABLE_\n\
-	la a1, _DYNAMIC\n\
-	" STRINGXP(REG_S) " a1, 0(a0)\n\
+	la a0, _DYNAMIC\n\
+	" STRINGXP(REG_S) " a0, _GLOBAL_OFFSET_TABLE_, a1\n\
 	move a0, sp\n\
 	jal _dl_start\n\
 	# Stash user entry point in s0.\n\
 	move s0, v0\n\
 	# See if we were run as a command with the executable file\n\
 	# name as an extra leading argument.\n\
-	la v0, _dl_skip_args\n\
-	lw v0, 0(v0)\n\
-	beqz v0, 1f\n\
+	lw v0, _dl_skip_args\n\
 	# Load the original argument count.\n\
-	" STRINGXP(REG_L) " a0, 0(sp)\n\
+	" STRINGXP(REG_L) " a1, 0(sp)\n\
 	# Subtract _dl_skip_args from it.\n\
-	sub a0, a0, v0\n\
+	sub a1, a1, v0\n\
 	# Adjust the stack pointer to skip _dl_skip_args words.\n\
 	sll v0, v0, " STRINGXP (PTRLOG) "\n\
 	add sp, sp, v0\n\
 	# Save back the modified argument count.\n\
-	" STRINGXP(REG_S) " a0, 0(sp)\n\
-1:	# Call _dl_init (struct link_map *main_map, int argc, char **argv, char **env) \n\
-	la a0, _rtld_local\n\
-	" STRINGXP(REG_L) " a0, 0(a0)\n\
-	" STRINGXP(REG_L) " a1, 0(sp)\n\
+	" STRINGXP(REG_S) " a1, 0(sp)\n\
+	# Call _dl_init (struct link_map *main_map, int argc, char **argv, char **env) \n\
+	" STRINGXP(REG_L) " a0, _rtld_local\n\
 	add a2, sp, " STRINGXP (SZREG) "\n\
 	sll a3, a1, " STRINGXP (PTRLOG) "\n\
 	add a3, a3, a2\n\
@@ -192,7 +179,7 @@ do {									\
 	# Call the function to run the initializers.\n\
 	jal _dl_init_internal\n\
 	# Pass our finalizer function to the user in v0 as per ELF ABI.\n\
-	la v0, _dl_fini\n\
+	lla v0, _dl_fini\n\
 	# Jump to the user entry point.\n\
 	jr s0\n\
 	" _RTLD_EPILOGUE(ENTRY_POINT) "\
