@@ -3566,6 +3566,11 @@ _bfd_riscv_elf_check_relocs (bfd *abfd, struct bfd_link_info *info,
 	case R_RISCV_TLS_GOT_LO12:
 	case R_RISCV_TLS_GD_HI20:
 	case R_RISCV_TLS_GD_LO12:
+	case R_RISCV_TLS_IE_HI20:
+	case R_RISCV_TLS_IE_LO12:
+	case R_RISCV_TLS_IE_ADD:
+	case R_RISCV_TLS_IE_LO12_I:
+	case R_RISCV_TLS_IE_LO12_S:
 	  if (dynobj == NULL)
 	    elf_hash_table (info)->dynobj = dynobj = abfd;
 	  if (!mips_elf_create_got_section (dynobj, info))

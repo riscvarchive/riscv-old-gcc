@@ -26,8 +26,14 @@
 #define ELF_MACHINE_NAME "RISC-V"
 
 /* Relocs. */
-#define R_RISCV_COPY      24
-#define R_RISCV_JUMP_SLOT 25
+#define R_RISCV_COPY         24
+#define R_RISCV_JUMP_SLOT    25
+#define R_RISCV_TLS_DTPMOD32 38
+#define R_RISCV_TLS_DTPREL32 39
+#define R_RISCV_TLS_DTPMOD64 40
+#define R_RISCV_TLS_DTPREL64 41
+#define R_RISCV_TLS_TPREL32  47
+#define R_RISCV_TLS_TPREL64  48
 
 #include <entry.h>
 
@@ -54,9 +60,15 @@
    This only makes sense on MIPS when using PLTs, so choose the
    PLT relocation (not encountered when not using PLTs).  */
 #define ELF_MACHINE_JMP_SLOT			R_RISCV_JUMP_SLOT
-#define elf_machine_type_class(type) \
-  ((((type) == ELF_MACHINE_JMP_SLOT) * ELF_RTYPE_CLASS_PLT)	\
-   | (((type) == R_RISCV_COPY) * ELF_RTYPE_CLASS_COPY))
+#define elf_machine_type_class(type)				\
+  ((ELF_RTYPE_CLASS_PLT * ((type) == ELF_MACHINE_JMP_SLOT	\
+     || _RISCV_SZPTR == 32 && (type) == R_RISCV_TLS_DTPREL32	\
+     || _RISCV_SZPTR == 32 && (type) == R_RISCV_TLS_DTPMOD32	\
+     || _RISCV_SZPTR == 32 && (type) == R_RISCV_TLS_TPREL32	\
+     || _RISCV_SZPTR == 64 && (type) == R_RISCV_TLS_DTPREL64	\
+     || _RISCV_SZPTR == 64 && (type) == R_RISCV_TLS_DTPMOD64	\
+     || _RISCV_SZPTR == 64 && (type) == R_RISCV_TLS_TPREL64))	\
+   | (ELF_RTYPE_CLASS_COPY * ((type) == R_RISCV_COPY)))
 
 #define ELF_MACHINE_NO_RELA 1
 
