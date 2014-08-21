@@ -55,8 +55,8 @@ memset:
 .tiny:
   sub a3, a6, a2
   sll a3, a3, 2
-.set push
-.set norvc
+.option push
+.option norvc
   lui a4, %hi(1f)
   add a3, a3, a4
   jalr x0, a3, %lo(1f)
@@ -69,7 +69,7 @@ memset:
   sb a1, 1(a0)
   sb a1, 0(a0)
   ret
-.set pop
+.option pop
 
 .wordify:
   and a1, a1, 0xFF
@@ -85,8 +85,8 @@ memset:
 
 .misaligned:
   sll a3, a5, 2
-.set push
-.set norvc
+.option push
+.option norvc
   lui a4, %hi(1f)
   add a3, a3, a4
 1:jalr x0, a3, %lo(1b)
@@ -103,4 +103,4 @@ memset:
   add a2, a2, a5
   bleu a2, a6, .tiny
   j .aligned
-.set pop
+.option pop

@@ -18,20 +18,6 @@ You should have received a copy of the GNU General Public License
 along with GCC; see the file COPYING3.  If not see
 <http://www.gnu.org/licenses/>.  */
 
-/* MIPS assemblers don't have the usual .set foo,bar construct;
-   .set is used for assembler options instead.  */
-#undef SET_ASM_OP
-#define ASM_OUTPUT_DEF(FILE, LABEL1, LABEL2)			\
-  do								\
-    {								\
-      fputc ('\t', FILE);					\
-      assemble_name (FILE, LABEL1);				\
-      fputs (" = ", FILE);					\
-      assemble_name (FILE, LABEL2);				\
-      fputc ('\n', FILE);					\
-    }								\
-  while (0)
-
 /* Leave the linker script to choose the appropriate libraries.  */
 #undef  LIB_SPEC
 #define LIB_SPEC ""

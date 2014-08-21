@@ -365,7 +365,7 @@ static void s_change_sec (int);
 static void s_change_section (int);
 static void s_cons (int);
 static void s_float_cons (int);
-static void s_mipsset (int);
+static void s_riscv_option (int);
 static void s_dtprelword (int);
 static void s_dtpreldword (int);
 static int validate_mips_insn (const struct riscv_opcode *);
@@ -391,7 +391,7 @@ static int relaxed_branch_length (fragS *fragp, asection *sec, int update);
 static const pseudo_typeS mips_pseudo_table[] =
 {
   /* MIPS specific pseudo-ops.  */
-  {"set", s_mipsset, 0},
+  {"option", s_riscv_option, 0},
   {"rdata", s_change_sec, 'r'},
   {"dtprelword", s_dtprelword, 0},
   {"dtpreldword", s_dtpreldword, 0},
@@ -2891,7 +2891,7 @@ static struct mips_option_stack *mips_opts_stack;
 /* Handle the .set pseudo-op.  */
 
 static void
-s_mipsset (int x ATTRIBUTE_UNUSED)
+s_riscv_option (int x ATTRIBUTE_UNUSED)
 {
   char *name = input_line_pointer, ch;
 
