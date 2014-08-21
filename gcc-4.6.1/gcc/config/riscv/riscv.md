@@ -49,14 +49,7 @@
 
 (define_constants
   [(RETURN_ADDR_REGNUM		1)
-
-   (UNSPEC_RISCV_VLOAD          700)
-   (UNSPEC_RISCV_VSTORE         701)
-   (UNSPEC_RISCV_VLOAD_STRIDED  702)
-   (UNSPEC_RISCV_VSTORE_STRIDED 703)
-   (UNSPEC_RISCV_STOP           704)
-  ]
-)
+])
 
 (include "predicates.md")
 (include "constraints.md")
