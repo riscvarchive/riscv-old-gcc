@@ -4502,6 +4502,10 @@ mips_option_override (void)
   if (optimize_size && (target_flags_explicit & MASK_MEMCPY) == 0)
     target_flags |= MASK_MEMCPY;
 
+  /* Use atomic instructions, if user did not specify a preference */
+  if ((target_flags_explicit & MASK_ATOMIC) == 0)
+    target_flags |= MASK_ATOMIC;
+
   /* Set up riscv_hard_regno_mode_ok.  */
   for (mode = 0; mode < MAX_MACHINE_MODE; mode++)
     for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)

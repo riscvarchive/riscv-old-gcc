@@ -1,5 +1,5 @@
 #ifndef __LINUX_FUNCTIONFS_H__
-#define __LINUX_FUNCTIONFS_H__ 1
+#define __LINUX_FUNCTIONFS_H__
 
 
 #include <linux/types.h>
@@ -26,6 +26,13 @@ struct usb_endpoint_descriptor_no_audio {
 	__u8  bInterval;
 } __attribute__((packed));
 
+/* Legacy format, deprecated as of 3.14. */
+struct usb_functionfs_descs_head {
+	__le32 magic;
+	__le32 length;
+	__le32 fs_count;
+	__le32 hs_count;
+} __attribute__((packed, deprecated));
 
 /*
  * All numbers must be in little endian order.
@@ -164,4 +171,4 @@ struct usb_functionfs_event {
 
 
 
-#endif
+#endif /* __LINUX_FUNCTIONFS_H__ */

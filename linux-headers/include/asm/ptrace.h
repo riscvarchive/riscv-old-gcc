@@ -1,7 +1,7 @@
 #ifndef _ASM_RISCV_PTRACE_H
 #define _ASM_RISCV_PTRACE_H
 
-#include <asm/pcr.h>
+#include <asm/csr.h>
 
 #ifndef __ASSEMBLY__
 
@@ -12,12 +12,16 @@ typedef struct pt_regs {
 	unsigned long sp;
 	unsigned long tp;
 	unsigned long v[2];
-	unsigned long a[14];
+	unsigned long a[8];
+	unsigned long t[5];
+	unsigned long gp;
 	/* PCRs */
 	unsigned long status;
 	unsigned long epc;
 	unsigned long badvaddr;
 	unsigned long cause;
+	/* For restarting system calls */
+	unsigned long syscallno;
 } pt_regs;
 
 #define user_mode(regs) (((regs)->status & SR_PS) == 0)

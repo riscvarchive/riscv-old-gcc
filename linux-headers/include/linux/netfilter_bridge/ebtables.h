@@ -265,4 +265,4 @@ struct ebt_entry {
 	__ret;                                              \
 })
 
-#endif
+#endif /* __LINUX_BRIDGE_EFF_H */

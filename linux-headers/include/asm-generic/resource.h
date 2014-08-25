@@ -65,4 +65,4 @@
 #endif
 
 
-#endif
+#endif /* _ASM_GENERIC_RESOURCE_H */

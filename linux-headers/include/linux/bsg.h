@@ -62,4 +62,4 @@ struct sg_io_v4 {
 };
 
 
-#endif
+#endif /* BSG_H */

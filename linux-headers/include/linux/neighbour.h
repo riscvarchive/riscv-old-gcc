@@ -20,6 +20,10 @@ enum {
 	NDA_LLADDR,
 	NDA_CACHEINFO,
 	NDA_PROBES,
+	NDA_VLAN,
+	NDA_PORT,
+	NDA_VNI,
+	NDA_IFINDEX,
 	__NDA_MAX
 };
 
@@ -32,6 +36,9 @@ enum {
 #define NTF_USE		0x01
 #define NTF_PROXY	0x08	/* == ATF_PUBL */
 #define NTF_ROUTER	0x80
+
+#define NTF_SELF	0x02
+#define NTF_MASTER	0x04
 
 /*
  *	Neighbor Cache Entry States.
@@ -51,7 +58,7 @@ enum {
 
 /* NUD_NOARP & NUD_PERMANENT are pseudostates, they never change
    and make no address resolution or NUD.
-   NUD_PERMANENT is also cannot be deleted by garbage collectors.
+   NUD_PERMANENT also cannot be deleted by garbage collectors.
  */
 
 struct nda_cacheinfo {

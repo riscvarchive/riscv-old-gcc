@@ -101,4 +101,4 @@ struct fddihdr {
 } __attribute__((packed));
 
 
-#endif	/* _LINUX_IF_FDDI_H */
+#endif /* _LINUX_IF_FDDI_H */

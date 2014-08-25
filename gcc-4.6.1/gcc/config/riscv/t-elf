@@ -28,8 +28,8 @@ $(T)crtn.o: $(srcdir)/config/riscv/crtn.asm $(GCC_PASSES)
 
 # Build the libraries for both hard and soft floating point
 
-MULTILIB_OPTIONS = msoft-float m64/m32 mfdiv
-MULTILIB_DIRNAMES = soft-float 64 32 fdiv
+MULTILIB_OPTIONS = msoft-float m64/m32 mfdiv mno-atomic
+MULTILIB_DIRNAMES = soft-float 64 32 fdiv no-atomic
 MULTILIB_EXCEPTIONS = *msoft-float*/*mfdiv*
 EXTRA_MULTILIB_PARTS = crtbegin.o crtend.o crti.o crtn.o
 

@@ -20,6 +20,7 @@
 
 int pthread_spin_lock(pthread_spinlock_t* lock)
 {
+#ifdef __riscv_atomic
   int tmp1, tmp2;
 
   asm volatile ("\n\
@@ -32,4 +33,7 @@ int pthread_spin_lock(pthread_spinlock_t* lock)
   );
 
   return tmp1;
+#else
+  return pthread_mutex_lock(lock);
+#endif
 }
