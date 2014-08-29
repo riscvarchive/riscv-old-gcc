@@ -619,13 +619,13 @@
   [(set (match_operand:GPR 0 "register_operand")
 	(mult:GPR (match_operand:GPR 1 "reg_or_0_operand")
 		   (match_operand:GPR 2 "register_operand")))]
-  "")
+  "TARGET_RVM")
 
 (define_insn "*mulsi3"
   [(set (match_operand:SI 0 "register_operand" "=r")
 	(mult:SI (match_operand:GPR 1 "register_operand" "r")
 		  (match_operand:GPR2 2 "register_operand" "r")))]
-  ""
+  "TARGET_RVM"
   { return TARGET_64BIT ? "mulw\t%0,%1,%2" : "mul\t%0,%1,%2"; }
   [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
@@ -634,7 +634,7 @@
   [(set (match_operand:SI 0 "register_operand" "=r")
 	     (mult:SI (truncate:SI (match_operand:DI 1 "register_operand" "r"))
 		      (truncate:SI (match_operand:DI 2 "register_operand" "r"))))]
-  "TARGET_64BIT"
+  "TARGET_64BIT && TARGET_RVM"
   "mulw\t%0,%1,%2"
   [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
@@ -644,7 +644,7 @@
           (truncate:SI
 	     (mult:DI (match_operand:DI 1 "register_operand" "r")
 		      (match_operand:DI 2 "register_operand" "r"))))]
-  "TARGET_64BIT"
+  "TARGET_64BIT && TARGET_RVM"
   "mulw\t%0,%1,%2"
   [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
@@ -653,7 +653,7 @@
   [(set (match_operand:DI 0 "register_operand" "=r")
 	(mult:DI (match_operand:DI 1 "register_operand" "r")
 		  (match_operand:DI 2 "register_operand" "r")))]
-  "TARGET_64BIT"
+  "TARGET_64BIT && TARGET_RVM"
   "mul\t%0,%1,%2"
   [(set_attr "type" "imul")
    (set_attr "mode" "DI")])
@@ -675,7 +675,7 @@
 		 (any_extend:TI
 		   (match_operand:DI 2 "register_operand" "r"))))
   (clobber (match_scratch:DI 3 "=r"))]
-  "TARGET_64BIT"
+  "TARGET_64BIT && TARGET_RVM"
   "#"
   "reload_completed"
   [
@@ -702,7 +702,7 @@
 		     (any_extend:TI
 		       (match_operand:DI 2 "register_operand" "r")))
 	    (const_int 64))))]
-  "TARGET_64BIT"
+  "TARGET_64BIT && TARGET_RVM"
   "mulh<u>\t%0,%1,%2"
   [(set_attr "type" "imul")
    (set_attr "mode" "DI")])
@@ -715,7 +715,7 @@
 		 (sign_extend:TI
 		   (match_operand:DI 2 "register_operand" "r"))))
   (clobber (match_scratch:DI 3 "=r"))]
-  "TARGET_64BIT"
+  "TARGET_64BIT && TARGET_RVM"
   "#"
   "reload_completed"
   [
@@ -742,7 +742,7 @@
 		     (sign_extend:TI
 		       (match_operand:DI 2 "register_operand" "r")))
 	    (const_int 64))))]
-  "TARGET_64BIT"
+  "TARGET_64BIT && TARGET_RVM"
   "mulhsu\t%0,%2,%1"
   [(set_attr "type" "imul")
    (set_attr "mode" "DI")])
@@ -754,7 +754,7 @@
 		 (any_extend:DI
 		   (match_operand:SI 2 "register_operand" "r"))))
   (clobber (match_scratch:SI 3 "=r"))]
-  "!TARGET_64BIT"
+  "!TARGET_64BIT && TARGET_RVM"
   "#"
   "reload_completed"
   [
@@ -781,7 +781,7 @@
 		     (any_extend:DI
 		       (match_operand:SI 2 "register_operand" "r")))
 	    (const_int 32))))]
-  "!TARGET_64BIT"
+  "!TARGET_64BIT && TARGET_RVM"
   "mulh<u>\t%0,%1,%2"
   [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
@@ -794,7 +794,7 @@
 		 (sign_extend:DI
 		   (match_operand:SI 2 "register_operand" "r"))))
   (clobber (match_scratch:SI 3 "=r"))]
-  "!TARGET_64BIT"
+  "!TARGET_64BIT && TARGET_RVM"
   "#"
   "reload_completed"
   [
@@ -821,7 +821,7 @@
 		     (sign_extend:DI
 		       (match_operand:SI 2 "register_operand" "r")))
 	    (const_int 32))))]
-  "!TARGET_64BIT"
+  "!TARGET_64BIT && TARGET_RVM"
   "mulhsu\t%0,%2,%1"
   [(set_attr "type" "imul")
    (set_attr "mode" "SI")])
@@ -838,7 +838,7 @@
   [(set (match_operand:SI 0 "register_operand" "=r")
 	(any_div:SI (match_operand:SI 1 "register_operand" "r")
 		  (match_operand:SI 2 "register_operand" "r")))]
-  ""
+  "TARGET_RVM"
   { return TARGET_64BIT ? "div<u>w\t%0,%1,%2" : "div<u>\t%0,%1,%2"; }
   [(set_attr "type" "idiv")
    (set_attr "mode" "SI")])
@@ -847,7 +847,7 @@
   [(set (match_operand:DI 0 "register_operand" "=r")
 	(any_div:DI (match_operand:DI 1 "register_operand" "r")
 		  (match_operand:DI 2 "register_operand" "r")))]
-  "TARGET_64BIT"
+  "TARGET_64BIT && TARGET_RVM"
   "div<u>\t%0,%1,%2"
   [(set_attr "type" "idiv")
    (set_attr "mode" "DI")])
@@ -856,7 +856,7 @@
   [(set (match_operand:SI 0 "register_operand" "=r")
 	(any_mod:SI (match_operand:SI 1 "register_operand" "r")
 		  (match_operand:SI 2 "register_operand" "r")))]
-  ""
+  "TARGET_RVM"
   { return TARGET_64BIT ? "rem<u>w\t%0,%1,%2" : "rem<u>\t%0,%1,%2"; }
   [(set_attr "type" "idiv")
    (set_attr "mode" "SI")])
@@ -865,7 +865,7 @@
   [(set (match_operand:DI 0 "register_operand" "=r")
 	(any_mod:DI (match_operand:DI 1 "register_operand" "r")
 		  (match_operand:DI 2 "register_operand" "r")))]
-  "TARGET_64BIT"
+  "TARGET_64BIT && TARGET_RVM"
   "rem<u>\t%0,%1,%2"
   [(set_attr "type" "idiv")
    (set_attr "mode" "DI")])
