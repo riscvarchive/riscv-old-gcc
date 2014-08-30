@@ -51,8 +51,8 @@ along with GCC; see the file COPYING3.  If not see
 __inline
 #endif
 static unsigned int hash (const char *, unsigned int);
-#ifdef __GNUC__
-__inline
+#if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
+__attribute__ ((__gnu_inline__))
 #endif
 const char * libc_name_p (const char *, unsigned int);
 /* maximum key range = 391, duplicates = 0 */
@@ -122,11 +122,8 @@ hash (register const char *str, register unsigned int len)
   return hval + asso_values[(unsigned char)str[len - 1]];
 }
 
-#ifdef __GNUC__
-__inline
-#ifdef __GNUC_STDC_INLINE__
+#if defined __GNUC_STDC_INLINE__ || defined __GNUC_GNU_INLINE__
 __attribute__ ((__gnu_inline__))
-#endif
 #endif
 const char *
 libc_name_p (register const char *str, register unsigned int len)
