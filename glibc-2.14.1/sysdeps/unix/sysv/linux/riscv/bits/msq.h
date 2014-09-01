@@ -1,4 +1,4 @@
-/* Copyright (C) 2002, 2007 Free Software Foundation, Inc.
+/* Copyright (C) 1995, 1996, 1997, 2000, 2002 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
 
    The GNU C Library is free software; you can redistribute it and/or
@@ -21,6 +21,7 @@
 #endif
 
 #include <bits/types.h>
+#include <bits/wordsize.h>
 
 /* Define options for message queue functions.  */
 #define MSG_NOERROR	010000	/* no error if message is too big */
@@ -32,31 +33,21 @@
 typedef unsigned long int msgqnum_t;
 typedef unsigned long int msglen_t;
 
-
 /* Structure of record for one message inside the kernel.
    The type `struct msg' is opaque.  */
 struct msqid_ds
 {
   struct ipc_perm msg_perm;	/* structure describing operation permission */
-#if __WORDSIZE == 32 && defined (__MIPSEB__)
-  unsigned long int __unused1;
-#endif
   __time_t msg_stime;		/* time of last msgsnd command */
-#if __WORDSIZE == 32 && defined (__MIPSEL__)
+#if __WORDSIZE == 32
   unsigned long int __unused1;
-#endif
-#if __WORDSIZE == 32 && defined (__MIPSEB__)
-  unsigned long int __unused2;
 #endif
   __time_t msg_rtime;		/* time of last msgrcv command */
-#if __WORDSIZE == 32 && defined (__MIPSEL__)
+#if __WORDSIZE == 32
   unsigned long int __unused2;
 #endif
-#if __WORDSIZE == 32 && defined (__MIPSEB__)
-  unsigned long int __unused3;
-#endif
   __time_t msg_ctime;		/* time of last change */
-#if __WORDSIZE == 32 && defined (__MIPSEL__)
+#if __WORDSIZE == 32
   unsigned long int __unused3;
 #endif
   unsigned long int __msg_cbytes; /* current number of bytes on queue */

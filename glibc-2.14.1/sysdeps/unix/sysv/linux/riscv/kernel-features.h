@@ -20,27 +20,22 @@
 
 #include <sgidefs.h>
 
-/* Linux 2.3.39 introduced 32bit UID/GIDs.  Some platforms had 32
-   bit type all along.  */
-#define __ASSUME_32BITUIDS		1
-
-/* MIPS platforms had IPC64 all along.  */
-#define __ASSUME_IPC64		1
-
 #if _RISCV_SIM == _ABIN32
 # define __ASSUME_FCNTL64		1
 #endif
 
-/* Support for the eventfd2 and signalfd4 syscalls was added in 2.6.27.  */
-#if __LINUX_KERNEL_VERSION >= 0x02061c
-# define __ASSUME_EVENTFD2	1
-# define __ASSUME_SIGNALFD4	1
-#endif
+#define __ASSUME_EVENTFD2		1
+#define __ASSUME_SIGNALFD4		1
+#define __ASSUME_CLONE_THREAD_FLAGS	1
+#define __ASSUME_TGKILL			1
+#define __ASSUME_UTIMES			1
+#define __ASSUME_O_CLOEXEC		1
+#define __ASSUME_SOCK_CLOEXEC		1
+#define __ASSUME_IN_NONBLOCK		1
+#define __ASSUME_PIPE2			1
+#define __ASSUME_EVENTFD2		1
+#define __ASSUME_SIGNALFD4		1
+#define __ASSUME_DUP3			1
+#define __ASSUME_ACCEPT4		1
 
 #include_next <kernel-features.h>
-
-/* The n32 syscall ABI did not have a getdents64 syscall until
-   2.6.35.  */
-#if _RISCV_SIM == _ABIN32 && __LINUX_KERNEL_VERSION < 0x020623
-# undef __ASSUME_GETDENTS64_SYSCALL
-#endif
