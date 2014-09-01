@@ -18,19 +18,9 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
-#include <sys/uio.h>
+#include <unistd.h>
+#include <string.h>
 #include <stdio-common/_itoa.h>
-
-/* We will print the register dump in this format:
-
- R0   XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX
- R8   XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX
- R16  XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX
- R24  XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX XXXXXXXX
-	    pc       lo       hi
-      XXXXXXXX XXXXXXXX XXXXXXXX
- The FPU registers will not be printed.
-*/
 
 static void
 hexvalue (unsigned long int value, char *buf, size_t len)
@@ -40,66 +30,36 @@ hexvalue (unsigned long int value, char *buf, size_t len)
     *--cp = '0';
 }
 
+#define REGDUMP_NREGS 32
+#define REGDUMP_PER_LINE (80 / (__WORDSIZE/4 + 4))
+
 static void
-register_dump (int fd, struct sigcontext *ctx)
+register_dump (int fd, struct ucontext *ctx)
 {
-  char regs[38][8];
-  struct iovec iov[38 * 2 + 10];
-  size_t nr = 0;
   int i;
+  char regvalue[__WORDSIZE/4 + 1];
+  char str[82 * ((REGDUMP_NREGS + REGDUMP_PER_LINE - 1) / REGDUMP_PER_LINE)];
 
-#define ADD_STRING(str) \
-  iov[nr].iov_base = (char *) str;					      \
-  iov[nr].iov_len = strlen (str);					      \
-  ++nr
-#define ADD_MEM(str, len) \
-  iov[nr].iov_base = str;						      \
-  iov[nr].iov_len = len;						      \
-  ++nr
+  static const char names[REGDUMP_NREGS][4] = {
+    "pc", "ra", "s0", "s1", "s2", "s3", "s4", "s5",
+    "s6", "s7", "s8", "s9", "sA", "sB", "sp", "tp",
+    "v0", "v1", "a0", "a1", "a2", "a3", "a4", "a5",
+    "a6", "a7", "t0", "t1", "t2", "t3", "t4", "gp"
+  };
 
-  /* Generate strings of register contents.  */
-  for (i = 0; i < 32; i++)
-    hexvalue (ctx->sc_regs[i], regs[i], 8);
-  hexvalue (ctx->sc_pc, regs[32], 8);
-  hexvalue (ctx->sc_mdhi, regs[33], 8);
-  hexvalue (ctx->sc_mdlo, regs[34], 8);
+  str[0] = 0;
+  for (i = 0; i < REGDUMP_NREGS; i++)
+    {
+      strcat (str, names[i]);
+      strcat (str, " ");
+      hexvalue (ctx->uc_mcontext.gregs[i], regvalue, __WORDSIZE/4);
+      strcat (str, regvalue);
 
-  /* Generate the output.  */
-  ADD_STRING ("Register dump:\n\n R0   ");
-  for (i = 0; i < 8; i++)
-    {
-      ADD_MEM (regs[i], 8);
-      ADD_STRING (" ");
+      if ((i + 1) % REGDUMP_PER_LINE == 0)
+	strcat (str, "\n");
     }
-  ADD_STRING ("\n R8   ");
-  for (i = 8; i < 16; i++)
-    {
-      ADD_MEM (regs[i], 8);
-      ADD_STRING (" ");
-    }
-  ADD_STRING ("\n R16  ");
-  for (i = 16; i < 24; i++)
-    {
-      ADD_MEM (regs[i], 8);
-      ADD_STRING (" ");
-    }
-  ADD_STRING ("\n R24  ");
-  for (i = 24; i < 32; i++)
-    {
-      ADD_MEM (regs[i], 8);
-      ADD_STRING (" ");
-    }
-  ADD_STRING ("\n	    pc       lo       hi\n      ");
-  for (i = 32; i < 35; i++)
-    {
-      ADD_MEM (regs[i], 8);
-      ADD_STRING (" ");
-    }
-  ADD_STRING ("\n");
 
-  /* Write the stuff out.  */
-  writev (fd, iov, nr);
+  write (fd, str, strlen (str));
 }
-
 
 #define REGISTER_DUMP register_dump (fd, ctx)

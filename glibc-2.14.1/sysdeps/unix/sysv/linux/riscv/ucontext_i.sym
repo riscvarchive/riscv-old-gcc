@@ -36,8 +36,7 @@ STACK_FLAGS			stack (ss_flags)
 
 MCONTEXT_GREGS			mcontext (gregs)
 MCONTEXT_FPREGS			mcontext (fpregs)
-MCONTEXT_PC			mcontext (pc)
-MCONTEXT_FSR		mcontext (fsr)
-MCONTEXT_USED_MATH		mcontext (used_math)
+MCONTEXT_PC			mcontext (gregs)
+MCONTEXT_FSR			mcontext (fsr)
 
 UCONTEXT_SIZE			sizeof (ucontext_t)

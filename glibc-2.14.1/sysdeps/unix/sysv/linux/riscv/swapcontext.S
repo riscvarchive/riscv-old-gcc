@@ -26,9 +26,7 @@
 /* int swapcontext (ucontext_t *oucp, const ucontext_t *ucp) */
 
 LEAF (__swapcontext)
-	li	v1, 1
 	mv	t0, a1					/* t0 <- ucp */
-	REG_S	v1, ( 0 * SZREG + MCONTEXT_GREGS)(a0)	/* flag <- 1 */
 
 	REG_S	ra, MCONTEXT_PC(a0)
 	REG_S	ra, ( 1 * SZREG + MCONTEXT_GREGS)(a0)

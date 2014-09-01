@@ -27,9 +27,7 @@
 
 	.text
 LEAF (__getcontext)
-	li	v1, 1
 	REG_S	ra, MCONTEXT_PC(a0)
-	REG_S	v1, ( 0 * SZREG + MCONTEXT_GREGS)(a0)	/* flag <- 1 */
 	REG_S	ra, ( 1 * SZREG + MCONTEXT_GREGS)(a0)
 	REG_S	s0, ( 2 * SZREG + MCONTEXT_GREGS)(a0)
 	REG_S	s1, ( 3 * SZREG + MCONTEXT_GREGS)(a0)

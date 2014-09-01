@@ -8,13 +8,12 @@ void __makecontext (ucontext_t *ucp, void (*func) (void), int argc,
 		    long a0, long a1, long a2, long a3,
 		    long a4, ...)
 {
+  extern void __start_context(void);
   long i, sp;
   va_list vl;
-  va_start(vl, a4);
-  assert(REG_NARGS >= 5);
 
-  /* Store a magic flag in x0's save slot */
-  ucp->uc_mcontext.gregs[0] = 1;
+  va_start(vl, a4);
+  assert(REG_NARGS == 8);
 
   /* Set up the stack. */
   sp = ((long)ucp->uc_stack.ss_sp + ucp->uc_stack.ss_size) & ALMASK;
@@ -35,12 +34,9 @@ void __makecontext (ucontext_t *ucp, void (*func) (void), int argc,
         ((long*)sp)[i] = va_arg(vl, long);
     }
 
-  extern void __start_context(void);
-  void *start_context = &__start_context;
-
   ucp->uc_mcontext.gregs[REG_S0] = (long)ucp->uc_link;
   ucp->uc_mcontext.gregs[REG_SP] = sp;
-  ucp->uc_mcontext.pc = (long)func;
+  ucp->uc_mcontext.gregs[REG_PC] = (long)func;
   ucp->uc_mcontext.gregs[REG_RA] = (long)&__start_context;
 }
 

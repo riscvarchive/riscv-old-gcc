@@ -17,27 +17,13 @@
    Software Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA
    02111-1307 USA.  */
 
+#include <sys/ucontext.h>
 
-#include <sgidefs.h>
+#define SIGCONTEXT siginfo_t *_si, struct ucontext *
+#define SIGCONTEXT_EXTRA_ARGS _si,
+#define GET_PC(ctx)	((void *) ctx->uc_mcontext.gregs[REG_PC])
+#define GET_FRAME(ctx)	((void *) ctx->uc_mcontext.gregs[REG_S0])
+#define GET_STACK(ctx)	((void *) ctx->uc_mcontext.gregs[REG_SP])
 
-#if _RISCV_SIM == _ABIO32
-
-#define SIGCONTEXT unsigned long _code, struct sigcontext *
-#define SIGCONTEXT_EXTRA_ARGS _code,
-#define GET_PC(ctx)	((void *) ctx->sc_pc)
-#define GET_FRAME(ctx)	((void *) ctx->sc_regs[30])
-#define GET_STACK(ctx)	((void *) ctx->sc_regs[29])
 #define CALL_SIGHANDLER(handler, signo, ctx) \
   (handler)((signo), SIGCONTEXT_EXTRA_ARGS (ctx))
-
-#else
-
-#define SIGCONTEXT unsigned long _code, ucontext_t *
-#define SIGCONTEXT_EXTRA_ARGS _code,
-#define GET_PC(ctx)	((void *) ctx->uc_mcontext.pc)
-#define GET_FRAME(ctx)	((void *) ctx->uc_mcontext.gregs[30])
-#define GET_STACK(ctx)	((void *) ctx->uc_mcontext.gregs[29])
-#define CALL_SIGHANDLER(handler, signo, ctx) \
-  (handler)((signo), SIGCONTEXT_EXTRA_ARGS (ctx))
-
-#endif

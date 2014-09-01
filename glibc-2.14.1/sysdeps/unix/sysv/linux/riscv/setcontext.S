@@ -28,17 +28,13 @@
 	.text
 LEAF (__setcontext)
 
-	REG_L	v1, (0 * SZREG + MCONTEXT_GREGS)(a0)	/* v1 <- flag */
 	mv	t0, a0					/* t0 <- ucp */
-	li	t1, 1
 
 /* rt_sigprocmask (SIG_SETMASK, &ucp->uc_sigmask, NULL, _NSIG8) */
 	li	a3, _NSIG8
 	move	a2, zero
 	add     a1, a0, UCONTEXT_SIGMASK
 	li	a0, SIG_SETMASK
-
-	bne	t1, v1, 98f	/* if flag != 1, go to rt_sigreturn path */
 
 	li	v0, SYS_ify (rt_sigprocmask)
 	scall
@@ -96,35 +92,6 @@ LEAF (__setcontext)
 	REG_L	a7, (25 * SZREG + MCONTEXT_GREGS)(t0)
 
 	jr	v1
-
-98:
-	/* This is a context obtained from a signal handler.
-	   Perform a full restore by pushing the context
-	   passed onto a simulated signal frame on the stack
-	   and call the signal return syscall as if a signal
-	   handler exited normally.  */
-	addi    sp, sp, -((RT_SIGFRAME_SIZE + ALSZ) & ALMASK)
-
-	/* Only ucontext is referred to from rt_sigreturn,
-	   copy it.  */
-	addi    a1, sp, RT_SIGFRAME_UCONTEXT
-	li	v1, ((UCONTEXT_SIZE + SZREG - 1) / SZREG) - 1
-0:
-	REG_L	v0, (a0)
-	addi	v1, v1, -1
-	addi    a1, a1, SZREG
-	addi    a0, a0, SZREG
-	REG_S	v0, -SZREG(a1)
-	bgez	v1, 0b
-
-/* rt_sigreturn () -- no arguments, sp points to struct rt_sigframe.  */
-	li	v0, SYS_ify (rt_sigreturn)
-	scall
-
-	/* Restore the stack and fall through to the error
-	   path.  Successful rt_sigreturn never returns to
-	   its calling place.  */
-	addi    sp, sp, ((RT_SIGFRAME_SIZE + ALSZ) & ALMASK)
 
 99:	j	__syscall_error
 

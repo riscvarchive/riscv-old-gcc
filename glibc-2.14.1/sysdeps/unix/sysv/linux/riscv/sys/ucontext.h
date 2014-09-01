@@ -22,7 +22,6 @@
 #define _SYS_UCONTEXT_H	1
 
 #include <features.h>
-#include <sgidefs.h>
 #include <signal.h>
 
 /* We need the signal context definitions even if they are not used
@@ -37,6 +36,7 @@ __extension__ typedef unsigned long long int greg_t;
 #define NGREG	32
 #define NFPREG	32
 
+#define REG_PC 0
 #define REG_RA 1
 #define REG_S0 2
 #define REG_A0 18
@@ -50,18 +50,8 @@ typedef greg_t gregset_t[NGREG];
 /* Container for all FPU registers.  */
 typedef double fpregset_t[NFPREG];
 
-
 /* Context to describe whole processor state.  */
-typedef struct
-  {
-    gregset_t gregs;
-    fpregset_t fpregs;
-    greg_t pc;
-    unsigned int fsr;
-    unsigned int used_math;
-    unsigned int dsp;
-    unsigned int reserved;
-  } mcontext_t;
+typedef struct sigcontext mcontext_t;
 
 /* Userlevel context.  */
 typedef struct ucontext
