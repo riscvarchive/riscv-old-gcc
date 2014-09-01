@@ -2953,6 +2953,15 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       if (symbol)
 	value += symbol - p;
       overflowed_p = !VALID_UJTYPE_IMM (value);
+      if (overflowed_p && !info->shared && VALID_ITYPE_IMM (value + p))
+	{
+	  /* Not all is lost: we can instead use JALR rd, x0, address. */
+	  bfd_vma jal = bfd_get (32, input_bfd, contents+relocation->r_offset);
+	  jal = (jal & (OP_MASK_RD << OP_SH_RD)) | MATCH_JALR;
+	  jal |= ENCODE_ITYPE_IMM (value + p);
+	  bfd_put (32, input_bfd, jal, contents+relocation->r_offset);
+	  return bfd_reloc_continue;
+	}
       value = ENCODE_UJTYPE_IMM (value);
       break;
 
@@ -5400,9 +5409,8 @@ _bfd_riscv_relax_call (bfd *abfd, asection *sec,
 {
   /* See if this function call can be shortened.  */
   bfd_signed_vma foff = symval - (sec_addr(sec) + irel->r_offset);
-  bfd_boolean near_zero = !link_info->shared && VALID_ITYPE_IMM (symval);
-  bfd_boolean jal = VALID_UJTYPE_IMM (foff);
-  if (!near_zero && !jal)
+  bfd_boolean near_zero = !link_info->shared && symval < RISCV_IMM_REACH/2;
+  if (!VALID_UJTYPE_IMM (foff) && !near_zero)
     return TRUE;
 
   /* Shorten the function call.  */
@@ -5417,20 +5425,10 @@ _bfd_riscv_relax_call (bfd *abfd, asection *sec,
 
   bfd_vma jalr = bfd_get_32 (abfd, contents + irel->r_offset + 4);
   BFD_ASSERT ((jalr & MASK_JALR) == MATCH_JALR);
-  if (near_zero)
-    {
-      /* Replace the R_RISCV_CALL reloc with R_RISCV_LO12_I. */
-      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_LO12_I);
-      /* Overwrite AUIPC with JALR rd, x0, addr. */
-      auipc = jalr & ~(OP_MASK_RS1 << OP_SH_RS1);
-    }
-  else
-    {
-      /* Replace the R_RISCV_CALL reloc with R_RISCV_JAL. */
-      irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_JAL);
-      /* Overwrite AUIPC with JAL rd, addr. */
-      auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) | MATCH_JAL;
-    }
+  /* Replace the R_RISCV_CALL reloc with R_RISCV_JAL. */
+  irel->r_info = ELF_R_INFO (abfd, ELF_R_SYM (abfd, irel->r_info), R_RISCV_JAL);
+  /* Overwrite AUIPC with JAL rd, addr. */
+  auipc = (jalr & (OP_MASK_RD << OP_SH_RD)) | MATCH_JAL;
   bfd_put_32 (abfd, auipc, contents + irel->r_offset);
 
   /* Delete unnecessary JALR. */
