@@ -36,9 +36,6 @@ struct riscv_cpu_info {
   unsigned int tune_flags;
 };
 
-/* True if we need to use a global offset table to access some symbols.  */
-#define TARGET_USE_GOT (flag_pic)
-
 /* True if a global pointer can be used to access small data. */
 #define TARGET_USE_GP (!flag_pic)
 
@@ -1166,7 +1163,7 @@ while (0)
 
 /* The base cost of a memcpy call, for MOVE_RATIO and friends. */
 
-#define RISCV_CALL_RATIO 8
+#define RISCV_CALL_RATIO 6
 
 /* Any loop-based implementation of movmemsi will have at least
    RISCV_MAX_MOVE_BYTES_STRAIGHT / UNITS_PER_WORD memory-to-memory

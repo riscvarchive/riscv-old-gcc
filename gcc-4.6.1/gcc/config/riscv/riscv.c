@@ -470,22 +470,24 @@ riscv_build_integer (struct mips_integer_op *codes, HOST_WIDE_INT value)
     {
       struct mips_integer_op alt_codes[RISCV_MAX_INTEGER_OPS];
       int alt_cost, shift;
+      HOST_WIDE_INT shifted_value;
 
+      /* Try filling trailing bits with 1s */
+      shift = __builtin_clzl(value);
+      shifted_value = (value << shift) | ((((HOST_WIDE_INT) 1) << shift) - 1);
+      alt_cost = 1 + riscv_build_integer_simple (alt_codes, shifted_value);
+      alt_codes[alt_cost-1].code = LSHIFTRT;
+      alt_codes[alt_cost-1].value = shift;
+      if (alt_cost < cost)
+	cost = alt_cost, memcpy (codes, alt_codes, sizeof (alt_codes));
+
+      /* Try filling trailing bits with 0s */
       shift = __builtin_clzl(value);
       alt_cost = 1 + riscv_build_integer_simple (alt_codes, value << shift);
       alt_codes[alt_cost-1].code = LSHIFTRT;
       alt_codes[alt_cost-1].value = shift;
       if (alt_cost < cost)
-	cost = alt_cost, memcpy (codes, alt_codes, sizeof(alt_codes));
-
-      /* Also try filling discarded bits with 1s */
-      shift = __builtin_clzl(value);
-      alt_cost = 1 + riscv_build_integer_simple (alt_codes,
-			value << shift | ((1L<<shift)-1));
-      alt_codes[alt_cost-1].code = LSHIFTRT;
-      alt_codes[alt_cost-1].value = shift;
-      if (alt_cost < cost)
-	cost = alt_cost, memcpy (codes, alt_codes, sizeof(alt_codes));
+	cost = alt_cost, memcpy (codes, alt_codes, sizeof (alt_codes));
     }
 
   return cost;
@@ -1572,7 +1574,7 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
          operand needs to be forced into a register, we will often be
          able to hoist the constant load out of the loop, so the load
          should not contribute to the cost.  */
-      if (speed || mips_immediate_operand_p (outer_code, INTVAL (x)))
+      if (!optimize_size || mips_immediate_operand_p (outer_code, INTVAL (x)))
         {
           *total = 0;
           return true;
@@ -1588,18 +1590,8 @@ mips_rtx_costs (rtx x, int code, int outer_code, int *total, bool speed)
 	{
 	  /* If the constant is likely to be stored in a GPR, SETs of
 	     single-insn constants are as cheap as register sets; we
-	     never want to CSE them.
-
-	     Don't reduce the cost of storing a floating-point zero in
-	     FPRs.  If we have a zero in an FPR for other reasons, we
-	     can get better cfg-cleanup and delayed-branch results by
-	     using it consistently, rather than using $0 sometimes and
-	     an FPR at other times.  Also, moves between floating-point
-	     registers are sometimes cheaper than (D)MTC1 $0.  */
-	  if (cost == 1
-	      && outer_code == SET
-	      && code == CONST_INT
-	      && !(float_mode_p && TARGET_HARD_FLOAT))
+	     never want to CSE them. */
+	  if (cost == 1 && outer_code == SET && code == CONST_INT)
 	    cost = 0;
 	  *total = COSTS_N_INSNS (cost);
 	  return true;
