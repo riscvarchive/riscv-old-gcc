@@ -61,3 +61,7 @@ Target Joined Separate UInteger Var(g_switch_value) Init(8)
 matomic
 Target Report Mask(ATOMIC)
 Use hardware atomic memory instructions.  Enabled by default, use -mno-atomic to disable
+
+mrvm
+Target Mask(RVM)
+Use M standard extensions for integer multiplication and division. Enabled by default, use -mno-rvm to disable

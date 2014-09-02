@@ -4498,6 +4498,10 @@ mips_option_override (void)
   if ((target_flags_explicit & MASK_ATOMIC) == 0)
     target_flags |= MASK_ATOMIC;
 
+  /* Use multiplier/division instructions, if user did not specify a preference */
+  if ((target_flags_explicit & MASK_RVM) == 0)
+    target_flags |= MASK_RVM;
+
   /* Set up riscv_hard_regno_mode_ok.  */
   for (mode = 0; mode < MAX_MACHINE_MODE; mode++)
     for (regno = 0; regno < FIRST_PSEUDO_REGISTER; regno++)
