@@ -21,11 +21,6 @@ along with GCC; see the file COPYING3.  If not see
 
 /* Force the default ABI flags onto the command line
    in order to make the other specs easier to write.  */
-#undef DRIVER_SELF_SPECS
-#define DRIVER_SELF_SPECS \
-  LINUX_DRIVER_SELF_SPECS \
-  " %{" OPT_ARCH32 ": -m32} %{" OPT_ARCH64 ": -m64}" \
-
 #undef LIB_SPEC
 #define LIB_SPEC "\
 %{pthread:-lpthread} \

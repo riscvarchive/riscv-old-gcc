@@ -38,12 +38,6 @@ along with GCC; see the file COPYING3.  If not see
 #undef SUBTARGET_CPP_SPEC
 #define SUBTARGET_CPP_SPEC "%{posix:-D_POSIX_SOURCE} %{pthread:-D_REENTRANT}"
 
-/* A standard GNU/Linux mapping.  On most targets, it is included in
-   CC1_SPEC itself by config/linux.h, but mips.h overrides CC1_SPEC
-   and provides this hook instead.  */
-#undef SUBTARGET_CC1_SPEC
-#define SUBTARGET_CC1_SPEC "%{profile:-p}"
-
 #define GLIBC_DYNAMIC_LINKER "/lib/ld.so.1"
 
 /* Borrowed from sparc/linux.h */
@@ -56,27 +50,6 @@ along with GCC; see the file COPYING3.  If not see
       -dynamic-linker " LINUX_DYNAMIC_LINKER "} \
       %{static:-static}}"
 
-/* The MIPS assembler has different syntax for .set. We set it to
-   .dummy to trap any errors.  */
-#undef SET_ASM_OP
-#define SET_ASM_OP "\t.dummy\t"
-
-#undef ASM_OUTPUT_DEF
-#define ASM_OUTPUT_DEF(FILE,LABEL1,LABEL2)				\
- do {									\
-	fputc ( '\t', FILE);						\
-	assemble_name (FILE, LABEL1);					\
-	fputs ( " = ", FILE);						\
-	assemble_name (FILE, LABEL2);					\
-	fputc ( '\n', FILE);						\
- } while (0)
-
-/* The glibc _mcount stub will save $v0 for us.  Don't mess with saving
-   it, since ASM_OUTPUT_REG_PUSH/ASM_OUTPUT_REG_POP do not work in the
-   presence of $gp-relative calls.  */
-#undef ASM_OUTPUT_REG_PUSH
-#undef ASM_OUTPUT_REG_POP
-
 #undef LIB_SPEC
 #define LIB_SPEC "\
 %{pthread:-lpthread} \
@@ -85,17 +58,6 @@ along with GCC; see the file COPYING3.  If not see
   %{profile:-lc_p} %{!profile:-lc}}"
 
 #define MD_UNWIND_SUPPORT "config/riscv/linux-unwind.h"
-
-/* -march=native handling only makes sense with compiler running on
-   a RISC-V machine.  */
-#define MARCH_MTUNE_NATIVE_SPECS ""
-
-#define LINUX_DRIVER_SELF_SPECS \
-  MARCH_MTUNE_NATIVE_SPECS
-
-#undef DRIVER_SELF_SPECS
-#define DRIVER_SELF_SPECS \
-  LINUX_DRIVER_SELF_SPECS
 
 /* Similar to standard Linux, but adding -ffast-math support.  */
 #undef  ENDFILE_SPEC

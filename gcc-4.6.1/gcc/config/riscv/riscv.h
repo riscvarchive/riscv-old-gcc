@@ -182,27 +182,6 @@ struct riscv_cpu_info {
 #define NM_FLAGS "-Bn"
 #endif
 
-/* SUBTARGET_ASM_DEBUGGING_SPEC handles passing debugging options to
-   the assembler.  It may be overridden by subtargets.
-
-   Beginning with gas 2.13, -mdebug must be passed to correctly handle
-   COFF debugging info.  */
-
-#ifndef SUBTARGET_ASM_DEBUGGING_SPEC
-#define SUBTARGET_ASM_DEBUGGING_SPEC "\
-%{g} %{g0} %{g1} %{g2} %{g3} \
-%{ggdb:-g} %{ggdb0:-g0} %{ggdb1:-g1} %{ggdb2:-g2} %{ggdb3:-g3} \
-%{gstabs:-g} %{gstabs0:-g0} %{gstabs1:-g1} %{gstabs2:-g2} %{gstabs3:-g3} \
-%{gstabs+:-g} %{gstabs+0:-g0} %{gstabs+1:-g1} %{gstabs+2:-g2} %{gstabs+3:-g3}"
-#endif
-
-/* SUBTARGET_ASM_SPEC is always passed to the assembler.  It may be
-   overridden by subtargets.  */
-
-#ifndef SUBTARGET_ASM_SPEC
-#define SUBTARGET_ASM_SPEC ""
-#endif
-
 #undef ASM_SPEC
 #define ASM_SPEC "\
 %(subtarget_asm_debugging_spec) \
@@ -221,31 +200,6 @@ struct riscv_cpu_info {
 %{shared}"
 #endif  /* LINK_SPEC defined */
 
-
-/* Specs for the compiler proper */
-
-/* SUBTARGET_CC1_SPEC is passed to the compiler proper.  It may be
-   overridden by subtargets.  */
-#ifndef SUBTARGET_CC1_SPEC
-#define SUBTARGET_CC1_SPEC ""
-#endif
-
-/* CC1_SPEC is the set of arguments to pass to the compiler proper.  */
-
-#undef CC1_SPEC
-#define CC1_SPEC "\
-%(subtarget_cc1_spec)"
-
-/* Preprocessor specs.  */
-
-/* SUBTARGET_CPP_SPEC is passed to the preprocessor.  It may be
-   overridden by subtargets.  */
-#ifndef SUBTARGET_CPP_SPEC
-#define SUBTARGET_CPP_SPEC ""
-#endif
-
-#define CPP_SPEC "%(subtarget_cpp_spec)"
-
 /* This macro defines names of additional specifications to put in the specs
    that can be used in various specifications like CC1_SPEC.  Its definition
    is an initializer with a subgrouping for each command option.
@@ -257,10 +211,6 @@ struct riscv_cpu_info {
    Do not define this macro if it does not need to do anything.  */
 
 #define EXTRA_SPECS							\
-  { "subtarget_cc1_spec", SUBTARGET_CC1_SPEC },				\
-  { "subtarget_cpp_spec", SUBTARGET_CPP_SPEC },				\
-  { "subtarget_asm_debugging_spec", SUBTARGET_ASM_DEBUGGING_SPEC },	\
-  { "subtarget_asm_spec", SUBTARGET_ASM_SPEC },				\
   { "asm_abi_default_spec", "-" MULTILIB_ARCH_DEFAULT },		\
   SUBTARGET_EXTRA_SPECS
 
