@@ -48,7 +48,7 @@ OTHER_BSS_SYMBOLS='_fbss = .;'
 
 INITIAL_READONLY_SECTIONS=".interp       ${RELOCATING-0} : { *(.interp) }"
 SDATA_START_SYMBOLS="_gp = . + 0x800;
-    *(.got.plt) *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata*)"
+    *(.srodata.cst16) *(.srodata.cst8) *(.srodata.cst4) *(.srodata.cst2) *(.srodata*)"
 if test -n "${CREATE_SHLIB}"; then
   INITIAL_READONLY_SECTIONS=
   SDATA_START_SYMBOLS=
