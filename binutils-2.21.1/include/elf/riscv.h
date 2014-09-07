@@ -179,7 +179,4 @@ static inline unsigned int riscv_elf_name_to_flag(const char* name)
 /* Address of the base of the PLTGOT.  */
 #define DT_RISCV_PLTGOT         0x70000003
 
-/* Value of GP register. */
-#define DT_RISCV_GP_VALUE	0x70000004
-
 #endif /* _ELF_RISCV_H */

@@ -29,8 +29,5 @@
 /* Address of the base of the PLTGOT.  */
 #define DT_RISCV_PLTGOT         0x70000003
 
-/* Value of GP register. */
-#define DT_RISCV_GP_VALUE	0x70000004
-
 /* Number of extra dynamic section entries for this architecture. */
-#define DT_THISPROCNUM	5
+#define DT_THISPROCNUM	4

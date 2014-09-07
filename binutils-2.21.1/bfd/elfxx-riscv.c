@@ -261,12 +261,6 @@ struct mips_elf_link_hash_table
   /* The master GOT information.  */
   struct mips_got_info *got_info;
 
-  /* The size of the PLT header in bytes.  */
-  bfd_vma plt_header_size;
-
-  /* The size of a PLT entry in bytes.  */
-  bfd_vma plt_entry_size;
-
   /* The number of PLT entries. */
   bfd_vma nplt;
 
@@ -1252,21 +1246,10 @@ riscv_elf_got_plt_val (bfd_vma plt_index, struct bfd_link_info *info)
 	 + (2+plt_index) * MIPS_ELF_GOT_SIZE (elf_hash_table (info)->dynobj);
 }
 
-static bfd_vma
-riscv_elf_got_plt_gprel (bfd_vma plt_off, bfd *abfd, struct bfd_link_info *info)
-{
-  struct mips_elf_link_hash_table *htab = mips_elf_hash_table (info);
-  plt_off = (plt_off - htab->plt_header_size) / htab->plt_entry_size;
-  return riscv_elf_got_plt_val (plt_off, info) - elf_gp (abfd);
-}
-
-#define PLT0_INSNS 8
-#define LARGE_PLT_INSNS 4
-#define SMALL_PLT_INSNS 2
-#define PLT0_SIZE (PLT0_INSNS * 4)
-#define LARGE_PLT_SIZE (LARGE_PLT_INSNS * 4)
-#define SMALL_PLT_SIZE (SMALL_PLT_INSNS * 4)
-#define riscv_elf_plt_bias(off) (-(off + SMALL_PLT_SIZE))
+#define PLT_HEADER_INSNS 8
+#define PLT_ENTRY_INSNS 4
+#define PLT_HEADER_SIZE (PLT_HEADER_INSNS * 4)
+#define PLT_ENTRY_SIZE (PLT_ENTRY_INSNS * 4)
 
 #define X_V0 16
 #define X_V1 17
@@ -1278,106 +1261,45 @@ riscv_elf_got_plt_gprel (bfd_vma plt_off, bfd *abfd, struct bfd_link_info *info)
 
 static void
 riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_addr, bfd_vma addr,
-                      uint32_t entry[PLT0_INSNS], struct bfd_link_info *info)
+                      uint32_t entry[PLT_HEADER_INSNS])
 {
   int regbytes = ABI_64_P(abfd) ? 8 : 4;
-  bfd_vma gotplt_gpoff;
 
-  switch (mips_elf_hash_table (info)->plt_entry_size)
-    {
-    case LARGE_PLT_SIZE:
-      /* auipc  t0, %hi(.got.plt)
-	 addi   t1, t0, %lo(.got.plt)
-	 l[w|d] v1, %lo(.got.plt)(t0)  # _dl_runtime_resolve
-	 sub    t2, v0, t1             # .got.plt offset + 2*PTRSIZE
-	 li     t0, 0                  # .got.plt bias
-	 l[w|d] t1, PTRSIZE(t1)        # link map
-	 addi   t2, t2, -2*PTRSIZE     # .got.plt offset
-	 jr     v1 */
+  /* auipc  t2, %hi(.got.plt)
+     l[w|d] v1, %lo(.got.plt)(t2)  # _dl_runtime_resolve
+     addi   t0, t2, %lo(.got.plt)
+     sub    t1, v0, t0             # .got.plt offset + 2*PTRSIZE
+     l[w|d] t0, PTRSIZE(t0)        # link map
+     addi   t1, t1, -2*PTRSIZE     # .got.plt offset
+     jr     v1
+     nop */
 
-      entry[0] = RISCV_UTYPE(AUIPC, X_T0, RISCV_PCREL_HIGH_PART(gotplt_addr, addr));
-      entry[1] = RISCV_ITYPE(ADDI, X_T1, X_T0, RISCV_PCREL_LOW_PART(gotplt_addr, addr));
-      entry[2] = RISCV_ITYPE(LREG(abfd), X_V1, X_T0, RISCV_PCREL_LOW_PART(gotplt_addr, addr));
-      entry[3] = RISCV_RTYPE(SUB, X_T2, X_V0, X_T1);
-      entry[4] = RISCV_ITYPE(LREG(abfd), X_T1, X_T1, regbytes);
-      entry[5] = RISCV_ITYPE(ADDI, X_T2, X_T2, -2*regbytes);
-      entry[6] = RISCV_ITYPE(ADDI, X_T0, 0, 0);
-      entry[7] = RISCV_ITYPE(JALR, 0, X_V1, 0);
-      break;
-
-    case SMALL_PLT_SIZE:
-      /* auipc  t0, 0                              # this header
-	 l[w|d] v1, %gprel(.got.plt)(gp)           # _dl_runtime_resolve
-	 sub    t0, v0, t0                         # .got.plt bias
-	 l[w|d] t1, %gprel(.got.plt+regbytes)(gp)  # link map
-	 addi   t2, t0, -(plt[1] - this header)    # .got.plt offset (rv64)
-	 srli   t2, t2, 1 [rv32 only]              # .got.plt offset (rv32)
-	 jr v1 */
-
-      gotplt_gpoff = gotplt_addr - elf_gp (abfd);
-      BFD_ASSERT (VALID_ITYPE_IMM (gotplt_gpoff));
-
-      entry[0] = RISCV_UTYPE(AUIPC, X_T0, 0);
-      entry[1] = RISCV_ITYPE(LREG(abfd), X_V1, GP_REG, gotplt_gpoff);
-      entry[2] = RISCV_RTYPE(SUB, X_T0, X_V0, X_T0);
-      entry[3] = RISCV_ITYPE(LREG(abfd), X_T1, GP_REG, gotplt_gpoff + regbytes);
-      entry[4] = RISCV_ITYPE(ADDI, X_T2, X_T0, -(PLT0_SIZE + SMALL_PLT_SIZE));
-      if (ABI_64_P (abfd))
-	{
-	  entry[5] = RISCV_ITYPE(JALR, 0, X_V1, 0);
-	  entry[6] = RISCV_NOP;
-	}
-      else
-	{
-	  entry[5] = RISCV_ITYPE(SRLI, X_T2, X_T2, 1);
-	  entry[6] = RISCV_ITYPE(JALR, 0, X_V1, 0);
-	}
-      entry[7] = RISCV_NOP;
-      break;
-
-    default:
-      abort();
-    }
+  entry[0] = RISCV_UTYPE(AUIPC, X_T2, RISCV_PCREL_HIGH_PART(gotplt_addr, addr));
+  entry[1] = RISCV_ITYPE(LREG(abfd), X_V1, X_T2, RISCV_PCREL_LOW_PART(gotplt_addr, addr));
+  entry[2] = RISCV_ITYPE(ADDI, X_T0, X_T2, RISCV_PCREL_LOW_PART(gotplt_addr, addr));
+  entry[3] = RISCV_RTYPE(SUB, X_T1, X_V0, X_T0);
+  entry[4] = RISCV_ITYPE(LREG(abfd), X_T0, X_T0, regbytes);
+  entry[5] = RISCV_ITYPE(ADDI, X_T1, X_T1, -2*regbytes);
+  entry[6] = RISCV_ITYPE(JALR, 0, X_V1, 0);
+  entry[7] = RISCV_NOP;
 }
 
 /* The format of subsequent PLT entries.  */
 
 static bfd_vma
 riscv_make_plt_entry(bfd* abfd, bfd_vma got_address, bfd_vma plt0_addr,
-		     bfd_vma addr, uint32_t *entry, struct bfd_link_info *info)
+		     bfd_vma addr, uint32_t *entry)
 {
-  bfd_vma plt_bias, gp_offset, plt_offset;
+  /* auipc  v0, %hi(.got.plt entry)
+     l[w|d] v1, %lo(.got.plt entry)(v0)
+     addi   v0, %lo(.got.plt entry)
+     jr     v1 */
 
-  switch (mips_elf_hash_table (info)->plt_entry_size)
-    {
-    case LARGE_PLT_SIZE:
-      /* auipc  v0, %hi(.got.plt entry)
-	 l[w|d] v1, %lo(.got.plt entry)(v0)
-	 addi   v0, %lo(.got.plt entry)
-	 jr     v1 */
-
-      entry[0] = RISCV_UTYPE(AUIPC, X_V0, RISCV_PCREL_HIGH_PART(got_address, addr));
-      entry[1] = RISCV_ITYPE(LREG(abfd),  X_V1, X_V0, RISCV_PCREL_LOW_PART(got_address, addr));
-      entry[2] = RISCV_ITYPE(ADDI,  X_V0, X_V0, RISCV_PCREL_LOW_PART(got_address, addr));
-      entry[3] = RISCV_ITYPE(JALR, 0, X_V1, 0);
-      return plt0_addr;
-
-    case SMALL_PLT_SIZE:
-      plt_offset = addr - plt0_addr;
-      gp_offset = riscv_elf_got_plt_gprel (plt_offset, abfd, info);
-      plt_bias = riscv_elf_plt_bias (plt_offset);
-      BFD_ASSERT (VALID_ITYPE_IMM (gp_offset) && VALID_ITYPE_IMM (plt_bias));
-
-      /* l[w|d] v0, %gprel(.got.plt entry)(gp)
-	 jalr   v0, v0, plt bias */
-
-      entry[0] = RISCV_ITYPE(LREG(abfd), X_V0, GP_REG, gp_offset);
-      entry[1] = RISCV_ITYPE(JALR, X_V0, X_V0, plt_bias);
-      return addr + 4 - plt_bias;
-
-    default:
-      abort();
-    }
+  entry[0] = RISCV_UTYPE(AUIPC, X_V0, RISCV_PCREL_HIGH_PART(got_address, addr));
+  entry[1] = RISCV_ITYPE(LREG(abfd),  X_V1, X_V0, RISCV_PCREL_LOW_PART(got_address, addr));
+  entry[2] = RISCV_ITYPE(ADDI,  X_V0, X_V0, RISCV_PCREL_LOW_PART(got_address, addr));
+  entry[3] = RISCV_ITYPE(JALR, 0, X_V1, 0);
+  return plt0_addr;
 }
 
 /* Look up an entry in a MIPS ELF linker hash table.  */
@@ -2641,10 +2563,7 @@ _bfd_riscv_elf_plt_sym_val (bfd_vma i, const asection *s,
   uint32_t plt0_1;
   if (!bfd_get_section_contents (s->owner, (sec_ptr)s, &plt0_1, 4, 4))
     return MINUS_ONE;
-  if ((plt0_1 & MASK_ADDI) == MATCH_ADDI) /* shared PLT or large static PLT */
-    return s->vma + PLT0_SIZE + i * LARGE_PLT_SIZE;
-  /* small static PLT */
-  return s->vma + PLT0_SIZE + i * SMALL_PLT_SIZE;
+  return s->vma + PLT_HEADER_SIZE + i * PLT_ENTRY_SIZE;
 }
 
 /* Calculate the value produced by the RELOCATION (which comes from
@@ -2919,27 +2838,10 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
 
       if (info->shared && h && h->root.plt.offset != MINUS_ONE)
 	symbol = sec_addr(htab->splt) + h->root.plt.offset;
-
       value = addend + (symbol ? symbol : p);
 
-      if (h != NULL && h->root.plt.offset != MINUS_ONE
-	  && htab->plt_entry_size == SMALL_PLT_SIZE)
-	{
-	  bfd_vma gpoff, rd, bias;
-
-	  gpoff = riscv_elf_got_plt_gprel (h->root.plt.offset, abfd, info);
-	  BFD_ASSERT (VALID_ITYPE_IMM (gpoff));
-	  auipc = RISCV_ITYPE (LREG(abfd), X_V0, GP_REG, gpoff);
-
-	  rd = (jalr >> OP_SH_RD) & OP_MASK_RD;
-	  bias = riscv_elf_plt_bias (h->root.plt.offset);
-	  jalr = RISCV_ITYPE (JALR, rd, X_V0, bias);
-	}
-      else
-	{
-      	  auipc |= ENCODE_UTYPE_IMM (RISCV_PCREL_HIGH_PART (value, p));
-      	  jalr |= ENCODE_ITYPE_IMM (RISCV_PCREL_LOW_PART (value, p));
-	}
+      auipc |= ENCODE_UTYPE_IMM (RISCV_PCREL_HIGH_PART (value, p));
+      jalr |= ENCODE_ITYPE_IMM (RISCV_PCREL_LOW_PART (value, p));
 
       bfd_put (32, input_bfd, auipc, contents + relocation->r_offset);
       bfd_put (32, input_bfd, jalr, contents + relocation->r_offset + 4);
@@ -3962,7 +3864,7 @@ riscv_elf_compute_plt_offset (void *arg1, void *arg2)
 
   if (h->plt.offset != MINUS_ONE)
     {
-      h->plt.offset = h->plt.offset * htab->plt_entry_size + htab->plt_header_size;
+      h->plt.offset = h->plt.offset * PLT_ENTRY_SIZE + PLT_HEADER_SIZE;
 
       /* If the output file has no definition of the symbol, set the
 	 symbol's value to the address of the stub.  */
@@ -4084,15 +3986,8 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	{
 	  struct elf_link_hash_entry *h;
 
-	  htab->plt_header_size = PLT0_SIZE;
-  	  htab->plt_entry_size = LARGE_PLT_SIZE;
-	  if (bfd_riscv_gp_hash (info) != NULL
-	      && VALID_ITYPE_IMM (PLT0_SIZE + htab->nplt * SMALL_PLT_SIZE))
-	    htab->plt_entry_size = SMALL_PLT_SIZE;
-
 	  BFD_ASSERT (htab->splt->size == 0);
-	  htab->splt->size = htab->plt_header_size
-			     + htab->nplt * htab->plt_entry_size;
+	  htab->splt->size = PLT_HEADER_SIZE + htab->nplt * PLT_ENTRY_SIZE;
 
 	  /* The last and first two entries in .got.plt are reserved.  */
 	  BFD_ASSERT (htab->sgotplt->size == 0);
@@ -4270,10 +4165,6 @@ _bfd_riscv_elf_size_dynamic_sections (bfd *output_bfd,
 	  if (! _bfd_elf_add_dynamic_entry (info, DT_RISCV_PLTGOT, 0))
 	    return FALSE;
 	}
-
-      if (!info->shared)
-	if (! _bfd_elf_add_dynamic_entry (info, DT_RISCV_GP_VALUE, 0))
-	  return FALSE;
     }
 
   return TRUE;
@@ -4454,7 +4345,7 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       /* We've decided to create a PLT entry for this symbol.  */
       bfd_byte *loc;
       bfd_vma i, header_address, plt_index, got_address, got_val;
-      uint32_t plt_entry[LARGE_PLT_INSNS];
+      uint32_t plt_entry[PLT_ENTRY_INSNS];
 
       BFD_ASSERT (h->dynindx != -1);
       BFD_ASSERT (htab->splt != NULL);
@@ -4464,8 +4355,7 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       header_address = sec_addr(htab->splt);
 
       /* Calculate the index of the entry.  */
-      plt_index = ((h->plt.offset - htab->plt_header_size)
-		   / htab->plt_entry_size);
+      plt_index = (h->plt.offset - PLT_HEADER_SIZE) / PLT_ENTRY_SIZE;
 
       /* Calculate the address of the .got.plt entry.  */
       got_address = riscv_elf_got_plt_val (plt_index, info);
@@ -4476,8 +4366,8 @@ _bfd_riscv_elf_finish_dynamic_symbol (bfd *output_bfd,
       /* Fill in the PLT entry itself.  */
       got_val = riscv_make_plt_entry (output_bfd, got_address, header_address,
 				      header_address + h->plt.offset,
-				      plt_entry, info);
-      for (i = 0; i < htab->plt_entry_size/4; i++)
+				      plt_entry);
+      for (i = 0; i < PLT_ENTRY_INSNS; i++)
         bfd_put_32 (output_bfd, plt_entry[i], loc + 4*i);
 
       /* Fill in the initial value of the .got.plt entry. */
@@ -4547,7 +4437,7 @@ static void
 mips_finish_exec_plt (bfd *output_bfd, struct bfd_link_info *info)
 {
   bfd_byte *loc;
-  uint32_t plt_entry[PLT0_INSNS];
+  uint32_t plt_entry[PLT_HEADER_INSNS];
   struct mips_elf_link_hash_table *htab;
   int i;
 
@@ -4557,8 +4447,8 @@ mips_finish_exec_plt (bfd *output_bfd, struct bfd_link_info *info)
   /* Install the PLT header.  */
   loc = htab->splt->contents;
   riscv_make_plt0_entry (output_bfd, sec_addr(htab->sgotplt),
-			 sec_addr(htab->splt), plt_entry, info);
-  for (i = 0; i < PLT0_INSNS; i++)
+			 sec_addr(htab->splt), plt_entry);
+  for (i = 0; i < PLT_HEADER_INSNS; i++)
     bfd_put_32 (output_bfd, plt_entry[i], loc + 4*i);
 }
 
@@ -4626,10 +4516,6 @@ _bfd_riscv_elf_finish_dynamic_sections (bfd *output_bfd,
 
 	    case DT_RISCV_PLTGOT:
 	      dyn.d_un.d_ptr = sec_addr(htab->sgotplt);
-	      break;
-
-	    case DT_RISCV_GP_VALUE:
-	      dyn.d_un.d_val = elf_gp (output_bfd);
 	      break;
 
 	    case DT_RISCV_LOCAL_GOTNO:
@@ -5043,8 +4929,6 @@ _bfd_riscv_elf_link_hash_table_create (bfd *abfd)
   ret->splt = NULL;
   ret->sgot = NULL;
   ret->got_info = NULL;
-  ret->plt_header_size = 0;
-  ret->plt_entry_size = 0;
   ret->nplt = 0;
 
   return &ret->root.root;

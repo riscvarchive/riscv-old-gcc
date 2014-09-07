@@ -208,11 +208,9 @@ do {									\
 # endif
 
 /* Bias .got.plt entry by the offset requested by the PLT header. */
-#define ELF_MACHINE_RUNTIME_FIXUP_ARGS ElfW(Addr) gotplt_bias
 #define elf_machine_plt_value(map, reloc, value) (value)
-#define elf_machine_fixup_plt(map, t, reloc, reloc_addr, value) ({ \
-    *(ElfW(Addr) *)(reloc_addr) = (value) + gotplt_bias; \
-    (value); })
+#define elf_machine_fixup_plt(map, t, reloc, reloc_addr, value) \
+  (*(ElfW(Addr) *)(reloc_addr) = (value))
 
 #endif /* !dl_machine_h */
 
@@ -535,13 +533,6 @@ elf_machine_runtime_setup (struct link_map *l, int lazy, int profile)
 # ifndef RTLD_BOOTSTRAP
   /* Relocate global offset table.  */
   elf_machine_got_rel (l, lazy);
-
-  /* Load the global pointer. */
-  if (l->l_info[DT_RISCV (GP_VALUE)])
-    {
-      register long gp asm("gp") = l->l_info[DT_RISCV (GP_VALUE)]->d_un.d_val;
-      asm volatile ("" : "+r"(gp));
-    }
 
   /* If using PLTs, fill in the first two entries of .got.plt.  */
   if (l->l_info[DT_JMPREL])
