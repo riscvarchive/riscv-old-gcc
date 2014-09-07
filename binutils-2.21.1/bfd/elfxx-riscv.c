@@ -1266,22 +1266,22 @@ riscv_make_plt0_entry(bfd* abfd, bfd_vma gotplt_addr, bfd_vma addr,
   int regbytes = ABI_64_P(abfd) ? 8 : 4;
 
   /* auipc  t2, %hi(.got.plt)
-     l[w|d] v1, %lo(.got.plt)(t2)  # _dl_runtime_resolve
-     addi   t0, t2, %lo(.got.plt)
-     sub    t1, v0, t0             # .got.plt offset + 2*PTRSIZE
-     l[w|d] t0, PTRSIZE(t0)        # link map
-     addi   t1, t1, -2*PTRSIZE     # .got.plt offset
-     jr     v1
-     nop */
+     sub    v0, v0, v1               # shifted .got.plt offset + hdr size + 12
+     l[w|d] v1, %lo(.got.plt)(t2)    # _dl_runtime_resolve
+     addi   v0, v0, -(hdr size + 12) # shifted .got.plt offset
+     addi   t0, t2, %lo(.got.plt)    # &.got.plt
+     srli   t1, v0, log2(16/PTRSIZE) # .got.plt offset
+     l[w|d] t0, PTRSIZE(t0)          # link map
+     jr     v1 */
 
   entry[0] = RISCV_UTYPE(AUIPC, X_T2, RISCV_PCREL_HIGH_PART(gotplt_addr, addr));
-  entry[1] = RISCV_ITYPE(LREG(abfd), X_V1, X_T2, RISCV_PCREL_LOW_PART(gotplt_addr, addr));
-  entry[2] = RISCV_ITYPE(ADDI, X_T0, X_T2, RISCV_PCREL_LOW_PART(gotplt_addr, addr));
-  entry[3] = RISCV_RTYPE(SUB, X_T1, X_V0, X_T0);
-  entry[4] = RISCV_ITYPE(LREG(abfd), X_T0, X_T0, regbytes);
-  entry[5] = RISCV_ITYPE(ADDI, X_T1, X_T1, -2*regbytes);
-  entry[6] = RISCV_ITYPE(JALR, 0, X_V1, 0);
-  entry[7] = RISCV_NOP;
+  entry[1] = RISCV_RTYPE(SUB, X_V0, X_V0, X_V1);
+  entry[2] = RISCV_ITYPE(LREG(abfd), X_V1, X_T2, RISCV_PCREL_LOW_PART(gotplt_addr, addr));
+  entry[3] = RISCV_ITYPE(ADDI, X_V0, X_V0, -(PLT_HEADER_SIZE + 12));
+  entry[4] = RISCV_ITYPE(ADDI, X_T0, X_T2, RISCV_PCREL_LOW_PART(gotplt_addr, addr));
+  entry[5] = RISCV_ITYPE(SRLI, X_T1, X_V0, regbytes == 4 ? 2 : 1);
+  entry[6] = RISCV_ITYPE(LREG(abfd), X_T0, X_T0, regbytes);
+  entry[7] = RISCV_ITYPE(JALR, 0, X_V1, 0);
 }
 
 /* The format of subsequent PLT entries.  */
@@ -1292,13 +1292,13 @@ riscv_make_plt_entry(bfd* abfd, bfd_vma got_address, bfd_vma plt0_addr,
 {
   /* auipc  v0, %hi(.got.plt entry)
      l[w|d] v1, %lo(.got.plt entry)(v0)
-     addi   v0, %lo(.got.plt entry)
-     jr     v1 */
+     jalr   v0, v1
+     nop */
 
   entry[0] = RISCV_UTYPE(AUIPC, X_V0, RISCV_PCREL_HIGH_PART(got_address, addr));
   entry[1] = RISCV_ITYPE(LREG(abfd),  X_V1, X_V0, RISCV_PCREL_LOW_PART(got_address, addr));
-  entry[2] = RISCV_ITYPE(ADDI,  X_V0, X_V0, RISCV_PCREL_LOW_PART(got_address, addr));
-  entry[3] = RISCV_ITYPE(JALR, 0, X_V1, 0);
+  entry[2] = RISCV_ITYPE(JALR, X_V0, X_V1, 0);
+  entry[3] = RISCV_NOP;
   return plt0_addr;
 }
 
