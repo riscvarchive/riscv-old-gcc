@@ -1255,15 +1255,16 @@
    #
    l<SHORT:size>\t%0,%1"
   "&& reload_completed && REG_P (operands[1])"
-  [(set (match_dup 0) (ashift:SUPERQI (match_dup 1) (match_dup 2)))
-   (set (match_dup 0) (ashiftrt:SUPERQI (match_dup 0) (match_dup 2)))]
+  [(set (match_dup 0) (ashift:SI (match_dup 1) (match_dup 2)))
+   (set (match_dup 0) (ashiftrt:SI (match_dup 0) (match_dup 2)))]
 {
-  operands[1] = gen_lowpart (<SUPERQI:MODE>mode, operands[1]);
-  operands[2] = GEN_INT (GET_MODE_BITSIZE (<SUPERQI:MODE>mode)
+  operands[0] = gen_lowpart (SImode, operands[0]);
+  operands[1] = gen_lowpart (SImode, operands[1]);
+  operands[2] = GEN_INT (GET_MODE_BITSIZE (SImode)
 			 - GET_MODE_BITSIZE (<SHORT:MODE>mode));
 }
   [(set_attr "move_type" "shift_shift,load")
-   (set_attr "mode" "<SUPERQI:MODE>")])
+   (set_attr "mode" "SI")])
 
 (define_insn "extendsfdf2"
   [(set (match_operand:DF 0 "register_operand" "=f")
