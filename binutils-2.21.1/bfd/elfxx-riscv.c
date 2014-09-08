@@ -293,8 +293,6 @@ struct mips_htab_traverse_info
    || (r_type) == R_RISCV_TLS_DTPMOD64		\
    || (r_type) == R_RISCV_TLS_DTPREL32		\
    || (r_type) == R_RISCV_TLS_DTPREL64		\
-   || (r_type) == R_RISCV_TLS_DTPREL_HI16	\
-   || (r_type) == R_RISCV_TLS_DTPREL_LO16	\
    || (r_type) == R_RISCV_TLS_TPREL32		\
    || (r_type) == R_RISCV_TLS_TPREL64		\
    || (r_type) == R_RISCV_TPREL_HI20		\
@@ -919,37 +917,8 @@ static reloc_howto_type howto_table[] =
 
   EMPTY_HOWTO (42),
   EMPTY_HOWTO (43),
-
-  /* TLS local dynamic offset.  */
-  HOWTO (R_RISCV_TLS_DTPREL_HI16,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 32,	/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_TLS_DTPREL_HI16",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 ENCODE_UTYPE_IMM(-1U),	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
-  /* TLS local dynamic offset.  */
-  HOWTO (R_RISCV_TLS_DTPREL_LO16,	/* type */
-	 0,			/* rightshift */
-	 2,			/* size (0 = byte, 1 = short, 2 = long) */
-	 RISCV_IMM_BITS,	/* bitsize */
-	 FALSE,			/* pc_relative */
-	 0,			/* bitpos */
-	 complain_overflow_signed, /* complain_on_overflow */
-	 _bfd_riscv_elf_generic_reloc, /* special_function */
-	 "R_RISCV_TLS_DTPREL_LO16",	/* name */
-	 TRUE,			/* partial_inplace */
-	 0,			/* src_mask */
-	 ENCODE_ITYPE_IMM(-1U),	/* dst_mask */
-	 FALSE),		/* pcrel_offset */
-
+  EMPTY_HOWTO (44),
+  EMPTY_HOWTO (45),
   EMPTY_HOWTO (46),
 
   HOWTO (R_RISCV_TLS_TPREL32,	/* type */
@@ -2875,12 +2844,6 @@ mips_elf_calculate_relocation (bfd *abfd, bfd *input_bfd,
       value = ENCODE_SBTYPE_IMM (value);
       break;
 
-    case R_RISCV_TLS_DTPREL_HI16:
-      value = RISCV_LUI_HIGH_PART (addend + symbol - dtprel_base (info));
-      value = ENCODE_UTYPE_IMM (value);
-      break;
-
-    case R_RISCV_TLS_DTPREL_LO16:
     case R_RISCV_TLS_DTPREL32:
     case R_RISCV_TLS_DTPREL64:
       value = ENCODE_ITYPE_IMM (addend + symbol - dtprel_base (info));
