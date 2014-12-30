@@ -44,11 +44,11 @@ build-binutils-newlib:
 	rm -rf $@
 	mkdir $@
 	cd $@ && \
-	CFLAGS+=-Wno-error=deprecated-declarations \
 	$(srcdir)/binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-elf \
 		--program-prefix=riscv- \
 		--prefix=$(INSTALL_DIR) \
+		--disable-werror \
 		--enable-shared \
 		--enable-tls \
 		--enable-languages=c \
@@ -87,6 +87,7 @@ build-binutils-linux:
 	cd $@ && $(srcdir)/binutils-$(BINUTILS_VERSION)/configure \
 		--target=riscv-linux \
 		--prefix=$(INSTALL_DIR) \
+		--disable-werror \
 		--enable-tls \
 		--enable-languages=c \
 		--with-newlib \
