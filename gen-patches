@@ -1,9 +1,0 @@
-#!/bin/sh
-
-BINUTILS_VERSION=2.21.1
-GCC_VERSION=4.6.1
-GLIBC_VERSION=2.14.1
-
-git diff 68ad6027997289e55963bee1c60fcf6aeec2dafd -- binutils-$BINUTILS_VERSION | sed 's/^+++ b\/binutils-/+++ binutils-/' > binutils-$BINUTILS_VERSION-riscv.patch
-git diff 68ad6027997289e55963bee1c60fcf6aeec2dafd -- gcc-$GCC_VERSION | sed 's/^+++ b\/gcc-/+++ gcc-/' > gcc-$GCC_VERSION-riscv.patch
-git diff 68ad6027997289e55963bee1c60fcf6aeec2dafd -- glibc-$GLIBC_VERSION | sed 's/^+++ b\/glibc-/+++ glibc-/' > glibc-$GLIBC_VERSION-riscv.patch

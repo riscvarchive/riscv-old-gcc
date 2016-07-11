@@ -1,9 +1,0 @@
-#include "linux.h"
-
-#undef LINUX_DYNAMIC_LINKER
-#define LINUX_DYNAMIC_LINKER GLIBC_DYNAMIC_LINKER
-
-#undef TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (RISC-V ROS/ELF)");
-
-#undef MD_UNWIND_SUPPORT
